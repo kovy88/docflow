@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Environment & secrets — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local data
+.data/
+backend/.data/
+*.db
+*.sqlite3
+
+# Evaluation output (generated, reproducible)
+backend/eval_results/
+backend/.eval_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
