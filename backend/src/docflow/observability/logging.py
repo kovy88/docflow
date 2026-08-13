@@ -31,18 +31,31 @@ from docflow.config import ObservabilitySettings
 # Keys whose values are replaced with a placeholder wherever they appear.
 SENSITIVE_KEYS = frozenset(
     {
-        "password", "hashed_password", "token", "access_token", "refresh_token",
-        "api_key", "apikey", "secret", "jwt_secret", "authorization",
-        "document_text", "text", "raw_text", "content", "extracted_data",
-        "anthropic_api_key", "openai_api_key", "secret_access_key", "value",
+        "password",
+        "hashed_password",
+        "token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "apikey",
+        "secret",
+        "jwt_secret",
+        "authorization",
+        "document_text",
+        "text",
+        "raw_text",
+        "content",
+        "extracted_data",
+        "anthropic_api_key",
+        "openai_api_key",
+        "secret_access_key",
+        "value",
     }
 )
 REDACTED = "[redacted]"
 
 
-def redact_sensitive(
-    _logger: Any, _method: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+def redact_sensitive(_logger: Any, _method: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     for key in list(event_dict):
         if key.lower() in SENSITIVE_KEYS:
             event_dict[key] = REDACTED

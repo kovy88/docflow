@@ -102,9 +102,23 @@ select = [
 ignore = [
     "E501",     # line length handled by formatter
     "PLR0913",  # many arguments — common in DI-style constructors
+    "PLR0917",  # ditto, positional variant
     "PLR2004",  # magic values in comparisons
     "B008",     # FastAPI Depends() in defaults is idiomatic
     "S101",     # assert (used in tests and internal invariants)
+    # Deferred imports are load-bearing here, not sloppiness: they break
+    # import cycles between layers (services <-> worker) and keep optional
+    # dependencies (boto3, pytesseract, provider SDKs) out of the import path
+    # of processes that never use them. Enforcing top-level imports would make
+    # the API process import the OCR stack at startup.
+    "PLC0415",
+    # Module-level singletons (engine, provider, queue pool) are set through
+    # `global` in their own accessor functions. The alternative is a DI
+    # container, which is more machinery than this codebase needs.
+    "PLW0603",
+    # Czech/German source strings legitimately contain characters ruff reads as
+    # ambiguous (č, ř, ž, non-breaking spaces in currency formats).
+    "RUF001", "RUF002", "RUF003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -135,7 +149,8 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [

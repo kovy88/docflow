@@ -45,9 +45,7 @@ class Receipt(BaseModel):
 
     merchant_name: CleanStr | None = Field(
         default=None,
-        json_schema_extra=spec_field(
-            "Merchant", FieldKind.STRING, required=True, critical=True
-        ),
+        json_schema_extra=spec_field("Merchant", FieldKind.STRING, required=True, critical=True),
     )
     merchant_vat_id: CleanStr | None = Field(
         default=None, json_schema_extra=spec_field("Merchant VAT ID", FieldKind.IDENTIFIER)
@@ -58,9 +56,7 @@ class Receipt(BaseModel):
 
     purchase_date: FlexibleDate | None = Field(
         default=None,
-        json_schema_extra=spec_field(
-            "Date", FieldKind.DATE, required=True, critical=True
-        ),
+        json_schema_extra=spec_field("Date", FieldKind.DATE, required=True, critical=True),
     )
     purchase_time: CleanStr | None = Field(
         default=None, json_schema_extra=spec_field("Time", FieldKind.STRING)
@@ -89,8 +85,14 @@ class Receipt(BaseModel):
     )
     expense_category: (
         Literal[
-            "travel", "meals", "accommodation", "office_supplies", "fuel",
-            "software", "entertainment", "other",
+            "travel",
+            "meals",
+            "accommodation",
+            "office_supplies",
+            "fuel",
+            "software",
+            "entertainment",
+            "other",
         ]
         | None
     ) = Field(

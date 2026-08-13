@@ -54,8 +54,10 @@ class ClassificationStage(Stage):
         if ctx.requested_type_key:
             try:
                 self._registry.resolve(ctx.requested_type_key, str(ctx.organization_id))
-            except Exception:  # noqa: BLE001 — unknown type falls through to detection
-                logger.info("classification.unknown_requested_type", requested=ctx.requested_type_key)
+            except Exception:
+                logger.info(
+                    "classification.unknown_requested_type", requested=ctx.requested_type_key
+                )
             else:
                 ctx.classification = ClassificationResult(
                     document_type_key=ctx.requested_type_key,

@@ -24,7 +24,7 @@ from docflow.api.schemas import (
     DocumentTypeResponse,
     UsageResponse,
 )
-from docflow.db.models import Document, Extraction, Review
+from docflow.db.models import Document, Extraction
 from docflow.db.repositories import (
     DocumentRepository,
     OrganizationRepository,
@@ -52,9 +52,7 @@ async def dashboard(
     counts = await documents.status_counts()
     total = sum(counts.values())
     period = current_billing_period()
-    period_start = dt.datetime.now(dt.UTC).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    period_start = dt.datetime.now(dt.UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     organization = await OrganizationRepository(session).get(org_id)
     if organization is None:
@@ -86,20 +84,20 @@ async def dashboard(
     )
 
     reviewable = await session.scalar(
-        select(func.count()).select_from(Extraction).where(
-            Extraction.organization_id == org_id, Extraction.is_current.is_(True)
-        )
+        select(func.count())
+        .select_from(Extraction)
+        .where(Extraction.organization_id == org_id, Extraction.is_current.is_(True))
     )
     needing_review = await session.scalar(
-        select(func.count()).select_from(Extraction).where(
+        select(func.count())
+        .select_from(Extraction)
+        .where(
             Extraction.organization_id == org_id,
             Extraction.is_current.is_(True),
             Extraction.needs_review.is_(True),
         )
     )
-    review_rate = (
-        round(int(needing_review or 0) / int(reviewable), 4) if reviewable else None
-    )
+    review_rate = round(int(needing_review or 0) / int(reviewable), 4) if reviewable else None
 
     cost = float(totals["cost_usd"])
     return DashboardResponse(
@@ -165,13 +163,8 @@ async def correction_stats(
     days: Annotated[int, Query(ge=1, le=365)] = 90,
 ) -> list[CorrectionStat]:
     since = dt.datetime.now(dt.UTC) - dt.timedelta(days=days)
-    rows = await ReviewRepository(session, principal.organization_id).correction_stats(
-        since=since
-    )
-    return [
-        CorrectionStat(document_type_key=r[0], field_path=r[1], corrections=r[2])
-        for r in rows
-    ]
+    rows = await ReviewRepository(session, principal.organization_id).correction_stats(since=since)
+    return [CorrectionStat(document_type_key=r[0], field_path=r[1], corrections=r[2]) for r in rows]
 
 
 @router.get(

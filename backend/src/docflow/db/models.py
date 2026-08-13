@@ -107,9 +107,7 @@ class Organization(Base, TimestampMixin):
     )
 
     __table_args__ = (
-        CheckConstraint(
-            "plan IN ('free','starter','business','enterprise')", name="plan_valid"
-        ),
+        CheckConstraint("plan IN ('free','starter','business','enterprise')", name="plan_valid"),
         CheckConstraint("monthly_document_quota >= 0", name="quota_non_negative"),
     )
 

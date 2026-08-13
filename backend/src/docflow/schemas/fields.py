@@ -32,7 +32,7 @@ class MoneyParseError(ValueError):
     pass
 
 
-def parse_decimal(value: Any) -> Decimal | None:
+def parse_decimal(value: Any) -> Decimal | None:  # noqa: PLR0912 — separator disambiguation is inherently branchy
     """Parse a monetary/numeric value from messy real-world text.
 
     Handles, in order of appearance in the wild:
@@ -121,17 +121,37 @@ _DMY = re.compile(r"^(\d{1,2})[./\- ](\d{1,2})[./\- ](\d{2,4})")
 _YMD_COMPACT = re.compile(r"^(\d{4})(\d{2})(\d{2})$")
 
 _MONTHS = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
     # Czech
-    "led": 1, "uno": 2, "bre": 3, "dub": 4, "kve": 5, "cvn": 6,
-    "cvc": 7, "srp": 8, "zar": 9, "rij": 10, "lis": 11, "pro": 12,
+    "led": 1,
+    "uno": 2,
+    "bre": 3,
+    "dub": 4,
+    "kve": 5,
+    "cvn": 6,
+    "cvc": 7,
+    "srp": 8,
+    "zar": 9,
+    "rij": 10,
+    "lis": 11,
+    "pro": 12,
 }
 _TEXT_DATE = re.compile(r"(\d{1,2})[.\s-]+([a-zA-Zěščřžýáíéúůň]{3,12})[.\s,-]+(\d{4})")
 
 
 class DateParseResult:
-    __slots__ = ("value", "was_fuzzy", "ambiguous")
+    __slots__ = ("ambiguous", "value", "was_fuzzy")
 
     def __init__(self, value: dt.date | None, *, was_fuzzy: bool, ambiguous: bool) -> None:
         self.value = value
@@ -139,7 +159,9 @@ class DateParseResult:
         self.ambiguous = ambiguous
 
 
-def parse_date_detailed(value: Any, *, day_first: bool = True) -> DateParseResult:
+def parse_date_detailed(  # noqa: PLR0911 — one return per recognised date format
+    value: Any, *, day_first: bool = True
+) -> DateParseResult:
     """Parse a date and report *how hard it was*.
 
     The `was_fuzzy` / `ambiguous` flags feed the format-cleanliness confidence
@@ -183,8 +205,9 @@ def parse_date_detailed(value: Any, *, day_first: bool = True) -> DateParseResul
     if m := _TEXT_DATE.search(text):
         d_s, mon_s, y_s = m.groups()
         key = _fold_ascii(mon_s)[:3]
-        month = _MONTHS.get(key)
-        if month:
+        month_or_none = _MONTHS.get(key)
+        if month_or_none is not None:
+            month = month_or_none
             return DateParseResult(
                 _safe_date(int(y_s), month, int(d_s)), was_fuzzy=True, ambiguous=False
             )
@@ -226,18 +249,49 @@ FlexibleDate = Annotated[dt.date, BeforeValidator(_date_validator)]
 # than propagate into an accounting system.
 SUPPORTED_CURRENCIES = frozenset(
     {
-        "CZK", "EUR", "USD", "GBP", "PLN", "HUF", "CHF", "SEK", "NOK", "DKK",
-        "RON", "BGN", "HRK", "CAD", "AUD", "JPY",
+        "CZK",
+        "EUR",
+        "USD",
+        "GBP",
+        "PLN",
+        "HUF",
+        "CHF",
+        "SEK",
+        "NOK",
+        "DKK",
+        "RON",
+        "BGN",
+        "HRK",
+        "CAD",
+        "AUD",
+        "JPY",
     }
 )
 
 _CURRENCY_ALIASES = {
-    "KČ": "CZK", "KC": "CZK", "CZ": "CZK", "CZK": "CZK", "KORUN": "CZK", "KČS": "CZK",
-    "€": "EUR", "EURO": "EUR", "EUROS": "EUR", "EUR": "EUR",
-    "$": "USD", "US$": "USD", "USD": "USD", "DOLLAR": "USD", "DOLLARS": "USD",
-    "£": "GBP", "GBP": "GBP", "POUND": "GBP",
-    "ZŁ": "PLN", "ZL": "PLN", "PLN": "PLN",
-    "FT": "HUF", "HUF": "HUF",
+    "KČ": "CZK",
+    "KC": "CZK",
+    "CZ": "CZK",
+    "CZK": "CZK",
+    "KORUN": "CZK",
+    "KČS": "CZK",
+    "€": "EUR",
+    "EURO": "EUR",
+    "EUROS": "EUR",
+    "EUR": "EUR",
+    "$": "USD",
+    "US$": "USD",
+    "USD": "USD",
+    "DOLLAR": "USD",
+    "DOLLARS": "USD",
+    "£": "GBP",
+    "GBP": "GBP",
+    "POUND": "GBP",
+    "ZŁ": "PLN",
+    "ZL": "PLN",
+    "PLN": "PLN",
+    "FT": "HUF",
+    "HUF": "HUF",
 }
 
 
@@ -263,11 +317,41 @@ CurrencyCode = Annotated[str, BeforeValidator(_currency_validator)]
 # ---------------------------------------------------------------------------- IBAN
 
 _IBAN_LENGTHS = {
-    "AD": 24, "AT": 20, "BE": 16, "BG": 22, "CH": 21, "CY": 28, "CZ": 24, "DE": 22,
-    "DK": 18, "EE": 20, "ES": 24, "FI": 18, "FR": 27, "GB": 22, "GR": 27, "HR": 21,
-    "HU": 28, "IE": 22, "IS": 26, "IT": 27, "LI": 21, "LT": 20, "LU": 20, "LV": 21,
-    "MC": 27, "MT": 31, "NL": 18, "NO": 15, "PL": 28, "PT": 25, "RO": 24, "SE": 24,
-    "SI": 19, "SK": 24, "SM": 27,
+    "AD": 24,
+    "AT": 20,
+    "BE": 16,
+    "BG": 22,
+    "CH": 21,
+    "CY": 28,
+    "CZ": 24,
+    "DE": 22,
+    "DK": 18,
+    "EE": 20,
+    "ES": 24,
+    "FI": 18,
+    "FR": 27,
+    "GB": 22,
+    "GR": 27,
+    "HR": 21,
+    "HU": 28,
+    "IE": 22,
+    "IS": 26,
+    "IT": 27,
+    "LI": 21,
+    "LT": 20,
+    "LU": 20,
+    "LV": 21,
+    "MC": 27,
+    "MT": 31,
+    "NL": 18,
+    "NO": 15,
+    "PL": 28,
+    "PT": 25,
+    "RO": 24,
+    "SE": 24,
+    "SI": 19,
+    "SK": 24,
+    "SM": 27,
 }
 
 

@@ -44,25 +44,45 @@ def _d(value: str) -> Decimal:
 PRICING: dict[str, ModelPricing] = {
     # --- Anthropic -----------------------------------------------------------
     "claude-opus-5": ModelPricing(
-        "anthropic", "claude-opus-5", _d("5.00"), _d("25.00"),
-        cached_input_per_mtok=_d("0.50"), context_window=1_000_000,
+        "anthropic",
+        "claude-opus-5",
+        _d("5.00"),
+        _d("25.00"),
+        cached_input_per_mtok=_d("0.50"),
+        context_window=1_000_000,
     ),
     "claude-opus-4-8": ModelPricing(
-        "anthropic", "claude-opus-4-8", _d("5.00"), _d("25.00"),
-        cached_input_per_mtok=_d("0.50"), context_window=1_000_000,
+        "anthropic",
+        "claude-opus-4-8",
+        _d("5.00"),
+        _d("25.00"),
+        cached_input_per_mtok=_d("0.50"),
+        context_window=1_000_000,
     ),
     "claude-sonnet-5": ModelPricing(
-        "anthropic", "claude-sonnet-5", _d("3.00"), _d("15.00"),
-        cached_input_per_mtok=_d("0.30"), context_window=1_000_000,
+        "anthropic",
+        "claude-sonnet-5",
+        _d("3.00"),
+        _d("15.00"),
+        cached_input_per_mtok=_d("0.30"),
+        context_window=1_000_000,
         notes="Introductory pricing of $2.00/$10.00 applies through 2026-08-31.",
     ),
     "claude-sonnet-4-6": ModelPricing(
-        "anthropic", "claude-sonnet-4-6", _d("3.00"), _d("15.00"),
-        cached_input_per_mtok=_d("0.30"), context_window=1_000_000,
+        "anthropic",
+        "claude-sonnet-4-6",
+        _d("3.00"),
+        _d("15.00"),
+        cached_input_per_mtok=_d("0.30"),
+        context_window=1_000_000,
     ),
     "claude-haiku-4-5": ModelPricing(
-        "anthropic", "claude-haiku-4-5", _d("1.00"), _d("5.00"),
-        cached_input_per_mtok=_d("0.10"), context_window=200_000,
+        "anthropic",
+        "claude-haiku-4-5",
+        _d("1.00"),
+        _d("5.00"),
+        cached_input_per_mtok=_d("0.10"),
+        context_window=200_000,
         notes="Cheapest supported option; see docs/AI.md for the accuracy trade-off.",
     ),
     # --- OpenAI --------------------------------------------------------------
@@ -76,11 +96,19 @@ PRICING: dict[str, ModelPricing] = {
     # --- Fixture -------------------------------------------------------------
     # Deterministic local provider. Free by construction — it makes no API call.
     "fixture-heuristic": ModelPricing(
-        "fixture", "fixture-heuristic", _d("0"), _d("0"), context_window=1_000_000,
+        "fixture",
+        "fixture-heuristic",
+        _d("0"),
+        _d("0"),
+        context_window=1_000_000,
         notes="Deterministic local extractor. Not an LLM. Produces no cost.",
     ),
     "fixture-replay": ModelPricing(
-        "fixture", "fixture-replay", _d("0"), _d("0"), context_window=1_000_000,
+        "fixture",
+        "fixture-replay",
+        _d("0"),
+        _d("0"),
+        context_window=1_000_000,
         notes="Replays recorded provider responses. Produces no cost.",
     ),
 }

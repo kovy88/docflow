@@ -62,7 +62,7 @@ class S3Storage(StorageBackend):
 
         try:
             response = await asyncio.to_thread(_upload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("storage.put_failed", key=key, error=type(exc).__name__)
             raise StorageError("Could not upload the object") from exc
 
@@ -80,7 +80,7 @@ class S3Storage(StorageBackend):
 
         try:
             return await asyncio.to_thread(_download)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if _is_not_found(exc):
                 raise StorageObjectNotFoundError(f"Object not found: {key}") from exc
             raise StorageError("Could not download the object") from exc
@@ -94,14 +94,14 @@ class S3Storage(StorageBackend):
 
         try:
             await asyncio.to_thread(_delete)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StorageError("Could not delete the object") from exc
 
     async def exists(self, key: str) -> bool:
         def _head() -> bool:
             try:
                 self._client.head_object(Bucket=self._bucket, Key=key)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 if _is_not_found(exc):
                     return False
                 raise
@@ -109,7 +109,7 @@ class S3Storage(StorageBackend):
 
         try:
             return await asyncio.to_thread(_head)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StorageError("Could not check object existence") from exc
 
     async def presigned_url(
@@ -124,13 +124,11 @@ class S3Storage(StorageBackend):
                 # inline from a storage origin is a stored-XSS vector; attachment
                 # disposition removes the class of problem entirely.
                 params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
-            return self._client.generate_presigned_url(
-                "get_object", Params=params, ExpiresIn=ttl
-            )
+            return self._client.generate_presigned_url("get_object", Params=params, ExpiresIn=ttl)
 
         try:
             return await asyncio.to_thread(_sign)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StorageError("Could not generate a download URL") from exc
 
     async def health_check(self) -> bool:
@@ -140,7 +138,7 @@ class S3Storage(StorageBackend):
 
         try:
             return await asyncio.to_thread(_head_bucket)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("storage.health_check_failed", bucket=self._bucket)
             return False
 

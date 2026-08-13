@@ -356,9 +356,7 @@ class ConflictError(DocflowError):
     http_status = 409
 
 
-RETRYABLE_CATEGORIES = frozenset(
-    {ErrorCategory.PROVIDER, ErrorCategory.INFRASTRUCTURE}
-)
+RETRYABLE_CATEGORIES = frozenset({ErrorCategory.PROVIDER, ErrorCategory.INFRASTRUCTURE})
 
 
 def is_retryable(exc: BaseException) -> bool:

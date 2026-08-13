@@ -25,9 +25,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 @router.get("/api-keys", response_model=list[ApiKeyResponse], summary="List API keys")
-async def list_api_keys(
-    session: SessionDep, principal: CurrentPrincipal
-) -> list[ApiKeyResponse]:
+async def list_api_keys(session: SessionDep, principal: CurrentPrincipal) -> list[ApiKeyResponse]:
     keys = await ApiKeyRepository(session).list_for_org(principal.organization_id)
     return [ApiKeyResponse.model_validate(k) for k in keys]
 
@@ -78,18 +76,14 @@ async def create_api_key(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Revoke an API key",
 )
-async def revoke_api_key(
-    key_id: uuid.UUID, session: SessionDep, principal: RequireAdmin
-) -> None:
+async def revoke_api_key(key_id: uuid.UUID, session: SessionDep, principal: RequireAdmin) -> None:
     revoked = await ApiKeyRepository(session).revoke(key_id, principal.organization_id)
     if not revoked:
         raise ResourceNotFoundError("API key not found or already revoked")
 
 
 @router.get("/webhooks", response_model=list[WebhookResponse], summary="List webhooks")
-async def list_webhooks(
-    session: SessionDep, principal: CurrentPrincipal
-) -> list[WebhookResponse]:
+async def list_webhooks(session: SessionDep, principal: CurrentPrincipal) -> list[WebhookResponse]:
     endpoints = await WebhookRepository(session, principal.organization_id).list_all()
     return [WebhookResponse.model_validate(e) for e in endpoints]
 
@@ -135,8 +129,6 @@ async def create_webhook(
 async def delete_webhook(
     endpoint_id: uuid.UUID, session: SessionDep, principal: RequireAdmin
 ) -> None:
-    deleted = await WebhookRepository(session, principal.organization_id).delete(
-        endpoint_id
-    )
+    deleted = await WebhookRepository(session, principal.organization_id).delete(endpoint_id)
     if not deleted:
         raise ResourceNotFoundError("Webhook endpoint not found")

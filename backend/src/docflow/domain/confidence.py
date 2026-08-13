@@ -136,6 +136,7 @@ class FieldConfidence:
 # ------------------------------------------------------------------- normalisation
 
 _WS = re.compile(r"\s+")
+_MIN_EVIDENCE_TOKEN_LENGTH = 3
 _NON_ALNUM = re.compile(r"[^0-9a-z]+")
 
 
@@ -163,7 +164,9 @@ def _tokens(text: str) -> list[str]:
     return [t for t in _WS.split(_NON_ALNUM.sub(" ", folded)) if t]
 
 
-def grounding_score(value: Any, source_text: str, *, source_normalised: str | None = None) -> float:
+def grounding_score(  # noqa: PLR0911 — one return per evidence tier; a lookup table would obscure the ladder
+    value: Any, source_text: str, *, source_normalised: str | None = None
+) -> float:
     """How strongly is `value` supported by literal evidence in the source?
 
     1.00 — the normalised value appears verbatim in the normalised source
@@ -191,7 +194,12 @@ def grounding_score(value: Any, source_text: str, *, source_normalised: str | No
     if needle in haystack:
         return 1.0
 
-    toks = _tokens(text)
+    # Tokens shorter than this are dropped before the partial-match fallback.
+    # A 1-2 character token matches almost any document by chance: scoring
+    # `999999.99` against an invoice found the `99` inside `39 930,00` and
+    # reported partial support for a value that is not there at all. Short tokens
+    # carry no evidence, so counting them manufactures confidence.
+    toks = [t for t in _tokens(text) if len(t) >= _MIN_EVIDENCE_TOKEN_LENGTH]
     if not toks:
         return 0.10
     hits = sum(1 for t in toks if _normalise(t) and _normalise(t) in haystack)
@@ -243,5 +251,5 @@ def aggregate(
     required = required_paths or set()
     required_scores = [f.score for f in fields if f.field_path in required]
     if required_scores:
-        return round(min(mean, min(required_scores)), 4)
+        return round(min(mean, *required_scores), 4)
     return round(mean, 4)

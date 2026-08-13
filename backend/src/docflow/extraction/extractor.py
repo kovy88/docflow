@@ -63,8 +63,14 @@ REPAIRABLE_CODES = frozenset(
         "non_numeric_variable_symbol",
         "variable_symbol_too_long",
         # Pydantic type errors
-        "string_type", "int_parsing", "decimal_parsing", "date_from_datetime_parsing",
-        "date_parsing", "float_parsing", "extra_forbidden", "missing",
+        "string_type",
+        "int_parsing",
+        "decimal_parsing",
+        "date_from_datetime_parsing",
+        "date_parsing",
+        "float_parsing",
+        "extra_forbidden",
+        "missing",
     }
 )
 
@@ -292,11 +298,7 @@ class LLMExtractor:
         logger.warning("extraction.text_truncated", original_chars=len(text), limit=limit)
         head = int(limit * 0.75)
         tail = limit - head
-        return (
-            text[:head]
-            + "\n\n[... document truncated for length ...]\n\n"
-            + text[-tail:]
-        )
+        return text[:head] + "\n\n[... document truncated for length ...]\n\n" + text[-tail:]
 
     def _guard_cost(self, system: str, user: str) -> None:
         """Refuse work that would obviously breach the per-document ceiling.

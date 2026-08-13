@@ -52,7 +52,9 @@ class StorageBackend(abc.ABC):
     async def exists(self, key: str) -> bool: ...
 
     @abc.abstractmethod
-    async def presigned_url(self, key: str, *, expires_in: int = 300, filename: str | None = None) -> str:
+    async def presigned_url(
+        self, key: str, *, expires_in: int = 300, filename: str | None = None
+    ) -> str:
         """Time-limited URL for direct client download.
 
         Presigning keeps large file transfers off the API process entirely. The
@@ -76,9 +78,7 @@ def build_key(
     """Deterministic, tenant-prefixed storage key."""
     moment = now or dt.datetime.now(dt.UTC)
     suffix = extension if extension.startswith(".") or not extension else f".{extension}"
-    return (
-        f"org/{organization_id}/{moment:%Y/%m}/{document_id}/{kind}{suffix}"
-    )
+    return f"org/{organization_id}/{moment:%Y/%m}/{document_id}/{kind}{suffix}"
 
 
 def organization_prefix(organization_id: uuid.UUID | str) -> str:

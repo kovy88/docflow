@@ -50,7 +50,7 @@ from docflow.db.repositories import (
     OrganizationRepository,
 )
 from docflow.documents.validation import validate_upload
-from docflow.domain.enums import ActorType, DocumentStatus, JobStatus
+from docflow.domain.enums import DocumentStatus, JobStatus
 from docflow.domain.errors import (
     ConflictError,
     DuplicateDocumentError,
@@ -190,9 +190,7 @@ class DocumentService:
 
         existing = await self.jobs.find_by_idempotency_key(key)
         if existing is not None:
-            logger.info(
-                "job.idempotent_hit", job_id=str(existing.id), document_id=str(document.id)
-            )
+            logger.info("job.idempotent_hit", job_id=str(existing.id), document_id=str(document.id))
             return existing
 
         job = await self.jobs.create(
@@ -256,7 +254,7 @@ class DocumentService:
         for key in keys:
             try:
                 await self._storage.delete(key)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.warning("document.storage_cleanup_failed", key=key)
 
         self._audit.record(

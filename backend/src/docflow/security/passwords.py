@@ -11,6 +11,7 @@ someone to tune them down to make a login endpoint feel snappier.
 
 from __future__ import annotations
 
+import contextlib
 import secrets
 
 from argon2 import PasswordHasher
@@ -61,8 +62,13 @@ def dummy_verify() -> None:
     "no such user" returns in microseconds while "wrong password" takes ~50 ms, and
     that timing difference is a free user-enumeration oracle for anyone with a
     stopwatch.
+
+    The verification is *expected* to fail — that is the point — so the mismatch
+    must be swallowed. Letting it propagate turned the 401 into a 500, which is a
+    louder enumeration signal than the timing difference this exists to hide.
     """
-    _hasher.verify(_DUMMY_HASH, "not-the-password")  # noqa: S106
+    with contextlib.suppress(VerifyMismatchError, VerificationError, InvalidHashError):
+        _hasher.verify(_DUMMY_HASH, "not-the-password")
 
 
 # Pre-computed once at import so the dummy path costs the same as a real verify.
@@ -93,8 +99,18 @@ def validate_password_strength(password: str) -> list[str]:
 # integration, not in this module. Documented as a gap in docs/SECURITY.md.
 _COMMON_PASSWORDS = frozenset(
     {
-        "password", "password1", "password123", "12345678", "123456789", "1234567890",
-        "qwertyuiop", "letmein123", "welcome123", "admin12345", "iloveyou1",
-        "docflow123", "changeme123",
+        "password",
+        "password1",
+        "password123",
+        "12345678",
+        "123456789",
+        "1234567890",
+        "qwertyuiop",
+        "letmein123",
+        "welcome123",
+        "admin12345",
+        "iloveyou1",
+        "docflow123",
+        "changeme123",
     }
 )

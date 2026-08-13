@@ -108,7 +108,7 @@ class PipelineRunner:
                 ctx.error_code = exc.code
                 ctx.error_message = exc.message
                 return ctx
-            except Exception as exc:  # noqa: BLE001
+            except Exception:
                 _finish(record, StepStatus.FAILED, clock)
                 record.error_code = "internal_error"
                 # The exception type is safe to record; its message may contain

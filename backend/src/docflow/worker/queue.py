@@ -114,7 +114,7 @@ async def queue_health() -> dict[str, Any]:
         pool = await get_pool()
         queued = await pool.zcard("arq:queue")
         return {"healthy": True, "queued": int(queued)}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("queue.health_check_failed", error=type(exc).__name__)
         return {"healthy": False, "queued": None}
 

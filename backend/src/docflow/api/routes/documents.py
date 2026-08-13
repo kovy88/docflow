@@ -68,9 +68,7 @@ async def upload_document(
     if not principal.can(OrgRole.MEMBER):
         raise AuthorizationError("Uploading documents requires the member role or higher")
 
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     result = await service.upload(
         file.file,
         filename=file.filename or "document",
@@ -117,9 +115,7 @@ async def list_documents(
     document_type: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
 ) -> Page[DocumentSummary]:
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     documents, total = await service.documents.list(
         limit=limit,
         offset=offset,
@@ -143,9 +139,7 @@ async def get_document(
     storage: StorageDep,
     principal: CurrentPrincipal,
 ) -> DocumentDetail:
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     document = await service.documents.get(document_id)
     if document is None:
         raise ResourceNotFoundError("Document not found")
@@ -164,9 +158,7 @@ async def get_status(
     storage: StorageDep,
     principal: CurrentPrincipal,
 ) -> JobStatusResponse:
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     document = await service.documents.get(document_id)
     if document is None:
         raise ResourceNotFoundError("Document not found")
@@ -206,9 +198,7 @@ async def get_timeline(
     if await documents.get(document_id) is None:
         raise ResourceNotFoundError("Document not found")
 
-    steps = await JobRepository(session, principal.organization_id).steps_for_document(
-        document_id
-    )
+    steps = await JobRepository(session, principal.organization_id).steps_for_document(document_id)
     return [ProcessingStepResponse.model_validate(s) for s in steps]
 
 
@@ -252,9 +242,7 @@ async def reprocess_document(
     if not principal.can(OrgRole.MEMBER):
         raise AuthorizationError("Reprocessing requires the member role or higher")
 
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     job = await service.reprocess(document_id)
     await session.commit()
 
@@ -277,9 +265,7 @@ async def download_document(
     storage: StorageDep,
     principal: CurrentPrincipal,
 ) -> dict[str, str | int]:
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     url = await service.download_url(document_id)
     return {"url": url, "expires_in": settings.storage.presign_ttl_seconds}
 
@@ -298,7 +284,5 @@ async def delete_document(
 ) -> None:
     if not principal.can(OrgRole.ADMIN):
         raise AuthorizationError("Deleting documents requires the admin role")
-    service = DocumentService(
-        session, principal=principal, storage=storage, settings=settings
-    )
+    service = DocumentService(session, principal=principal, storage=storage, settings=settings)
     await service.delete(document_id)

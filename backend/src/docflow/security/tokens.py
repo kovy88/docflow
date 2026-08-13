@@ -48,7 +48,7 @@ API_KEY_BYTES = 32
 class TokenPair:
     access_token: str
     refresh_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105 — OAuth scheme name, not a secret
     expires_in: int = 0
 
 

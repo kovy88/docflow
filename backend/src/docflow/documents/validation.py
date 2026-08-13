@@ -208,10 +208,10 @@ def _assert_pdf_usable(data: bytes) -> None:
     after a storage write and a queue round trip, wastes work and produces a worse
     error message than catching it at the door.
     """
+    import io
+
     from pypdf import PdfReader
     from pypdf.errors import PdfReadError
-
-    import io
 
     try:
         reader = PdfReader(io.BytesIO(data), strict=False)
@@ -225,7 +225,7 @@ def _assert_pdf_usable(data: bytes) -> None:
                     )
             except EncryptedDocumentError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 raise EncryptedDocumentError(
                     "This PDF is password protected. Remove the password and upload again."
                 ) from exc
@@ -235,7 +235,7 @@ def _assert_pdf_usable(data: bytes) -> None:
         raise
     except PdfReadError as exc:
         raise CorruptDocumentError("The PDF could not be read — the file may be damaged") from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise CorruptDocumentError("The PDF could not be parsed") from exc
 
 
@@ -253,4 +253,4 @@ def scan_for_malware(data: bytes, *, filename: str) -> None:
     from a separate storage host), and are only ever parsed by PDF/DOCX libraries
     running inside the worker container.
     """
-    return None
+    return

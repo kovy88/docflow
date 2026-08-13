@@ -30,9 +30,7 @@ VERSION = "0.1.0"
 
 @router.get("/health", response_model=HealthResponse, summary="Liveness probe")
 async def health(settings: SettingsDep) -> HealthResponse:
-    return HealthResponse(
-        status="ok", version=VERSION, environment=settings.environment
-    )
+    return HealthResponse(status="ok", version=VERSION, environment=settings.environment)
 
 
 @router.get("/readiness", response_model=ReadinessResponse, summary="Readiness probe")
@@ -54,9 +52,7 @@ async def readiness(settings: SettingsDep, response: Response) -> ReadinessRespo
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         logger.warning("readiness.failed", checks=checks)
 
-    return ReadinessResponse(
-        status="ready" if ready else "not_ready", checks=checks, detail=detail
-    )
+    return ReadinessResponse(status="ready" if ready else "not_ready", checks=checks, detail=detail)
 
 
 @router.get("/metrics", summary="Prometheus metrics", include_in_schema=False)
@@ -76,7 +72,7 @@ async def _check_database(detail: dict[str, str]) -> bool:
         factory = get_sessionmaker()
         async with factory() as session:
             await session.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         detail["database"] = type(exc).__name__
         return False
     return True
@@ -88,7 +84,7 @@ async def _check_redis(detail: dict[str, str]) -> bool:
     try:
         pool = await get_pool()
         await pool.ping()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         detail["redis"] = type(exc).__name__
         return False
     return True
@@ -99,7 +95,7 @@ async def _check_storage(detail: dict[str, str]) -> bool:
 
     try:
         return await get_storage().health_check()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         detail["storage"] = type(exc).__name__
         return False
 
@@ -109,7 +105,7 @@ async def _check_llm(detail: dict[str, str]) -> bool:
 
     try:
         return await get_provider().health_check()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         detail["llm_provider"] = type(exc).__name__
         return False
 

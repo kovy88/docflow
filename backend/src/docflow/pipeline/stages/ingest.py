@@ -44,9 +44,7 @@ class FileValidationStage(Stage):
 
         actual = hashlib.sha256(ctx.file_bytes).hexdigest()
         if ctx.checksum_sha256 and actual != ctx.checksum_sha256:
-            raise CorruptDocumentError(
-                "The stored document does not match its recorded checksum"
-            )
+            raise CorruptDocumentError("The stored document does not match its recorded checksum")
 
     def detail(self, ctx: PipelineContext) -> dict[str, object]:
         return {"size_bytes": len(ctx.file_bytes or b""), "content_type": ctx.content_type}
@@ -135,9 +133,7 @@ class TextPersistenceStage(Stage):
         from docflow.storage.base import build_key
 
         assert ctx.extracted is not None
-        key = build_key(
-            ctx.organization_id, ctx.document_id, kind="text", extension="txt"
-        )
+        key = build_key(ctx.organization_id, ctx.document_id, kind="text", extension="txt")
         await self._storage.put(
             key, ctx.extracted.text.encode("utf-8"), content_type="text/plain; charset=utf-8"
         )

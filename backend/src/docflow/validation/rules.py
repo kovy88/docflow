@@ -54,7 +54,7 @@ def _dec(value: Any) -> Decimal | None:
         return None
     try:
         return parse_decimal(value)
-    except Exception:  # noqa: BLE001 — a malformed number is a validation input, not a crash
+    except Exception:
         return None
 
 
@@ -318,9 +318,7 @@ def positive_amounts(ctx: RuleContext) -> Iterator[Issue]:
     Credit notes legitimately carry negative totals, so this is a WARNING: a rule
     that blocks a real business document is worse than one that flags it.
     """
-    money_paths = [
-        f.path for f in ctx.spec.fields if f.kind.value in {"money", "number"}
-    ]
+    money_paths = [f.path for f in ctx.spec.fields if f.kind.value in {"money", "number"}]
     for template in money_paths:
         for concrete_path, value in expand(ctx.data, template):
             amount = _dec(value)
@@ -373,8 +371,12 @@ def _date_order(
 @registry.register("invoice_date_order")
 def invoice_date_order(ctx: RuleContext) -> Iterator[Issue]:
     yield from _date_order(
-        ctx, "invoice_date_order", "issue_date", "due_date",
-        earlier_label="Issue date", later_label="Due date",
+        ctx,
+        "invoice_date_order",
+        "issue_date",
+        "due_date",
+        earlier_label="Issue date",
+        later_label="Due date",
     )
     # A payment term beyond a year is nearly always a misparsed year digit.
     issue = _date_at(ctx, "issue_date")
@@ -393,20 +395,32 @@ def invoice_date_order(ctx: RuleContext) -> Iterator[Issue]:
 @registry.register("po_date_order")
 def po_date_order(ctx: RuleContext) -> Iterator[Issue]:
     yield from _date_order(
-        ctx, "po_date_order", "order_date", "requested_delivery_date",
-        earlier_label="Order date", later_label="Requested delivery date",
+        ctx,
+        "po_date_order",
+        "order_date",
+        "requested_delivery_date",
+        earlier_label="Order date",
+        later_label="Requested delivery date",
     )
 
 
 @registry.register("contract_date_order")
 def contract_date_order(ctx: RuleContext) -> Iterator[Issue]:
     yield from _date_order(
-        ctx, "contract_date_order", "effective_date", "expiration_date",
-        earlier_label="Effective date", later_label="Expiration date",
+        ctx,
+        "contract_date_order",
+        "effective_date",
+        "expiration_date",
+        earlier_label="Effective date",
+        later_label="Expiration date",
     )
     yield from _date_order(
-        ctx, "contract_date_order", "signature_date", "expiration_date",
-        earlier_label="Signature date", later_label="Expiration date",
+        ctx,
+        "contract_date_order",
+        "signature_date",
+        "expiration_date",
+        earlier_label="Signature date",
+        later_label="Expiration date",
         severity=Sev.WARNING,
     )
 

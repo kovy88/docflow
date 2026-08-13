@@ -168,11 +168,13 @@ class ConfidenceScoringStage(Stage):
         source_normalised = normalise_for_matching(ctx.document_text)
 
         error_paths = {
-            i.field_path for i in ctx.issues
+            i.field_path
+            for i in ctx.issues
             if i.field_path and i.severity is ValidationSeverity.ERROR
         }
         warning_paths = {
-            i.field_path for i in ctx.issues
+            i.field_path
+            for i in ctx.issues
             if i.field_path and i.severity is ValidationSeverity.WARNING
         }
         baseline_data = ctx.baseline.data if ctx.baseline else {}
@@ -221,9 +223,7 @@ class ConfidenceScoringStage(Stage):
             # something other than the model's say-so?", and giving it its own
             # weight would double-count that evidence.
             if agreement is not None:
-                grounding = (
-                    max(grounding, agreement) if grounding is not None else agreement
-                )
+                grounding = max(grounding, agreement) if grounding is not None else agreement
 
             confidence = score_field(
                 path,
@@ -246,7 +246,9 @@ class ConfidenceScoringStage(Stage):
     # ------------------------------------------------------------------ signals
 
     @staticmethod
-    def _format_signal(field_spec: FieldSpec, value: object) -> tuple[float, str | None]:
+    def _format_signal(  # noqa: PLR0911 — one return per field kind
+        field_spec: FieldSpec, value: object
+    ) -> tuple[float, str | None]:
         """How cleanly did this value parse into its declared type?"""
         if field_spec.kind is FieldKind.DATE:
             parsed = parse_date_detailed(value)
@@ -261,7 +263,7 @@ class ConfidenceScoringStage(Stage):
         if field_spec.kind in (FieldKind.MONEY, FieldKind.NUMBER):
             try:
                 return (1.0, None) if parse_decimal(value) is not None else (0.2, "Not a number")
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return 0.1, "Value is not a valid number"
 
         if field_spec.kind is FieldKind.CURRENCY:
@@ -328,7 +330,7 @@ def _comparable(value: object) -> str:
     """
     try:
         number = parse_decimal(value)
-    except Exception:  # noqa: BLE001
+    except Exception:
         number = None
     if number is not None and str(value).strip().replace(" ", "")[:1].isdigit():
         return str(number.normalize())

@@ -141,9 +141,7 @@ class Contract(BaseModel):
     )
     confidentiality: bool | None = Field(
         default=None,
-        json_schema_extra=spec_field(
-            "Confidentiality clause", FieldKind.BOOLEAN, groundable=False
-        ),
+        json_schema_extra=spec_field("Confidentiality clause", FieldKind.BOOLEAN, groundable=False),
     )
     termination_summary: CleanStr | None = Field(
         default=None,

@@ -96,7 +96,7 @@ class LLMProvider(abc.ABC):
 
     async def aclose(self) -> None:
         """Release connections. Called on application shutdown."""
-        return None
+        return
 
     # ------------------------------------------------------------------ helpers
 

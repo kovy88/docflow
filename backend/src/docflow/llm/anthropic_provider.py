@@ -73,7 +73,9 @@ class AnthropicProvider(LLMProvider):
         self._client = AsyncAnthropic(**kwargs)
         self._model = model
 
-    async def complete_structured(self, request: LLMRequest) -> LLMResponse:
+    async def complete_structured(  # noqa: PLR0912 — one `except` clause per provider failure mode
+        self, request: LLMRequest
+    ) -> LLMResponse:
         import anthropic
 
         schema = normalize_schema(request.json_schema)
@@ -81,21 +83,22 @@ class AnthropicProvider(LLMProvider):
         started = time.perf_counter()
 
         try:
-            message = await self._client.with_options(
-                timeout=request.timeout_seconds
-            ).messages.create(
-                model=self._model,
-                max_tokens=request.max_output_tokens,
-                system=request.system,
-                messages=[{"role": "user", "content": request.user_content}],
-                output_config={
-                    "format": {
-                        "type": "json_schema",
-                        "schema": schema,
-                    },
+            # Built as a dict and splatted: the SDK's `create` is a large set of
+            # overloads, and constructing the params inline confuses type
+            # narrowing without making the call any clearer.
+            params: dict[str, Any] = {
+                "model": self._model,
+                "max_tokens": request.max_output_tokens,
+                "system": request.system,
+                "messages": [{"role": "user", "content": request.user_content}],
+                "output_config": {
+                    "format": {"type": "json_schema", "schema": schema},
                     "effort": effort,
                 },
-            )
+            }
+            message = await self._client.with_options(
+                timeout=request.timeout_seconds
+            ).messages.create(**params)
         except anthropic.AuthenticationError as exc:
             raise ProviderAuthError("Anthropic rejected the API key") from exc
         except anthropic.PermissionDeniedError as exc:
@@ -122,7 +125,7 @@ class AnthropicProvider(LLMProvider):
                 "Anthropic rejected the request",
                 detail={"status": exc.status_code, "type": getattr(exc, "type", None)},
             ) from exc
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise self._wrap_unexpected(exc) from exc
 
         latency_ms = self._elapsed_ms(started)
@@ -153,9 +156,7 @@ class AnthropicProvider(LLMProvider):
             ) from exc
 
         if not isinstance(data, dict):
-            raise MalformedModelOutputError(
-                f"Expected a JSON object, got {type(data).__name__}"
-            )
+            raise MalformedModelOutputError(f"Expected a JSON object, got {type(data).__name__}")
 
         usage = getattr(message, "usage", None)
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
@@ -185,7 +186,7 @@ class AnthropicProvider(LLMProvider):
     async def health_check(self) -> bool:
         try:
             await self._client.models.retrieve(self._model)
-        except Exception:  # noqa: BLE001 — a probe must never raise
+        except Exception:
             logger.warning("llm.health_check_failed", provider=self.name, model=self._model)
             return False
         return True
@@ -204,8 +205,11 @@ def _first_text_block(message: Any) -> str | None:
 def _retry_after(exc: Any) -> float | None:
     response = getattr(exc, "response", None)
     headers = getattr(response, "headers", None) or {}
+    raw = headers.get("retry-after")
+    if raw is None:
+        return None
     try:
-        return float(headers.get("retry-after"))
+        return float(raw)
     except (TypeError, ValueError):
         return None
 

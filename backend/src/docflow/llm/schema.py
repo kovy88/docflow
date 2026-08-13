@@ -26,13 +26,38 @@ from typing import Any
 # not silently strip the schema down to nothing.
 UNSUPPORTED_KEYWORDS = frozenset(
     {
-        "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
-        "minLength", "maxLength", "pattern",
-        "minItems", "maxItems", "uniqueItems", "contains", "minContains", "maxContains",
-        "minProperties", "maxProperties", "patternProperties", "propertyNames",
-        "dependentRequired", "dependentSchemas", "if", "then", "else", "not",
-        "unevaluatedProperties", "unevaluatedItems", "prefixItems",
-        "default", "examples", "deprecated", "readOnly", "writeOnly",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "contains",
+        "minContains",
+        "maxContains",
+        "minProperties",
+        "maxProperties",
+        "patternProperties",
+        "propertyNames",
+        "dependentRequired",
+        "dependentSchemas",
+        "if",
+        "then",
+        "else",
+        "not",
+        "unevaluatedProperties",
+        "unevaluatedItems",
+        "prefixItems",
+        "default",
+        "examples",
+        "deprecated",
+        "readOnly",
+        "writeOnly",
     }
 )
 
@@ -48,7 +73,9 @@ _CONTAINER_KEYS = ("properties", "$defs", "definitions")
 _SUBSCHEMA_LISTS = ("anyOf", "allOf", "oneOf")
 
 
-def normalize_schema(schema: dict[str, Any], *, require_all_properties: bool = False) -> dict[str, Any]:
+def normalize_schema(
+    schema: dict[str, Any], *, require_all_properties: bool = False
+) -> dict[str, Any]:
     """Return a provider-safe copy of `schema`.
 
     `require_all_properties` implements the OpenAI strict-mode rule that every
@@ -63,7 +90,7 @@ def normalize_schema(schema: dict[str, Any], *, require_all_properties: bool = F
     return normalized
 
 
-def _walk(node: Any, *, require_all_properties: bool) -> Any:
+def _walk(node: Any, *, require_all_properties: bool) -> Any:  # noqa: PLR0912 — one branch per JSON Schema node shape
     if isinstance(node, list):
         return [_walk(item, require_all_properties=require_all_properties) for item in node]
     if not isinstance(node, dict):

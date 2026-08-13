@@ -135,9 +135,7 @@ class Invoice(BaseModel):
     )
     customer: Party | None = Field(
         default=None,
-        json_schema_extra=spec_field(
-            "Customer", FieldKind.OBJECT, hint="Who is being billed"
-        ),
+        json_schema_extra=spec_field("Customer", FieldKind.OBJECT, hint="Who is being billed"),
     )
 
     issue_date: FlexibleDate | None = Field(
@@ -163,9 +161,7 @@ class Invoice(BaseModel):
     )
     subtotal: Money | None = Field(
         default=None,
-        json_schema_extra=spec_field(
-            "Subtotal", FieldKind.MONEY, hint="Net amount excluding tax"
-        ),
+        json_schema_extra=spec_field("Subtotal", FieldKind.MONEY, hint="Net amount excluding tax"),
     )
     tax_amount: Money | None = Field(
         default=None, json_schema_extra=spec_field("Tax amount", FieldKind.MONEY)
@@ -179,14 +175,18 @@ class Invoice(BaseModel):
     total: Money | None = Field(
         default=None,
         json_schema_extra=spec_field(
-            "Total", FieldKind.MONEY, required=True, critical=True,
+            "Total",
+            FieldKind.MONEY,
+            required=True,
+            critical=True,
             hint="Gross amount payable including tax",
         ),
     )
     amount_due: Money | None = Field(
         default=None,
         json_schema_extra=spec_field(
-            "Amount due", FieldKind.MONEY,
+            "Amount due",
+            FieldKind.MONEY,
             hint="Outstanding amount if it differs from the total (deposits, credits)",
         ),
     )

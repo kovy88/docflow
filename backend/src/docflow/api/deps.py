@@ -153,9 +153,7 @@ def require_role(minimum: OrgRole):
 
     async def _guard(principal: CurrentPrincipal) -> AuthPrincipal:
         if not principal.can(minimum):
-            raise AuthorizationError(
-                f"This action requires the {minimum.value} role or higher"
-            )
+            raise AuthorizationError(f"This action requires the {minimum.value} role or higher")
         return principal
 
     return _guard

@@ -24,7 +24,7 @@ Two properties matter more than the individual rules:
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -146,10 +146,8 @@ class ValidationEngine:
                 continue
             try:
                 issues.extend(rule(ctx))
-            except Exception as exc:  # noqa: BLE001 — isolation is the point
-                logger.exception(
-                    "validation.rule_failed", rule_id=rule_id, spec=ctx.spec.key
-                )
+            except Exception as exc:
+                logger.exception("validation.rule_failed", rule_id=rule_id, spec=ctx.spec.key)
                 issues.append(
                     Issue(
                         rule_id=rule_id,
@@ -195,7 +193,7 @@ def validate_syntax(
     return model.model_dump(mode="json"), []
 
 
-def _readable_pydantic_error(err: dict[str, Any]) -> str:
+def _readable_pydantic_error(err: Mapping[str, Any]) -> str:
     loc = ".".join(str(p) for p in err.get("loc", ())) or "payload"
     msg = err.get("msg", "is invalid")
     return f"{loc}: {msg}"

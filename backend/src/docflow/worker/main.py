@@ -5,7 +5,7 @@ Run with: `arq docflow.worker.main.WorkerSettings`
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import structlog
 
@@ -55,7 +55,7 @@ class WorkerSettings:
     occupy a worker slot indefinitely.
     """
 
-    functions = [process_document, deliver_webhook]
+    functions: ClassVar = [process_document, deliver_webhook]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = redis_settings()

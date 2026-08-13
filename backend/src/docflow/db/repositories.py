@@ -27,7 +27,8 @@ import uuid
 from collections.abc import Sequence
 from typing import Any, Generic, TypeVar
 
-from sqlalchemy import Select, delete, func, select, update
+from sqlalchemy import CursorResult, Select, delete, func, select, update
+from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -126,9 +127,7 @@ class OrganizationRepository:
         return await self.session.get(Organization, organization_id)
 
     async def get_by_slug(self, slug: str) -> Organization | None:
-        result = await self.session.execute(
-            select(Organization).where(Organization.slug == slug)
-        )
+        result = await self.session.execute(select(Organization).where(Organization.slug == slug))
         return result.scalar_one_or_none()
 
     async def create(
@@ -142,9 +141,7 @@ class OrganizationRepository:
     async def add_member(
         self, *, organization_id: uuid.UUID, user_id: uuid.UUID, role: str
     ) -> Membership:
-        membership = Membership(
-            organization_id=organization_id, user_id=user_id, role=role
-        )
+        membership = Membership(organization_id=organization_id, user_id=user_id, role=role)
         self.session.add(membership)
         await self.session.flush()
         return membership
@@ -212,7 +209,7 @@ class ApiKeyRepository:
             )
             .values(revoked_at=dt.datetime.now(dt.UTC))
         )
-        return bool(result.rowcount)
+        return bool(cast(CursorResult[Any], result).rowcount)
 
     async def touch(self, key: ApiKey) -> None:
         key.last_used_at = dt.datetime.now(dt.UTC)
@@ -276,9 +273,7 @@ class DocumentRepository(OrgScopedRepository[Document]):
             # tsvector column is the fix if this becomes hot. Noted in DATABASE.md.
             query = query.where(Document.filename.ilike(f"%{search}%"))
 
-        total = await self.session.scalar(
-            select(func.count()).select_from(query.subquery())
-        )
+        total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
         result = await self.session.execute(
             query.order_by(Document.created_at.desc()).limit(limit).offset(offset)
         )
@@ -329,7 +324,7 @@ class DocumentRepository(OrgScopedRepository[Document]):
                 Document.organization_id == self.organization_id,
             )
         )
-        return bool(result.rowcount)
+        return bool(cast(CursorResult[Any], result).rowcount)
 
 
 class JobRepository(OrgScopedRepository[ProcessingJob]):
@@ -384,9 +379,7 @@ class JobRepository(OrgScopedRepository[ProcessingJob]):
         job.status = status.value
         job.finished_at = dt.datetime.now(dt.UTC)
         if job.started_at:
-            job.duration_ms = int(
-                (job.finished_at - job.started_at).total_seconds() * 1000
-            )
+            job.duration_ms = int((job.finished_at - job.started_at).total_seconds() * 1000)
         job.error_code = error_code
         job.error_category = error_category
         job.error_message = error_message
@@ -439,7 +432,7 @@ class ExtractionRepository(OrgScopedRepository[Extraction]):
             )
             .values(is_current=False, status=ExtractionStatus.SUPERSEDED.value)
         )
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult[Any], result).rowcount or 0)
 
     async def next_revision(self, document_id: uuid.UUID) -> int:
         highest = await self.session.scalar(
@@ -677,7 +670,7 @@ class WebhookRepository(OrgScopedRepository[WebhookEndpoint]):
                 WebhookEndpoint.organization_id == self.organization_id,
             )
         )
-        return bool(result.rowcount)
+        return bool(cast(CursorResult[Any], result).rowcount)
 
     def queue_delivery(self, **values: Any) -> WebhookDelivery:
         delivery = WebhookDelivery(

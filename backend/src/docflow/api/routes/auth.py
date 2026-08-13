@@ -97,9 +97,7 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse, summary="Sign in")
-async def login(
-    payload: LoginRequest, session: SessionDep, settings: SettingsDep
-) -> TokenResponse:
+async def login(payload: LoginRequest, session: SessionDep, settings: SettingsDep) -> TokenResponse:
     users = UserRepository(session)
     user = await users.get_by_email(payload.email)
 
@@ -124,9 +122,7 @@ async def login(
 
     await users.touch_login(user)
     membership = memberships[0]
-    return _token_response(
-        user, membership.organization, OrgRole(membership.role), settings
-    )
+    return _token_response(user, membership.organization, OrgRole(membership.role), settings)
 
 
 @router.post("/refresh", response_model=TokenResponse, summary="Exchange a refresh token")
@@ -149,15 +145,11 @@ async def refresh(
     if membership is None:
         raise InvalidCredentialsError("You no longer have access to this organization")
 
-    return _token_response(
-        user, membership.organization, OrgRole(membership.role), settings
-    )
+    return _token_response(user, membership.organization, OrgRole(membership.role), settings)
 
 
 @router.get("/session", response_model=SessionResponse, summary="Current session")
-async def current_session(
-    session: SessionDep, principal: CurrentPrincipal
-) -> SessionResponse:
+async def current_session(session: SessionDep, principal: CurrentPrincipal) -> SessionResponse:
     users = UserRepository(session)
     if principal.user_id is None:
         raise InvalidCredentialsError("This endpoint requires a user session, not an API key")
@@ -167,9 +159,7 @@ async def current_session(
         raise ResourceNotFoundError("User not found")
 
     memberships = await users.memberships(user.id)
-    current = next(
-        (m for m in memberships if m.organization_id == principal.organization_id), None
-    )
+    current = next((m for m in memberships if m.organization_id == principal.organization_id), None)
     if current is None:
         raise ResourceNotFoundError("Organization membership not found")
 

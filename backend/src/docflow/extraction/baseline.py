@@ -53,7 +53,9 @@ from docflow.validation.paths import set_path
 IBAN_RE = re.compile(r"\b([A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30})\b")
 CZ_ACCOUNT_RE = re.compile(r"\b((?:\d{1,6}-)?\d{2,10}/\d{4})\b")
 SWIFT_RE = re.compile(r"\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b")
-VAT_RE = re.compile(r"\b((?:CZ|SK|PL|DE|AT|HU|GB|FR|IT|ES|NL|BE|SE|DK|FI|IE|PT|RO|BG|SI|HR|LT|LV|EE|LU|MT|CY|GR)\s?[0-9A-Z]{8,12})\b")
+VAT_RE = re.compile(
+    r"\b((?:CZ|SK|PL|DE|AT|HU|GB|FR|IT|ES|NL|BE|SE|DK|FI|IE|PT|RO|BG|SI|HR|LT|LV|EE|LU|MT|CY|GR)\s?[0-9A-Z]{8,12})\b"
+)
 ICO_RE = re.compile(r"\b(\d{8})\b")
 AMOUNT_RE = re.compile(r"(-?\(?[\d][\d  .,']{0,15}[\d](?:[.,]\d{1,2})?\)?)")
 CURRENCY_TOKEN_RE = re.compile(
@@ -207,7 +209,7 @@ class LabelExtractor:
             return None
         return candidates[-1] if rule.prefer_last else candidates[0]
 
-    def _parse(self, raw: str, kind: str) -> Any:
+    def _parse(self, raw: str, kind: str) -> Any:  # noqa: PLR0911, PLR0912 — dispatch over field kinds; a table of one-liners reads worse than the chain
         raw = raw.strip()
         if not raw:
             return None
@@ -274,7 +276,7 @@ class LabelExtractor:
             return None
         try:
             value = parse_decimal(candidates[-1])
-        except Exception:  # noqa: BLE001 — a non-numeric match is a miss, not a crash
+        except Exception:
             return None
         return str(value) if isinstance(value, Decimal) else None
 
@@ -284,23 +286,37 @@ class LabelExtractor:
 INVOICE_RULES: tuple[FieldRule, ...] = (
     FieldRule(
         "invoice_number",
-        ("invoice number", "invoice no", "invoice #", "invoice", "faktura číslo",
-         "faktura č", "číslo faktury", "daňový doklad č", "rechnungsnummer"),
+        (
+            "invoice number",
+            "invoice no",
+            "invoice #",
+            "invoice",
+            "faktura číslo",
+            "faktura č",
+            "číslo faktury",
+            "daňový doklad č",
+            "rechnungsnummer",
+        ),
         "text",
         exclude=("purchase order", "objednávk"),
         max_chars=40,
     ),
     FieldRule(
         "issue_date",
-        ("date of issue", "issue date", "invoice date", "datum vystavení",
-         "vystaveno", "rechnungsdatum"),
+        (
+            "date of issue",
+            "issue date",
+            "invoice date",
+            "datum vystavení",
+            "vystaveno",
+            "rechnungsdatum",
+        ),
         "date",
         exclude=("due", "splatnost"),
     ),
     FieldRule(
         "due_date",
-        ("due date", "payment due", "date due", "datum splatnosti", "splatnost",
-         "fällig"),
+        ("due date", "payment due", "date due", "datum splatnosti", "splatnost", "fällig"),
         "date",
     ),
     FieldRule(
@@ -310,8 +326,16 @@ INVOICE_RULES: tuple[FieldRule, ...] = (
     ),
     FieldRule(
         "subtotal",
-        ("subtotal", "net amount", "total excl", "total net", "základ daně",
-         "cena bez dph", "celkem bez dph", "nettobetrag"),
+        (
+            "subtotal",
+            "net amount",
+            "total excl",
+            "total net",
+            "základ daně",
+            "cena bez dph",
+            "celkem bez dph",
+            "nettobetrag",
+        ),
         "amount",
         prefer_last=True,
     ),
@@ -321,17 +345,37 @@ INVOICE_RULES: tuple[FieldRule, ...] = (
         # label the tax line with just the rate ("DPH 21%"). The percentage itself
         # is skipped by `_parse_amount`; the excludes keep this rule off the net
         # and gross lines, which also mention the tax.
-        ("vat amount", "tax amount", "total vat", "total tax", "dph celkem",
-         "daň celkem", "výše dph", "mwst", "dph", "vat"),
+        (
+            "vat amount",
+            "tax amount",
+            "total vat",
+            "total tax",
+            "dph celkem",
+            "daň celkem",
+            "výše dph",
+            "mwst",
+            "dph",
+            "vat",
+        ),
         "amount",
         exclude=("základ", "zaklad", "bez dph", "celkem s dph", "incl", "excl", "net"),
         prefer_last=True,
     ),
     FieldRule(
         "total",
-        ("total amount due", "amount due", "total due", "grand total", "total incl",
-         "total", "k úhradě", "celkem k úhradě", "celkem s dph", "celkem",
-         "gesamtbetrag"),
+        (
+            "total amount due",
+            "amount due",
+            "total due",
+            "grand total",
+            "total incl",
+            "total",
+            "k úhradě",
+            "celkem k úhradě",
+            "celkem s dph",
+            "celkem",
+            "gesamtbetrag",
+        ),
         "amount",
         exclude=("subtotal", "bez dph", "excl", "net amount"),
         prefer_last=True,
@@ -390,8 +434,15 @@ INVOICE_RULES: tuple[FieldRule, ...] = (
 PURCHASE_ORDER_RULES: tuple[FieldRule, ...] = (
     FieldRule(
         "po_number",
-        ("purchase order number", "po number", "po no", "purchase order", "order number",
-         "číslo objednávky", "objednávka č"),
+        (
+            "purchase order number",
+            "po number",
+            "po no",
+            "purchase order",
+            "order number",
+            "číslo objednávky",
+            "objednávka č",
+        ),
         "text",
         max_chars=40,
     ),
@@ -411,16 +462,27 @@ PURCHASE_ORDER_RULES: tuple[FieldRule, ...] = (
         prefer_last=True,
     ),
     FieldRule("currency", ("currency", "měna"), "currency"),
-    FieldRule("shipping_terms", ("incoterms", "shipping terms", "delivery terms"), "text", max_chars=60),
+    FieldRule(
+        "shipping_terms", ("incoterms", "shipping terms", "delivery terms"), "text", max_chars=60
+    ),
     FieldRule("payment_terms", ("payment terms", "terms of payment"), "text", max_chars=80),
-    FieldRule("delivery_address", ("ship to", "deliver to", "delivery address"), "text", max_chars=200),
+    FieldRule(
+        "delivery_address", ("ship to", "deliver to", "delivery address"), "text", max_chars=200
+    ),
     FieldRule("requester", ("requested by", "requester", "ordered by"), "text", max_chars=80),
-    FieldRule("cost_center", ("cost centre", "cost center", "nákladové středisko"), "text", max_chars=40),
+    FieldRule(
+        "cost_center", ("cost centre", "cost center", "nákladové středisko"), "text", max_chars=40
+    ),
     FieldRule("buyer.registration_id", ("company id", "ičo", "ico"), "ico"),
 )
 
 RECEIPT_RULES: tuple[FieldRule, ...] = (
-    FieldRule("receipt_number", ("receipt no", "receipt number", "doklad č", "účtenka č"), "text", max_chars=40),
+    FieldRule(
+        "receipt_number",
+        ("receipt no", "receipt number", "doklad č", "účtenka č"),
+        "text",
+        max_chars=40,
+    ),
     FieldRule("purchase_date", ("date", "datum"), "date", exclude=("due", "splatnost")),
     FieldRule("purchase_time", ("time", "čas"), "text", max_chars=12),
     FieldRule("subtotal", ("subtotal", "net", "bez dph"), "amount", prefer_last=True),
@@ -437,7 +499,9 @@ RECEIPT_RULES: tuple[FieldRule, ...] = (
 )
 
 CONTRACT_RULES: tuple[FieldRule, ...] = (
-    FieldRule("title", ("agreement title", "title of agreement", "název smlouvy"), "text", max_chars=120),
+    FieldRule(
+        "title", ("agreement title", "title of agreement", "název smlouvy"), "text", max_chars=120
+    ),
     FieldRule(
         "effective_date",
         ("effective date", "commencement date", "start date", "datum účinnosti", "účinnost od"),
@@ -463,7 +527,12 @@ CONTRACT_RULES: tuple[FieldRule, ...] = (
 )
 
 GENERIC_RULES: tuple[FieldRule, ...] = (
-    FieldRule("reference_number", ("reference", "ref no", "document number", "číslo dokladu"), "text", max_chars=40),
+    FieldRule(
+        "reference_number",
+        ("reference", "ref no", "document number", "číslo dokladu"),
+        "text",
+        max_chars=40,
+    ),
     FieldRule("document_date", ("date", "datum"), "date"),
     FieldRule("total_amount", ("total", "amount", "celkem"), "amount", prefer_last=True),
     FieldRule("currency", ("currency", "měna"), "currency"),
@@ -510,19 +579,28 @@ def _post_process(result: BaselineResult, text: str, document_type: str) -> None
         ):
             _safe_set(result, "bank_details.account_number", m.group(1), m.group(0))
 
-    if "currency" not in result.matched_paths and (m := CURRENCY_TOKEN_RE.search(text)):
-        if code := normalize_currency(m.group(1)):
-            _safe_set(result, "currency", code, m.group(0).strip())
+    if (
+        "currency" not in result.matched_paths
+        and (m := CURRENCY_TOKEN_RE.search(text))
+        and (code := normalize_currency(m.group(1)))
+    ):
+        _safe_set(result, "currency", code, m.group(0).strip())
 
     # The supplier name is almost always the most prominent text at the top of the
     # page. Taking the first substantial line is crude but works on the majority of
     # templated documents, and being wrong here is visible rather than silent.
-    if document_type == "invoice" and "supplier.name" not in result.matched_paths:
-        if name := _leading_entity_name(text):
-            _safe_set(result, "supplier.name", name, name)
-    if document_type == "receipt" and "merchant_name" not in result.matched_paths:
-        if name := _leading_entity_name(text):
-            _safe_set(result, "merchant_name", name, name)
+    if (
+        document_type == "invoice"
+        and "supplier.name" not in result.matched_paths
+        and (name := _leading_entity_name(text))
+    ):
+        _safe_set(result, "supplier.name", name, name)
+    if (
+        document_type == "receipt"
+        and "merchant_name" not in result.matched_paths
+        and (name := _leading_entity_name(text))
+    ):
+        _safe_set(result, "merchant_name", name, name)
 
 
 _SKIP_LEADING = re.compile(

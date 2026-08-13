@@ -115,7 +115,7 @@ class FieldSource(StrEnum):
 
 
 class ValidationSeverity(StrEnum):
-    ERROR = "error"      # blocks approval
+    ERROR = "error"  # blocks approval
     WARNING = "warning"  # routes to review, does not block
     INFO = "info"
 

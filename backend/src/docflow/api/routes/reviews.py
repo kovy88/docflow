@@ -122,7 +122,7 @@ async def review_queue(
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ExtractionResponse]:
-    extractions = await ExtractionRepository(
-        session, principal.organization_id
-    ).review_queue(limit=limit, offset=offset)
+    extractions = await ExtractionRepository(session, principal.organization_id).review_queue(
+        limit=limit, offset=offset
+    )
     return [serialize_extraction(e) for e in extractions]

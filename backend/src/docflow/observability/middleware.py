@@ -188,9 +188,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client = request.client
         return f"ip:{client.host}" if client else "ip:unknown"
 
-    async def _check(
-        self, identity: str, limit: int, is_upload: bool
-    ) -> tuple[bool, int, int]:
+    async def _check(self, identity: str, limit: int, is_upload: bool) -> tuple[bool, int, int]:
         from docflow.worker.queue import get_pool
 
         window = int(time.time() // 60)
@@ -204,6 +202,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 await redis.expire(key, 70)
             reset_in = 60 - int(time.time() % 60)
             return count <= limit, limit - int(count), reset_in
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("ratelimit.backend_unavailable", identity=identity)
             return True, limit, 60

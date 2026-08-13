@@ -113,7 +113,9 @@ class WebhookService:
 
         return len(endpoints)
 
-    async def deliver(self, delivery_id: uuid.UUID, *, attempt: int = 1) -> dict[str, Any]:
+    async def deliver(  # noqa: PLR0911 — one return per delivery outcome
+        self, delivery_id: uuid.UUID, *, attempt: int = 1
+    ) -> dict[str, Any]:
         from docflow.db.models import WebhookDelivery, WebhookEndpoint
 
         delivery = await self._session.get(WebhookDelivery, delivery_id)
@@ -156,7 +158,7 @@ class WebhookService:
                         "X-Docflow-Signature": f"sha256={signature}",
                     },
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return self._record_failure(delivery, endpoint, attempt, str(type(exc).__name__))
 
         delivery.response_code = response.status_code
@@ -170,9 +172,7 @@ class WebhookService:
             logger.info("webhook.delivered", delivery_id=str(delivery.id))
             return {"status": "delivered", "code": response.status_code}
 
-        return self._record_failure(
-            delivery, endpoint, attempt, f"http_{response.status_code}"
-        )
+        return self._record_failure(delivery, endpoint, attempt, f"http_{response.status_code}")
 
     def _record_failure(
         self, delivery: Any, endpoint: Any, attempt: int, reason: str
@@ -187,9 +187,7 @@ class WebhookService:
             if endpoint.consecutive_failures >= 20:
                 endpoint.is_active = False
                 logger.warning("webhook.endpoint_disabled", endpoint_id=str(endpoint.id))
-            logger.warning(
-                "webhook.exhausted", delivery_id=str(delivery.id), reason=reason
-            )
+            logger.warning("webhook.exhausted", delivery_id=str(delivery.id), reason=reason)
             return {"status": "exhausted", "reason": reason}
 
         delivery.status = DeliveryStatus.FAILED.value

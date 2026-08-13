@@ -23,7 +23,6 @@ async story is worth a lot.
 
 from __future__ import annotations
 
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -76,8 +75,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         for problem in problems:
             logger.error("startup.invalid_configuration", problem=problem)
         raise RuntimeError(
-            f"Refusing to start: {len(problems)} configuration problem(s). "
-            + "; ".join(problems)
+            f"Refusing to start: {len(problems)} configuration problem(s). " + "; ".join(problems)
         )
 
     logger.info(
@@ -176,4 +174,4 @@ def main() -> None:  # pragma: no cover
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sys.exit(main())
+    main()

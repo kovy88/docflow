@@ -79,7 +79,11 @@ class ProcessingService:
         self._settings = settings
 
     async def process(
-        self, *, job_id: uuid.UUID, organization_id: uuid.UUID, attempt: int = 1,
+        self,
+        *,
+        job_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        attempt: int = 1,
         request_id: str | None = None,
     ) -> ProcessingResult:
         jobs = JobRepository(self._session, organization_id)
@@ -132,7 +136,10 @@ class ProcessingService:
         duration_ms = int((dt.datetime.now(dt.UTC) - started).total_seconds() * 1000)
 
         return await self._persist(
-            job=job, document=document, ctx=ctx, duration_ms=duration_ms,
+            job=job,
+            document=document,
+            ctx=ctx,
+            duration_ms=duration_ms,
             organization_id=organization_id,
         )
 
@@ -207,9 +214,7 @@ class ProcessingService:
         extraction = await self._write_extraction(extractions, ctx, document, job)
         ctx.extraction_id = extraction.id
 
-        status = (
-            DocumentStatus.NEEDS_REVIEW if ctx.needs_review else DocumentStatus.COMPLETED
-        )
+        status = DocumentStatus.NEEDS_REVIEW if ctx.needs_review else DocumentStatus.COMPLETED
         document.status = status.value
         document.error_code = None
         document.error_message = None
@@ -269,9 +274,7 @@ class ProcessingService:
         await extractions.supersede_current(document.id)
         revision = await extractions.next_revision(document.id)
 
-        status = (
-            ExtractionStatus.NEEDS_REVIEW if ctx.needs_review else ExtractionStatus.DRAFT
-        )
+        status = ExtractionStatus.NEEDS_REVIEW if ctx.needs_review else ExtractionStatus.DRAFT
         extraction = await extractions.create(
             document_id=document.id,
             job_id=job.id,

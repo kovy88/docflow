@@ -82,7 +82,9 @@ class GenericDocument(BaseModel):
     summary: CleanStr | None = Field(
         default=None,
         json_schema_extra=spec_field(
-            "Summary", FieldKind.TEXT, groundable=False,
+            "Summary",
+            FieldKind.TEXT,
+            groundable=False,
             hint="Two or three sentences describing the document",
         ),
     )
@@ -149,7 +151,9 @@ class SchemaRegistry:
             detail={"document_type": key},
         )
 
-    def resolve_or_fallback(self, key: str | None, organization_id: str | None = None) -> DocumentTypeSpec:
+    def resolve_or_fallback(
+        self, key: str | None, organization_id: str | None = None
+    ) -> DocumentTypeSpec:
         if not key:
             return self._builtin[FALLBACK_KEY]
         try:

@@ -67,9 +67,7 @@ class ClassificationResult:
         return self.confidence >= 0.65
 
 
-def classify_heuristic(
-    text: str, specs: list[DocumentTypeSpec]
-) -> ClassificationResult:
+def classify_heuristic(text: str, specs: list[DocumentTypeSpec]) -> ClassificationResult:
     """Keyword and pattern scoring with saturating evidence.
 
     Scores use `earned / (earned + HALF_EVIDENCE)` rather than
@@ -128,7 +126,7 @@ def classify_heuristic(
     # arbitrary guess presented as a result; `generic` with zero confidence is the
     # honest answer and routes the document to review.
     if best_score <= 0:
-        return ClassificationResult("generic", 0.0, "fallback", {k: 0.0 for k in scores})
+        return ClassificationResult("generic", 0.0, "fallback", dict.fromkeys(scores, 0.0))
     runner_up_key, runner_up_score = ranked[1] if len(ranked) > 1 else (None, 0.0)
 
     # An ambiguous result is reported at its *margin*, not its raw score, so the

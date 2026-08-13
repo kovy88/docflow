@@ -62,12 +62,12 @@ class OpenAIProvider(LLMProvider):
         self._client = AsyncOpenAI(**kwargs)
         self._model = model
 
-    async def complete_structured(self, request: LLMRequest) -> LLMResponse:
+    async def complete_structured(  # noqa: PLR0912 — one `except` clause per provider failure mode
+        self, request: LLMRequest
+    ) -> LLMResponse:
         import openai
 
-        schema = ensure_nullable(
-            normalize_schema(request.json_schema, require_all_properties=True)
-        )
+        schema = ensure_nullable(normalize_schema(request.json_schema, require_all_properties=True))
         started = time.perf_counter()
 
         try:
@@ -107,7 +107,7 @@ class OpenAIProvider(LLMProvider):
             raise ProviderNotConfiguredError(
                 "OpenAI rejected the request", detail={"status": exc.status_code}
             ) from exc
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise self._wrap_unexpected(exc) from exc
 
         latency_ms = self._elapsed_ms(started)
@@ -167,7 +167,7 @@ class OpenAIProvider(LLMProvider):
     async def health_check(self) -> bool:
         try:
             await self._client.models.retrieve(self._model)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("llm.health_check_failed", provider=self.name, model=self._model)
             return False
         return True

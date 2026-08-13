@@ -151,9 +151,7 @@ async def _dead_letter(job_id: uuid.UUID, org_id: uuid.UUID, error_code: str | N
     logger.error("job.dead_lettered", job_id=str(job_id), error_code=error_code)
 
 
-async def _fail_job(
-    job_id: uuid.UUID, org_id: uuid.UUID, error_code: str, message: str
-) -> None:
+async def _fail_job(job_id: uuid.UUID, org_id: uuid.UUID, error_code: str, message: str) -> None:
     async with session_scope() as session:
         jobs = JobRepository(session, org_id)
         job = await jobs.get(job_id)
@@ -192,7 +190,7 @@ async def _notify(result: Any, organization_id: uuid.UUID) -> None:
                     "confidence": result.confidence,
                 },
             )
-    except Exception:  # noqa: BLE001
+    except Exception:
         # A webhook problem must never fail a document that processed correctly.
         logger.exception("webhook.dispatch_failed", document_id=str(result.document_id))
 
@@ -205,5 +203,4 @@ async def deliver_webhook(
     attempt = int(ctx.get("job_try", 1))
     async with session_scope() as session:
         service = WebhookService(session, organization_id=uuid.UUID(organization_id))
-        outcome = await service.deliver(uuid.UUID(delivery_id), attempt=attempt)
-    return outcome
+        return await service.deliver(uuid.UUID(delivery_id), attempt=attempt)

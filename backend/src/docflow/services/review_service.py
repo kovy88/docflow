@@ -51,6 +51,7 @@ from docflow.domain.enums import (
     DocumentStatus,
     ExtractionStatus,
     FieldSource,
+    OrgRole,
     ReviewAction,
     ValidationSeverity,
 )
@@ -62,7 +63,6 @@ from docflow.domain.errors import (
 )
 from docflow.schemas.registry import SchemaRegistry, get_registry
 from docflow.security.tokens import AuthPrincipal
-from docflow.domain.enums import OrgRole
 from docflow.validation.engine import RuleContext, ValidationEngine, validate_syntax
 from docflow.validation.paths import set_path, to_template
 
@@ -118,9 +118,7 @@ class ReviewService:
             )
 
         extraction = await self._load_editable(document_id)
-        spec = self._registry.resolve_or_fallback(
-            extraction.document_type_key, str(self._org_id)
-        )
+        spec = self._registry.resolve_or_fallback(extraction.document_type_key, str(self._org_id))
 
         data = dict(extraction.data or {})
         by_path = {f.field_path: f for f in extraction.fields}
@@ -232,7 +230,8 @@ class ReviewService:
         extraction = await self._load_editable(document_id)
 
         blocking = [
-            i for i in extraction.issues
+            i
+            for i in extraction.issues
             if i.severity == ValidationSeverity.ERROR.value and not i.resolved
         ]
         if blocking and not force:
@@ -240,9 +239,7 @@ class ReviewService:
                 "This extraction still has validation errors. Fix them, or approve with "
                 "`force` to override.",
                 detail={
-                    "errors": [
-                        {"field": i.field_path, "message": i.message} for i in blocking[:10]
-                    ]
+                    "errors": [{"field": i.field_path, "message": i.message} for i in blocking[:10]]
                 },
             )
 
@@ -363,9 +360,7 @@ class ReviewService:
 
     def _require_role(self, role: OrgRole) -> None:
         if not self._principal.can(role):
-            raise AuthorizationError(
-                f"This action requires the {role.value} role or higher"
-            )
+            raise AuthorizationError(f"This action requires the {role.value} role or higher")
 
 
 def _mark_human(field: ExtractionField, value: Any) -> None:

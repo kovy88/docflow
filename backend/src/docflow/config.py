@@ -46,7 +46,7 @@ class DatabaseSettings(_Base):
     model_config = _config("DOCFLOW_DB_")
 
     url: PostgresDsn = Field(
-        default="postgresql+asyncpg://docflow:docflow@localhost:5433/docflow"  # type: ignore[arg-type]
+        default="postgresql+asyncpg://docflow:docflow@localhost:5433/docflow"  # type: ignore[assignment]
     )
     pool_size: int = 10
     max_overflow: int = 10
@@ -63,7 +63,7 @@ class DatabaseSettings(_Base):
 class RedisSettings(_Base):
     model_config = _config("DOCFLOW_REDIS_")
 
-    url: RedisDsn = Field(default="redis://localhost:6380/0")  # type: ignore[arg-type]
+    url: RedisDsn = Field(default="redis://localhost:6380/0")  # type: ignore[assignment]
     # Separate logical DB for the queue keeps cache flushes from nuking pending jobs.
     queue_db: int = 1
 
@@ -88,7 +88,7 @@ class SecuritySettings(_Base):
 
     # MUST be overridden outside local/test. Startup refuses to boot in production
     # with the default (see `Settings.validate_for_environment`).
-    jwt_secret: str = "dev-only-insecure-secret-change-me"
+    jwt_secret: str = "dev-only-insecure-secret-change-me"  # noqa: S105 — deliberate placeholder; production boot rejects it
     jwt_algorithm: str = "HS256"
     access_token_ttl_seconds: int = 60 * 30  # 30 min
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 14  # 14 days

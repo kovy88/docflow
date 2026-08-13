@@ -67,10 +67,22 @@ class ExtractedText:
 # Ligatures and typographic characters that PDF text layers emit and that break
 # naive string matching downstream (grounding, label anchoring).
 _REPLACEMENTS = {
-    "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl",
-    "‘": "'", "’": "'", "“": '"', "”": '"',
-    "–": "-", "—": "-", "−": "-",
-    " ": " ", " ": " ", " ": " ", "​": "",
+    "ﬀ": "ff",
+    "ﬁ": "fi",
+    "ﬂ": "fl",
+    "ﬃ": "ffi",
+    "ﬄ": "ffl",
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+    "–": "-",
+    "—": "-",
+    "−": "-",
+    " ": " ",
+    " ": " ",
+    " ": " ",
+    "\u200b": "",
 }
 _MULTI_BLANK = re.compile(r"\n{3,}")
 _TRAILING_WS = re.compile(r"[ \t]+\n")
@@ -126,7 +138,7 @@ class TextExtractor:
                 metadata = _pdf_metadata(pdf)
         except TooManyPagesError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise CorruptDocumentError("The PDF could not be parsed for text") from exc
 
         sparse = [p for p in pages if p.char_count < self._settings.ocr_chars_per_page_threshold]
@@ -171,7 +183,7 @@ class TextExtractor:
                 first_page=min(p.number for p in pages),
                 last_page=max(p.number for p in pages),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("ocr.rasterisation_failed", error=type(exc).__name__)
             return
 
@@ -183,7 +195,7 @@ class TextExtractor:
                 continue
             try:
                 recognised = engine["ocr"](image, lang=self._settings.ocr_language)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("ocr.page_failed", page=page.number, error=type(exc).__name__)
                 continue
             cleaned = clean_text(recognised or "")
@@ -213,12 +225,12 @@ class TextExtractor:
         try:
             image = Image.open(io.BytesIO(data))
             image.load()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise CorruptDocumentError("The image could not be opened") from exc
 
         try:
             raw = engine["ocr"](image, lang=self._settings.ocr_language)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise TextExtractionError("OCR failed on this image") from exc
 
         text = clean_text(raw or "")
@@ -262,7 +274,7 @@ class TextExtractor:
 
         try:
             document = docx.Document(io.BytesIO(data))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise CorruptDocumentError("The Word document could not be opened") from exc
 
         parts = [p.text for p in document.paragraphs if p.text.strip()]
@@ -313,7 +325,7 @@ def _load_ocr_engine() -> dict[str, Any]:
 
     try:
         pytesseract.get_tesseract_version()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise OCRUnavailableError(
             "The Tesseract binary was not found. Install it (macOS: `brew install tesseract`, "
             "Debian: `apt-get install tesseract-ocr`). The Docker image includes it."
@@ -340,11 +352,7 @@ def ocr_available() -> bool:
 def _pdf_metadata(pdf: Any) -> dict[str, Any]:
     raw = getattr(pdf, "metadata", None) or {}
     keep = ("Title", "Author", "Producer", "Creator", "CreationDate", "ModDate")
-    return {
-        key.lower(): str(raw[key])[:200]
-        for key in keep
-        if raw.get(key)
-    }
+    return {key.lower(): str(raw[key])[:200] for key in keep if raw.get(key)}
 
 
 # Stop-word frequency language detection. A full language-identification library
