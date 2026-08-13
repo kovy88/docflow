@@ -17,11 +17,27 @@ number resembles a probability.
 
 | Signal | Weight | Rationale |
 |---|---|---|
-| Evidence grounding | 0.40 | Does the value actually occur in the source text? The single strongest hallucination detector available without a second model call, and completely deterministic. |
-| Model self-report | 0.20 | Weakly informative. Kept, but capped so it can never carry a field on its own. |
+| Evidence grounding | 0.40 | Does the value actually occur in the source text? The single strongest hallucination detector available without a second model call, and completely deterministic. Also carries cross-extractor agreement — a value the rule-based baseline independently found is strongly supported. |
+| Model self-report | 0.20 | **Not currently collected.** See below. |
 | Type/format cleanliness | 0.15 | A date that needed fuzzy parsing, or a number recovered from a mangled string, is more likely wrong. |
-| Validation outcome | 0.15 | A field implicated in a failed cross-field rule is suspect. |
-| Extraction context | 0.10 | OCR'd pages and very long documents are harder; a field extracted from OCR text starts lower. |
+| Validation outcome | 0.15 | A field implicated in a failed rule is suspect. |
+| Extraction context | 0.10 | OCR'd text is harder; fields extracted from it start lower. |
+
+### On model self-reported confidence
+
+The weight exists but nothing supplies it, so it is passed as `None` and the
+remaining weights renormalise (`ConfidenceSignals.weighted` divides by the weight
+actually present, not by the total). This is a deliberate choice, not an omission:
+
+* asking for a per-field confidence roughly doubles the output schema and the
+  output tokens, on every document;
+* LLM self-reported confidence is well documented as poorly calibrated, and
+  correlates with fluency rather than correctness;
+* the deterministic signals above are *verifiable*, and a bad value that the model
+  is confident about is exactly the case they catch.
+
+The slot is kept so that adding it later — if evaluation shows it earns its cost —
+is a one-line change rather than a re-weighting exercise.
 
 Weights are declared as constants rather than learned, because we do not have enough
 labelled production data to fit them without overfitting. They are a defensible prior;
@@ -117,7 +133,7 @@ _WS = re.compile(r"\s+")
 _NON_ALNUM = re.compile(r"[^0-9a-z]+")
 
 
-def _normalise(text: str) -> str:
+def normalise_for_matching(text: str) -> str:
     """Aggressively fold text for substring comparison.
 
     Grounding must survive the difference between how a value appears in a PDF and
@@ -129,6 +145,10 @@ def _normalise(text: str) -> str:
     folded = unicodedata.normalize("NFKD", text).casefold()
     folded = "".join(c for c in folded if not unicodedata.combining(c))
     return _NON_ALNUM.sub("", folded)
+
+
+# Backwards-compatible private alias used inside this module.
+_normalise = normalise_for_matching
 
 
 def _tokens(text: str) -> list[str]:

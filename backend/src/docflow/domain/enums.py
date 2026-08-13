@@ -60,6 +60,7 @@ class ProcessingStage(StrEnum):
     CLASSIFICATION = "classification"
     SCHEMA_SELECTION = "schema_selection"
     LLM_EXTRACTION = "llm_extraction"
+    BASELINE_CROSSCHECK = "baseline_crosscheck"
     SCHEMA_VALIDATION = "schema_validation"
     BUSINESS_VALIDATION = "business_validation"
     CONFIDENCE_SCORING = "confidence_scoring"

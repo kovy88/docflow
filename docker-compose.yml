@@ -1,0 +1,104 @@
+# Local development stack.
+#
+# Ports are deliberately non-default (5433, 6380) so this never collides with a
+# Postgres or Redis the developer already runs. Nothing here is production
+# configuration — see docs/DEPLOYMENT.md for that.
+
+name: docflow
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: docflow
+      POSTGRES_PASSWORD: docflow
+      POSTGRES_DB: docflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` alone returns true while the container is still running its
+      # init scripts, which lets dependent services start and immediately fail.
+      test: ["CMD-SHELL", "pg_isready -U docflow -d docflow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    # No persistence: this Redis holds the job queue and a cache, both of which
+    # are rebuildable. Durable state lives in Postgres.
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn docflow.main:app --host 0.0.0.0 --port 8000 --reload
+    environment: &backend_env
+      DOCFLOW_ENVIRONMENT: local
+      DOCFLOW_DB_URL: postgresql+asyncpg://docflow:docflow@postgres:5432/docflow
+      DOCFLOW_REDIS_URL: redis://redis:6379/0
+      DOCFLOW_STORAGE_BACKEND: local
+      DOCFLOW_STORAGE_LOCAL_ROOT: /data/storage
+      DOCFLOW_SECURITY_CORS_ORIGINS: http://localhost:3000
+      DOCFLOW_PUBLIC_BASE_URL: http://localhost:8000
+      DOCFLOW_OBS_LOG_FORMAT: console
+      # Defaults to the deterministic fixture provider so the stack runs with no
+      # credentials. Set DOCFLOW_LLM_PROVIDER=anthropic and supply a key to use a
+      # real model — see docs/LOCAL_DEVELOPMENT.md.
+      DOCFLOW_LLM_PROVIDER: ${DOCFLOW_LLM_PROVIDER:-fixture}
+      DOCFLOW_LLM_MODEL: ${DOCFLOW_LLM_MODEL:-claude-opus-5}
+      DOCFLOW_LLM_ANTHROPIC_API_KEY: ${DOCFLOW_LLM_ANTHROPIC_API_KEY:-}
+      DOCFLOW_LLM_OPENAI_API_KEY: ${DOCFLOW_LLM_OPENAI_API_KEY:-}
+      DOCFLOW_SECURITY_JWT_SECRET: ${DOCFLOW_SECURITY_JWT_SECRET:-dev-only-insecure-secret-change-me}
+    volumes:
+      - ./backend:/app
+      - storage_data:/data/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: arq docflow.worker.main.WorkerSettings
+    environment: *backend_env
+    volumes:
+      - ./backend:/app
+      - storage_data:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    profiles: ["full"]
+
+volumes:
+  postgres_data:
+  storage_data:
