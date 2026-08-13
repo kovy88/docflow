@@ -121,10 +121,16 @@ class FieldConfidence:
     band: ConfidenceBand
     signals: ConfidenceSignals
     reasons: list[str] = field(default_factory=list)
+    # Set when a field is flagged for a reason other than its band — currently a
+    # `critical` field scoring below its type's stricter critical threshold. Without
+    # this the document is routed to review with a reason naming the field, but the
+    # field itself renders as green in the UI, so the reviewer is told to check
+    # something the interface has not highlighted.
+    forced_review: bool = False
 
     @property
     def needs_review(self) -> bool:
-        return self.band is not ConfidenceBand.HIGH
+        return self.forced_review or self.band is not ConfidenceBand.HIGH
 
 
 # ------------------------------------------------------------------- normalisation

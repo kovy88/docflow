@@ -384,8 +384,14 @@ class ReviewRoutingStage(Stage):
             template = to_template(confidence.field_path)
             if template in critical and confidence.score < spec.critical_field_threshold:
                 ctx.needs_review = True
+                # Flag the field too, not just the document. The reason string and
+                # the highlighted field must agree, or the reviewer is hunting.
+                confidence.forced_review = True
                 field_spec = spec.field_by_path(template)
                 label = field_spec.label if field_spec else confidence.field_path
+                confidence.reasons.append(
+                    f"Critical field below the {spec.critical_field_threshold:.0%} threshold"
+                )
                 ctx.add_review_reason(f"{label} needs checking (confidence {confidence.score:.0%})")
 
     def detail(self, ctx: PipelineContext) -> dict[str, object]:
