@@ -86,7 +86,7 @@ async def upload_document(
         await enqueue_processing(
             job_id=result.job.id,
             organization_id=principal.organization_id,
-            job_key=queue_job_id(result.job.idempotency_key),
+            job_key=queue_job_id(principal.organization_id, result.job.idempotency_key),
             request_id=getattr(request.state, "request_id", None),
         )
 
@@ -249,7 +249,7 @@ async def reprocess_document(
     await enqueue_processing(
         job_id=job.id,
         organization_id=principal.organization_id,
-        job_key=queue_job_id(job.idempotency_key),
+        job_key=queue_job_id(principal.organization_id, job.idempotency_key),
         request_id=getattr(request.state, "request_id", None),
     )
     return UploadResponse(

@@ -147,6 +147,7 @@ class ProcessingStepResponse(ApiModel):
     started_at: dt.datetime
     finished_at: dt.datetime | None
     error_code: str | None
+    error_message: str | None
     detail: dict[str, Any]
 
 

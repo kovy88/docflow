@@ -41,7 +41,7 @@ from typing import Any
 from docflow.domain.confidence import normalise_for_matching
 from docflow.schemas.base import DocumentTypeSpec, FieldKind
 from docflow.schemas.fields import normalize_currency, parse_date, parse_decimal
-from docflow.validation.paths import flatten, get_path, MISSING
+from docflow.validation.paths import MISSING, flatten, get_path
 
 # Free-text similarity above which two strings count as a fuzzy match.
 FUZZY_THRESHOLD = 0.90
@@ -96,7 +96,9 @@ def _is_empty(value: Any) -> bool:
     return isinstance(value, list | dict) and not value
 
 
-def compare(expected: Any, actual: Any, kind: FieldKind) -> str:
+def compare(  # noqa: PLR0911 — one branch per field kind's comparison rule
+    expected: Any, actual: Any, kind: FieldKind
+) -> str:
     """Classify one field comparison into a match level."""
     expected_empty, actual_empty = _is_empty(expected), _is_empty(actual)
 
@@ -348,8 +350,12 @@ class EvaluationReport:
             for outcome in document.fields:
                 entry = stats.setdefault(
                     outcome.field_path,
-                    {"field_path": outcome.field_path, "total": 0, "errors": 0,
-                     "required": outcome.is_required},
+                    {
+                        "field_path": outcome.field_path,
+                        "total": 0,
+                        "errors": 0,
+                        "required": outcome.is_required,
+                    },
                 )
                 entry["total"] += 1
                 if not outcome.correct_normalised:
@@ -485,7 +491,7 @@ def _safe_div(numerator: int, denominator: int) -> float | None:
 def _percentile(sorted_values: list[int], fraction: float) -> float:
     if not sorted_values:
         return 0.0
-    index = min(len(sorted_values) - 1, int(round(fraction * (len(sorted_values) - 1))))
+    index = min(len(sorted_values) - 1, round(fraction * (len(sorted_values) - 1)))
     return float(sorted_values[index])
 
 
@@ -506,9 +512,7 @@ def compare_reports(baseline: EvaluationReport, candidate: EvaluationReport) -> 
         "required_field_accuracy": {
             "baseline": baseline.required_field_accuracy(),
             "candidate": candidate.required_field_accuracy(),
-            "delta": delta(
-                baseline.required_field_accuracy(), candidate.required_field_accuracy()
-            ),
+            "delta": delta(baseline.required_field_accuracy(), candidate.required_field_accuracy()),
         },
         "document_success_rate": {
             "baseline": baseline.document_success_rate(),

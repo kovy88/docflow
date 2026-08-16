@@ -160,9 +160,7 @@ class ExtractorRunner:
             async with semaphore:
                 return await self._evaluate(item, config)
 
-        report.documents = list(
-            await asyncio.gather(*(guarded(item) for item in corpus))
-        )
+        report.documents = list(await asyncio.gather(*(guarded(item) for item in corpus)))
         report.wall_clock_seconds = time.perf_counter() - started
         return report
 
@@ -181,7 +179,7 @@ class ExtractorRunner:
             outcome = await self._extractor.extract(
                 spec=spec, document_text=item.text, page_count=1
             )
-        except Exception as exc:  # noqa: BLE001 — one bad document must not end the run
+        except Exception as exc:
             logger.warning(
                 "eval.document_failed",
                 document_id=item.document_id,
@@ -203,9 +201,7 @@ class ExtractorRunner:
 
         if config.score_confidence:
             confidences, overall = self._score(outcome.data, spec, item.text, issues)
-            needs_review = needs_review or (
-                overall is not None and overall < spec.review_threshold
-            )
+            needs_review = needs_review or (overall is not None and overall < spec.review_threshold)
 
         return DocumentOutcome(
             document_id=item.document_id,
@@ -231,7 +227,9 @@ class ExtractorRunner:
         """Reuses the production confidence signals so calibration is measured, not modelled."""
         source_normalised = normalise_for_matching(text)
         error_paths = {i.field_path for i in issues if i.field_path and i.severity.value == "error"}
-        warn_paths = {i.field_path for i in issues if i.field_path and i.severity.value == "warning"}
+        warn_paths = {
+            i.field_path for i in issues if i.field_path and i.severity.value == "warning"
+        }
 
         scored = []
         confidences: dict[str, tuple[float | None, str | None]] = {}

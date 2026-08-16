@@ -230,7 +230,9 @@ IBAN: {iban}
     # heuristic picks the phone number; this is why the corpus includes them.
     if rng.random() < 0.5:
         difficulty.append("extra_numbers")
-        text += f"\nTel: +420 {rng.randint(200, 799)} {rng.randint(100, 999)} {rng.randint(100, 999)}\n"
+        text += (
+            f"\nTel: +420 {rng.randint(200, 799)} {rng.randint(100, 999)} {rng.randint(100, 999)}\n"
+        )
         text += f"{'Č. objednávky' if czech else 'PO'}: OBJ-{rng.randint(1000, 9999)}\n"
 
     if rng.random() < 0.2:
@@ -400,9 +402,7 @@ def generate_contract(rng: random.Random, index: int) -> GroundTruth:
     b = rng.choice([c for c in CZECH_COMPANIES if c != a])
     effective = dt.date(2024, rng.randint(1, 12), rng.randint(1, 28))
     term_months = rng.choice([12, 24, 36])
-    expiry = dt.date(
-        effective.year + term_months // 12, effective.month, max(1, effective.day - 1)
-    )
+    expiry = dt.date(effective.year + term_months // 12, effective.month, max(1, effective.day - 1))
     notice = rng.choice([30, 60, 90])
     auto_renewal = rng.random() < 0.6
     value = Decimal(rng.randint(100, 2000)) * 1000
@@ -485,7 +485,7 @@ def build_corpus(size: int = 120, *, seed: int = 20240613) -> list[GroundTruth]:
     Reproducibility is the point: two evaluation runs that disagree must disagree
     because the *system* changed, not because the corpus did.
     """
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 — reproducibility requires a seeded PRNG, not a CSPRNG
     corpus: list[GroundTruth] = []
     counters = dict.fromkeys(GENERATORS, 0)
 

@@ -69,11 +69,15 @@ def render_markdown(reports: list[EvaluationReport], *, corpus_note: str) -> str
             f"| {_num(report.latency().get('mean_ms'))} ms |"
         )
 
-    lines += ["", "**Field acc. (norm.)** counts a field correct when it matches after "
-              "type-aware normalisation — `39 930,00 Kč` equals `39930.00`. "
-              "**Doc success** is the fraction of documents where *every* required "
-              "field is correct, which is the number that maps to whether a human "
-              "has to intervene.", ""]
+    lines += [
+        "",
+        "**Field acc. (norm.)** counts a field correct when it matches after "
+        "type-aware normalisation — `39 930,00 Kč` equals `39930.00`. "
+        "**Doc success** is the fraction of documents where *every* required "
+        "field is correct, which is the number that maps to whether a human "
+        "has to intervene.",
+        "",
+    ]
 
     # State the gap in the artifact itself. A report that silently omits the model
     # run invites the reader to assume the numbers above describe one.
@@ -222,7 +226,7 @@ def _render_detail(report: EvaluationReport) -> list[str]:
     return lines
 
 
-async def _run(args: argparse.Namespace) -> int:
+async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0915 — linear CLI script, not logic to decompose
     settings = get_settings()
     configure_logging(settings.observability)
 
@@ -254,7 +258,7 @@ async def _run(args: argparse.Namespace) -> int:
         provider_name = args.provider or settings.llm.provider
         try:
             provider = _build_provider(provider_name, settings)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"\n! Skipping model run: {exc}")
             print("  Set DOCFLOW_LLM_PROVIDER and the matching API key to measure a real model.")
             provider = None

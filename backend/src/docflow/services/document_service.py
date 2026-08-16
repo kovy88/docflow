@@ -310,13 +310,27 @@ def _default_idempotency_key(document: Document) -> str:
     return f"auto:{document.checksum_sha256[:32]}"
 
 
-def queue_job_id(idempotency_key: str) -> str:
+def queue_job_id(organization_id: uuid.UUID, idempotency_key: str) -> str:
     """Deterministic arq job id.
 
     arq drops an enqueue whose job id already exists, so this makes double-enqueue
     a no-op inside the queue itself, not just in our table.
+
+    **Must include `organization_id`.** arq's `_job_id` uniqueness is global — a
+    Redis key, not scoped to a tenant. The idempotency key alone is derived from
+    content (`auto:{checksum}` for unkeyed uploads), so two different organizations
+    uploading byte-identical content would hash to the *same* queue job id. The
+    first org's enqueue would win, `enqueue_job` would return `None` for the
+    second, and that organization's document would silently sit at `queued`
+    forever with no worker job ever created for it — a cross-tenant resource-
+    starvation bug, not a data leak, but a real one: a customer uploading a
+    generic template document (a blank PO form, a standard NDA) could be starved
+    entirely by another tenant's identical upload. Found via manual browser
+    testing, not by the automated test suite — see the regression test added
+    alongside this fix.
     """
-    return "docflow:" + hashlib.sha256(idempotency_key.encode()).hexdigest()[:32]
+    scoped = f"{organization_id}:{idempotency_key}"
+    return "docflow:" + hashlib.sha256(scoped.encode()).hexdigest()[:32]
 
 
 def _extension_for(content_type: str, filename: str) -> str:

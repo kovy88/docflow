@@ -12,10 +12,10 @@ makes the dependency graph obvious.
 from __future__ import annotations
 
 import functools
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, PostgresDsn, RedisDsn, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Environment = Literal["local", "test", "staging", "production"]
 
@@ -93,7 +93,15 @@ class SecuritySettings(_Base):
     access_token_ttl_seconds: int = 60 * 30  # 30 min
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 14  # 14 days
 
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # `NoDecode` is load-bearing, not decoration: pydantic-settings tries to
+    # `json.loads()` any env var bound to a `list[...]` field before a validator
+    # ever sees it, so a plain comma-separated value
+    # (`DOCFLOW_SECURITY_CORS_ORIGINS=http://a,http://b`) raises a SettingsError
+    # at startup instead of reaching `_split_origins` below. `NoDecode` skips that
+    # JSON pre-parse and hands the raw string straight to the validator.
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
 
     rate_limit_enabled: bool = True
     rate_limit_default_per_minute: int = 120
@@ -112,7 +120,9 @@ class UploadSettings(_Base):
 
     max_bytes: int = 20 * 1024 * 1024  # 20 MB
     max_pages: int = 50
-    allowed_mime_types: list[str] = Field(
+    # See the comment on `SecuritySettings.cors_origins` — `NoDecode` is required
+    # for the same reason: this field is set from a comma-separated env var, not JSON.
+    allowed_mime_types: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "application/pdf",
             "image/png",

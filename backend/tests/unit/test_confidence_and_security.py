@@ -427,3 +427,45 @@ class TestWebhookSecurity:
             verify_signature(secret, old, body, f"sha256={sign_payload(secret, old, body)}")
             is False
         )
+
+
+class TestQueueJobIdTenantIsolation:
+    """Regression test for a real bug found by manual browser testing.
+
+    `queue_job_id` seeds arq's `_job_id`, and arq's job-id uniqueness is a global
+    Redis key — not scoped to a tenant. The idempotency key for an unkeyed upload
+    is derived purely from content (`auto:{checksum}`), so if the queue id were
+    computed from that key alone, two different organizations uploading
+    byte-identical content would collide on one arq job id. The second org's
+    `enqueue_job` call would return `None` (arq treats it as an already-queued
+    duplicate), and that organization's document would sit at `queued` forever —
+    no worker job ever created for it, no error surfaced anywhere.
+
+    This is exactly what happened when this suite was manually exercised through
+    the browser: an org uploading a file already processed under a different org
+    earlier in the session never left the queue. Nothing in the automated suite
+    caught it, because every existing idempotency test uploads from a single
+    organization.
+    """
+
+    def test_identical_content_from_different_orgs_yields_different_queue_ids(self):
+        import uuid
+
+        from docflow.services.document_service import queue_job_id
+
+        # Same idempotency key (as content-derived keys are, across tenants),
+        # different organizations.
+        key = "auto:" + "a" * 32
+        org_a, org_b = uuid.uuid4(), uuid.uuid4()
+
+        assert queue_job_id(org_a, key) != queue_job_id(org_b, key)
+
+    def test_same_org_and_key_is_deterministic(self):
+        """The idempotency property this whole mechanism exists for must still hold."""
+        import uuid
+
+        from docflow.services.document_service import queue_job_id
+
+        org = uuid.uuid4()
+        key = "auto:" + "b" * 32
+        assert queue_job_id(org, key) == queue_job_id(org, key)
