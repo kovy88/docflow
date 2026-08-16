@@ -39,6 +39,16 @@ def build_provider(settings: LLMSettings) -> LLMProvider:
             max_retries=0,
         )
 
+    if settings.provider == "google":
+        from docflow.llm.google_provider import GeminiProvider
+
+        return GeminiProvider(
+            api_key=settings.google_api_key,
+            model=settings.model,
+            max_retries=0,
+            timeout_seconds=settings.timeout_seconds,
+        )
+
     if settings.provider == "fixture":
         from docflow.llm.fixture_provider import FixtureProvider
 

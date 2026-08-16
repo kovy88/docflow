@@ -8,6 +8,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* variables are inlined into the client JS bundle at build time —
+# unlike server-side env vars, they cannot be supplied at container start.
+# Must be passed as a build arg (`docker build --build-arg NEXT_PUBLIC_API_URL=...`),
+# not a runtime `-e` flag, or the shipped bundle silently points at whatever
+# (or nothing) was baked in here.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN npm run build
 
 FROM node:22-alpine AS runner

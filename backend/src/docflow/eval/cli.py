@@ -328,7 +328,9 @@ def main() -> int:
     parser.add_argument("--corpus", type=str, default=None, help="path to an existing corpus")
     parser.add_argument("--regenerate", action="store_true", help="rebuild the corpus")
     parser.add_argument("--only", choices=["baseline", "llm"], default=None)
-    parser.add_argument("--provider", choices=["anthropic", "openai", "fixture"], default=None)
+    parser.add_argument(
+        "--provider", choices=["anthropic", "openai", "google", "fixture"], default=None
+    )
     parser.add_argument("--concurrency", type=int, default=4)
     args = parser.parse_args()
 

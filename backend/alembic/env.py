@@ -16,11 +16,11 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from docflow.config import get_settings
-from docflow.db.base import Base
 
 # Importing the models module is what populates `Base.metadata`. Without it,
 # autogenerate produces an empty diff and cheerfully drops every table.
 from docflow.db import models as _models  # noqa: F401
+from docflow.db.base import Base
 
 config = context.config
 if config.config_file_name is not None:

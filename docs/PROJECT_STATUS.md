@@ -1,123 +1,205 @@
 # Docflow — Project Status
 
-Living progress log. Updated as work proceeds.
+Living progress log, kept honest: a checkbox here means verified, not
+"written and assumed to work." Earlier drafts of this file marked several
+phases done before the corresponding code existed — see git history if
+that's of interest. This version reflects what actually runs, as of the
+date below.
 
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-16
 
 ---
 
 ## What this is
 
-Docflow turns unstructured business documents (invoices, contracts, purchase orders,
-receipts) into **validated structured data**, with asynchronous processing, per-field
-confidence, human review, evaluation and multi-tenancy.
+Docflow turns unstructured business documents (invoices, contracts, purchase
+orders, receipts) into **validated structured data**, with asynchronous
+processing, per-field confidence, human review, evaluation and multi-tenancy.
 
-The core product question is not *"which LLM do you use?"* but *"can I trust this output
-enough to stop having a human retype it?"* — so most of the engineering goes into
-validation, confidence, review and measurement rather than prompt cleverness.
+The core product question is not *"which LLM do you use?"* but *"can I trust
+this output enough to stop having a human retype it?"* — so most of the
+engineering goes into validation, confidence, review and measurement rather
+than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
 
 ---
 
 ## Phases
 
-### Phase 1 — Architecture & project setup
-- [x] Repository inspection (empty — greenfield)
-- [x] Toolchain check (Python 3.11/uv, Node 22, Docker, Postgres client, poppler)
-- [x] Architecture defined (`docs/ARCHITECTURE.md`)
-- [x] Data model defined (`docs/DATABASE.md`)
-- [x] ADRs for the load-bearing decisions (`docs/adr/`)
-- [x] Backend package skeleton + config + tooling (ruff, mypy, pytest)
-- [x] docker-compose for Postgres + Redis + API + worker
+### Phase 1-2 — Foundation
+- [x] Architecture ([ARCHITECTURE.md](ARCHITECTURE.md)), data model
+      ([DATABASE.md](DATABASE.md)), 11 ADRs ([DECISIONS.md](DECISIONS.md))
+- [x] SQLAlchemy 2.0 async models, all 18 tables, one baseline Alembic
+      migration
+- [x] Repository layer, org-scoped by construction (`OrgScopedRepository`)
+- [x] JWT auth (access + refresh, `typ`-checked), Argon2id password hashing,
+      hashed/prefixed API keys
+- [x] Storage abstraction — local filesystem + S3-compatible
 
-### Phase 2 — Persistence, auth, storage
-- [x] SQLAlchemy 2.0 async models, all 18 tables
-- [x] Alembic migration baseline
-- [x] Repository layer (org-scoped by construction)
-- [x] JWT auth (access + refresh), argon2 password hashing
-- [x] API keys for machine access (hashed, prefixed, revocable)
-- [x] Organization / membership / role model
-- [x] Storage abstraction — local FS + S3-compatible
+### Phase 3-4 — Ingestion & async processing
+- [x] Upload with validation (size, MIME sniffing, extension agreement),
+      content-hash dedup, idempotency keys
+- [x] Text extraction (PDF, DOCX, TXT, images) with OCR fallback on a
+      text-density heuristic
+- [x] `arq` + Redis queue, 11-stage pipeline, retry-only-what's-retryable,
+      dead-lettering, per-stage timing persisted for the UI timeline
 
-### Phase 3 — Document ingestion
-- [x] Upload endpoint with file validation (size, MIME sniffing, extension)
-- [x] Content-hash deduplication + idempotency keys
-- [x] Text extraction: PDF (native), DOCX, TXT, images
-- [x] OCR fallback with text-density heuristic
-- [x] Page/metadata extraction
-
-### Phase 4 — Async processing
-- [x] arq queue + worker (ADR-002)
-- [x] Explicit pipeline stages with typed contracts
-- [x] Retries with exponential backoff, only for retryable error classes
-- [x] Idempotent job enqueue (deterministic job IDs)
-- [x] Failure states + dead-letter handling
-- [x] Step-level timing persisted for the UI timeline
-
-### Phase 5 — AI extraction
-- [x] `LLMProvider` abstraction + Anthropic / OpenAI / fixture implementations
-- [x] Structured output (tool-use / JSON schema), never free prose
-- [x] Versioned prompt registry
-- [x] Document classification (heuristic + LLM, cheap-first)
-- [x] Schema registry with configurable document types
-- [x] Token/cost/latency accounting per call
-- [x] Prompt-injection defence (delimited untrusted content + instruction stripping)
-
-### Phase 6 — Validation & confidence
-- [x] Layer 1: Pydantic syntax validation
-- [x] Layer 2: semantic rules (dates, arithmetic, currency, checksums)
-- [x] Layer 3: per-document-type business rules
-- [x] Per-field confidence with calibrated bands
-- [x] Review-routing policy
-
-### Phase 7 — Human review
-- [x] Field-level edit / approve / reject / reprocess
-- [x] Correction tracking (feeds evaluation)
-- [x] Audit log
+### Phase 5-7 — AI extraction, validation, review
+- [x] `LLMProvider` abstraction: Anthropic, OpenAI, and a deterministic
+      fixture (no real model calls, tests/CI/demos need no API key)
+- [x] Structured output only — no tool access, no free-text channel (see
+      [SECURITY.md](SECURITY.md#prompt-injection-defense))
+- [x] Cheap-first classification (heuristic, LLM only below threshold)
+- [x] Three validation layers (syntax / semantic / business rules)
+- [x] Multi-signal confidence scoring with calibration checked against the
+      evaluation corpus
+- [x] Review queue, field-level correction, approve/reject, correction
+      tracking (`field_corrections` — captured, not yet consumed by an
+      automated feedback loop)
 
 ### Phase 8 — Frontend
-- [x] Next.js 15 + TS + Tailwind v4, hand-rolled shadcn-style UI kit
-- [x] Dashboard, documents table, document detail (preview + fields), settings
-- [x] Processing timeline, confidence/validation surfacing, inline editing
-- [x] ROI calculator
+- [x] Next.js 15 + TypeScript + **Tailwind v3** (not v4 — corrected from an
+      earlier draft of this file), hand-rolled shadcn-style UI kit
+- [x] Dashboard, documents list, document detail (fields + timeline + inline
+      correction), review queue, settings, ROI calculator
+- [x] Verified against the real backend through a full browser walkthrough,
+      not just a production build
 
 ### Phase 9 — Evaluation
-- [x] Ground-truth dataset + generator
-- [x] Field-level metrics (exact / normalized), doc-level success, review rate
-- [x] Rule-based baseline for comparison (ADR-009)
-- [x] `make eval` runner with markdown/JSON reports
+- [x] 120-document synthetic corpus with exact ground truth, seeded for
+      reproducibility, deliberately injected difficulty
+- [x] Rule-based baseline, three-tier match metrics, precision/recall,
+      confidence calibration — `uv run docflow-eval` (there is no `Makefile`;
+      an earlier draft of this file referenced `make eval`, which was never
+      accurate)
+- [x] Baseline measured: 52.2% normalized field accuracy, 5.8% document
+      success — see [EVALUATION.md](EVALUATION.md) for the full report
+- [ ] **Real LLM accuracy — not measured.** No API key has been configured
+      in this environment. Labeled as such everywhere it would otherwise
+      appear, per explicit instruction, rather than estimated.
 
 ### Phase 10 — Observability & security
-- [x] Structured JSON logging with request/job/document/org correlation
-- [x] Prometheus metrics endpoint
-- [x] Rate limiting
-- [x] Security headers, CORS allowlist, tenant-isolation tests
+- [x] Structured JSON logs (`structlog`, unified with uvicorn/SQLAlchemy/arq
+      via one `ProcessorFormatter`), correlated by request/org/document/job id
+- [x] Prometheus metrics, bounded label cardinality
+- [x] Rate limiting (Redis-backed fixed window, fails open)
+- [x] Security headers, CORS allowlist, SSRF-checked webhook registration
+      (known gap: DNS rebinding — stated in
+      [SECURITY.md](SECURITY.md#known-gaps))
+- [x] Tenant isolation covered by dedicated tests, including a regression
+      test for a real cross-tenant queue-collision bug found during manual
+      testing (see [SECURITY.md](SECURITY.md#tenant-isolation))
 
-### Phase 11 — CI/CD
-- [x] GitHub Actions: lint, format, typecheck, unit + integration tests, security scan
-- [x] Docker image builds
+### Phase 11 — Testing & CI
+- [x] 227 backend tests (unit + integration against a real Postgres,
+      transaction-rollback isolation) — passing, clean `ruff`/`mypy`
+- [x] `bandit` + `pip-audit` clean (pip-audit's one expected finding is
+      auditing this project's own editable install, soft-failed in CI)
+- [x] GitHub Actions: lint/typecheck/test (backend and frontend, separate
+      workflows), Docker image build validation
+- [x] Frontend: `npm run lint`, `npm run typecheck`, production build, all
+      green
 
-### Phase 12 — Deployment
-- [x] Dockerfiles (API, worker), compose, Render blueprint, Vercel config
-- [x] `docs/DEPLOYMENT.md`
+### Phase 12-14 — Deployment, integrations, documentation, audit
+- [x] Backend and frontend Dockerfiles — **built and verified**, not just
+      written: both images build clean, `docflow` imports correctly with
+      OCR extras installed, and the frontend correctly bakes in
+      `NEXT_PUBLIC_API_URL` at build time
+- [x] `docker-compose.yml` — **the full stack (Postgres, Redis, API, worker,
+      frontend) verified running together and talking to each other**
+      through container networking, including a real upload → classify →
+      extract → validate → score → review-route run and a browser login
+      against the containerized frontend. This surfaced and fixed real bugs
+      that a written-but-unrun config would not have caught — see below.
+- [x] `render.yaml` (Render Blueprint: API, worker, managed Redis) and
+      `frontend/vercel.json` — written and internally consistent with the
+      verified Docker images, **not deployed to a live account** as part of
+      this build (see [DEPLOYMENT.md](DEPLOYMENT.md) for exactly what that
+      distinction means)
+- [x] Seed/demo script (`docflow-seed`) — creates a demo org and runs 5
+      documents (one of each built-in type) through the real pipeline;
+      idempotent; verified end-to-end including in the browser
+- [x] n8n example workflow (email intake → upload; webhook → Slack
+      notification) — [integrations/n8n/](../integrations/n8n/README.md)
+- [x] Webhook delivery (HMAC-signed) + CSV/JSON export
+- [x] Full documentation set: this file plus ARCHITECTURE, DATABASE, AI,
+      SECURITY, EVALUATION, API, LOCAL_DEVELOPMENT, DEPLOYMENT, DECISIONS,
+      11 ADRs, and a project-root README — cross-links checked
+      programmatically (every relative link and anchor resolves)
+- [x] `docs/FINAL_REPORT.md` — product framing, trade-offs, and a 30+
+      question interview-style Q&A
 
-### Phase 13 — Product polish
-- [x] Landing page, pricing concept, ROI calculator
-- [x] Seed/demo data + one-command demo
-- [x] Webhook + CSV/JSON export integration
-- [x] n8n example workflow
+---
 
-### Phase 14 — Documentation
-- [x] README, ARCHITECTURE, LOCAL_DEVELOPMENT, DEPLOYMENT, API, SECURITY,
-      EVALUATION, AI, DATABASE, DECISIONS, ADRs
-- [x] `docs/FINAL_REPORT.md` with measured numbers + interview Q&A
+## Real bugs found by actually running the system, not just writing it
+
+Kept here deliberately, because "no known issues" from a system that was
+never exercised end-to-end is not a meaningful claim. All fixed, with
+regression coverage added where a unit/integration test could catch a
+recurrence (the queue-collision bug); the rest were configuration/Docker
+issues no test suite would exercise, only caught by actually running
+`docker compose up` and clicking through the result:
+
+- **Cross-tenant queue-job-id collision** — two organizations uploading
+  byte-identical content collided on `arq`'s global job-id key; the second
+  organization's document silently never got processed. Found via manual
+  browser testing, fixed, regression test added.
+- **`docker-compose.yml` bind mount shadowing the container's `.venv`** with
+  the host's incompatible one — `uvicorn`/`arq` failed to launch at all on a
+  fresh `docker compose up`. Fixed with an anonymous-volume mask.
+- **Backend Docker image**: `uv sync` ran before application source was
+  copied in, silently producing a non-functional editable install with the
+  `ocr` extras missing entirely — OCR would have failed at runtime despite
+  the system packages being present. Fixed by reordering to the standard
+  two-phase `uv sync` Docker pattern.
+- **`/data/storage` named volume created with root ownership** — every
+  upload would fail with a permission error on a clean `docker compose up`,
+  since the container runs as a non-root user. Fixed by pre-creating and
+  `chown`ing the directory in the image.
+- **`NEXT_PUBLIC_API_URL` set as a runtime `environment:` variable** in
+  `docker-compose.yml` instead of a build arg — silently ignored, since
+  Next.js inlines `NEXT_PUBLIC_*` values at build time. The frontend was
+  calling its own origin instead of the API. Fixed; verified by grepping the
+  built bundle for the URL and by a real browser login through the
+  containerized stack.
+- Plus earlier-phase fixes (config `NoDecode` bug, classification cascade
+  threshold bug, confidence self-agreement inflation, `/timeline` 404
+  inconsistency, post-approval UI contradiction) — see git history for
+  detail; not repeated here since they predate this file's last rewrite.
+
+Not a bug, but found the same way — by checking rather than assuming: the
+worker's retry/dead-letter/fail decision logic
+(`docflow.worker.tasks.process_document` — the code the module's own
+docstring describes as "retry only what's retryable... never lose a
+document silently") had **zero test coverage**. `test_pipeline.py` exercises
+the pipeline directly, bypassing the job/retry machinery entirely, and
+nothing else called `process_document`. Closed with 9 new integration tests
+against real job/document rows (`tests/integration/test_worker_retry.py`)
+covering every branch: retryable vs. non-retryable errors, exhausted vs.
+not-yet-exhausted attempts, a returned-FAILED result vs. a raised exception,
+and the dead-letter path specifically.
 
 ---
 
 ## Known gaps / future work
 
-Tracked honestly — see `docs/FINAL_REPORT.md` for the full list.
+Tracked honestly — see [docs/FINAL_REPORT.md](FINAL_REPORT.md) for the full
+discussion.
 
-- Real-LLM accuracy numbers require an API key; see "Measured vs not measured" in
-  `docs/EVALUATION.md`. Baseline and fixture-provider numbers are measured and real.
-- Billing is architected (plans, quotas, usage records) but Stripe is not wired.
-- OCR quality on low-DPI scans is untested against a scanned ground-truth set.
+- **Real-LLM accuracy, cost, and latency are not measured.** Requires an API
+  key not available in this environment. See
+  [EVALUATION.md](EVALUATION.md#whats-measured-vs-not-summary) — nothing
+  here is estimated in its place.
+- **Not deployed to a live Render/Vercel account.** The configs exist and
+  are consistent with the verified Docker images; they haven't themselves
+  been exercised against a real hosted environment.
+- **The correction feedback loop is data-ready, not built.**
+  `field_corrections` is indexed for "which fields does prompt version X get
+  wrong most," but nothing automated consumes it yet.
+- **DNS rebinding on webhook URLs is an accepted, documented gap** — SSRF
+  protection checks at registration time, not at delivery time. See
+  [SECURITY.md](SECURITY.md#known-gaps).
+- Billing is architected (plans, quotas, usage records) but not wired to a
+  payment processor — no real money moves through this system.
+- OCR quality on real low-DPI scans is untested — the evaluation corpus is
+  synthetic text rendered to PDF, not photographed/scanned paper.
+- No third-party security review or penetration test has been run.

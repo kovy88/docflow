@@ -85,6 +85,17 @@ PRICING: dict[str, ModelPricing] = {
         context_window=200_000,
         notes="Cheapest supported option; see docs/AI.md for the accuracy trade-off.",
     ),
+    # --- Google ----------------------------------------------------------------
+    # Source: https://ai.google.dev/gemini-api/docs/pricing (fetched 2026-08-16).
+    "gemini-3.6-flash": ModelPricing(
+        "google",
+        "gemini-3.6-flash",
+        _d("0.75"),
+        _d("3.75"),
+        context_window=1_000_000,
+        notes="Standard tier through 2026-12-31; rises to $1.50/$7.50 per MTok "
+        "on 2027-01-01 per Google's published schedule.",
+    ),
     # --- OpenAI --------------------------------------------------------------
     # Listed so the provider abstraction is exercised by a second real vendor.
     # Verify against the vendor's current price list before relying on these for

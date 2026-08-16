@@ -1,0 +1,107 @@
+# Render Blueprint — deploys the API, the worker and managed Redis from one
+# file. Postgres is deliberately NOT declared here; see docs/DEPLOYMENT.md and
+# ADR-003 for why the database is Supabase rather than Render Postgres.
+#
+# Deploy: connect this repo in the Render dashboard ("New +" -> "Blueprint"),
+# or `render blueprint launch` from the CLI. Every `sync: false` env var is
+# prompted for at that point and stored as a Render secret, never in this file.
+#
+# Why Render over a hand-rolled Kubernetes manifest — see ADR-011 in
+# docs/adr/. The summary: this product needs two long-running processes and a
+# managed Redis, which is exactly Render's "web service + background worker +
+# managed Redis" shape. Kubernetes would add a control plane, manifests and an
+# on-call burden with no capability this deployment actually needs yet.
+
+services:
+  - type: web
+    name: docflow-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /readiness
+    numInstances: 1
+    envVars:
+      - key: DOCFLOW_ENVIRONMENT
+        value: production
+      - key: DOCFLOW_PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: docflow-api
+          property: hostport
+      - key: DOCFLOW_DB_URL
+        sync: false # Supabase Postgres connection string — see docs/DEPLOYMENT.md
+      - key: DOCFLOW_REDIS_URL
+        fromService:
+          type: redis
+          name: docflow-redis
+          property: connectionString
+      - key: DOCFLOW_STORAGE_BACKEND
+        value: s3
+      - key: DOCFLOW_STORAGE_BUCKET
+        sync: false
+      - key: DOCFLOW_STORAGE_ENDPOINT_URL
+        sync: false
+      - key: DOCFLOW_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: DOCFLOW_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: DOCFLOW_SECURITY_JWT_SECRET
+        generateValue: true
+      - key: DOCFLOW_SECURITY_CORS_ORIGINS
+        sync: false # e.g. https://app.yourdomain.com
+      - key: DOCFLOW_LLM_PROVIDER
+        value: anthropic
+      - key: DOCFLOW_LLM_MODEL
+        value: claude-opus-5
+      - key: DOCFLOW_LLM_ANTHROPIC_API_KEY
+        sync: false
+
+  - type: worker
+    name: docflow-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: arq docflow.worker.main.WorkerSettings
+    plan: starter
+    region: frankfurt
+    # Workers scale on queue depth, not request rate — there is no HTTP health
+    # check to autoscale against. Start at one and raise `numInstances` (or
+    # move to a paid plan with autoscaling) once `docflow_queue_depth` in
+    # Prometheus shows sustained backlog. See docs/DEPLOYMENT.md § Scaling.
+    numInstances: 1
+    envVars:
+      - key: DOCFLOW_ENVIRONMENT
+        value: production
+      - key: DOCFLOW_DB_URL
+        sync: false
+      - key: DOCFLOW_REDIS_URL
+        fromService:
+          type: redis
+          name: docflow-redis
+          property: connectionString
+      - key: DOCFLOW_STORAGE_BACKEND
+        value: s3
+      - key: DOCFLOW_STORAGE_BUCKET
+        sync: false
+      - key: DOCFLOW_STORAGE_ENDPOINT_URL
+        sync: false
+      - key: DOCFLOW_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: DOCFLOW_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: DOCFLOW_SECURITY_JWT_SECRET
+        sync: false # must match docflow-api's value — see docs/DEPLOYMENT.md
+      - key: DOCFLOW_LLM_PROVIDER
+        value: anthropic
+      - key: DOCFLOW_LLM_MODEL
+        value: claude-opus-5
+      - key: DOCFLOW_LLM_ANTHROPIC_API_KEY
+        sync: false
+
+redis:
+  - name: docflow-redis
+    plan: starter
+    region: frankfurt
+    ipAllowList: [] # private network only — the API/worker reach it internally

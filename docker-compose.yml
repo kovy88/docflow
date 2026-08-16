@@ -63,6 +63,10 @@ services:
       DOCFLOW_SECURITY_JWT_SECRET: ${DOCFLOW_SECURITY_JWT_SECRET:-dev-only-insecure-secret-change-me}
     volumes:
       - ./backend:/app
+      # Anonymous volume masks the image's baked-in .venv against the bind
+      # mount above — without it, the host's (macOS/arm64) .venv shadows the
+      # container's Linux one and uvicorn/arq fail to launch entirely.
+      - /app/.venv
       - storage_data:/data/storage
     ports:
       - "8000:8000"
@@ -80,6 +84,7 @@ services:
     environment: *backend_env
     volumes:
       - ./backend:/app
+      - /app/.venv
       - storage_data:/data/storage
     depends_on:
       postgres:
@@ -91,8 +96,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      # NEXT_PUBLIC_* values are inlined into the client bundle at build time
+      # (see frontend/Dockerfile) — this must be a build arg. An `environment:`
+      # entry here would be silently ignored: the container starts long after
+      # the bundle asking for that URL has already been built.
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
       - "3000:3000"
     depends_on:

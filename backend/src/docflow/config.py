@@ -145,7 +145,7 @@ class UploadSettings(_Base):
 class LLMSettings(_Base):
     model_config = _config("DOCFLOW_LLM_")
 
-    provider: Literal["anthropic", "openai", "fixture"] = "fixture"
+    provider: Literal["anthropic", "openai", "google", "fixture"] = "fixture"
     model: str = "claude-opus-5"
     # Reasoning depth. Current Anthropic models reject `temperature`/`top_p`, so
     # this is the knob that replaces them. `medium` is the default because
@@ -163,6 +163,7 @@ class LLMSettings(_Base):
 
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
+    google_api_key: str | None = None
 
     # Hard ceiling per document; a runaway retry loop must not be able to bill
     # an organisation for an unbounded amount.
@@ -254,6 +255,8 @@ class Settings(_Base):
             problems.append("DOCFLOW_LLM_ANTHROPIC_API_KEY is required")
         if self.llm.provider == "openai" and not self.llm.openai_api_key:
             problems.append("DOCFLOW_LLM_OPENAI_API_KEY is required")
+        if self.llm.provider == "google" and not self.llm.google_api_key:
+            problems.append("DOCFLOW_LLM_GOOGLE_API_KEY is required")
         if any(o == "*" for o in self.security.cors_origins):
             problems.append("Wildcard CORS origin is not allowed in production")
         if self.debug:

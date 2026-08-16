@@ -1,0 +1,218 @@
+{
+  "name": "Docflow - Email Intake and Review Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Branch 1 — Email intake\n\n1. Point the IMAP credential at the inbox that receives incoming documents (e.g. `docs@yourcompany.com`).\n2. Create a Docflow API key: `POST /api/v1/settings/webhooks` requires admin auth first — create the key via the Settings page or `POST /api/v1/settings/api-keys`, then store it as an n8n **HTTP Header Auth** credential named `Docflow API Key` with header `Authorization` = `Bearer dfk_...`.\n3. Set the `DOCFLOW_API_URL` environment variable on this n8n instance (e.g. `https://api.yourdomain.com`).\n\nEmails with no attachment are dropped by the IF node — nothing is uploaded.",
+        "height": 260,
+        "width": 700
+      },
+      "id": "sticky-branch-a",
+      "name": "Branch 1 notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [220, 40]
+    },
+    {
+      "parameters": {
+        "mailbox": "INBOX",
+        "postProcessAction": "read",
+        "options": {}
+      },
+      "id": "trigger-imap",
+      "name": "Email Trigger (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [260, 340],
+      "credentials": {
+        "imap": {
+          "name": "Docflow Intake Inbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-attachment",
+              "leftValue": "={{ Object.keys($binary || {}).length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-attachment",
+      "name": "Has Attachment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [520, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DOCFLOW_API_URL }}/api/v1/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.messageId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "={{ Object.keys($binary)[0] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-upload",
+      "name": "Upload to Docflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 340],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Docflow API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Branch 2 — Processing outcome notifications\n\n1. Register this workflow's Webhook URL (shown on the Docflow Webhook node once active) with Docflow:\n   `POST /api/v1/settings/webhooks {\"url\": \"<this webhook's Production URL>\", \"events\": [\"document.processed\", \"document.needs_review\"]}`\n2. That call returns a signing secret **once** — store it as the `DOCFLOW_WEBHOOK_SECRET` environment variable on this n8n instance. It cannot be retrieved again; re-register to rotate it.\n3. Set `DOCFLOW_APP_URL` (e.g. `https://app.yourdomain.com`) so notifications can link straight to the document.\n\nThe Code node verifies `X-Docflow-Signature` before anything downstream runs, so a forged POST to this URL is rejected rather than triggering a false notification. See docs/API.md for the signature scheme. The HMAC here is computed by re-serializing the parsed JSON body, which matches Docflow's compact `json.dumps(..., separators=(\",\", \":\"))` output in the common case but is not byte-exact in general — for production, enable \"Raw Body\" in the Webhook node's options and verify against the raw buffer instead.",
+        "height": 300,
+        "width": 900
+      },
+      "id": "sticky-branch-b",
+      "name": "Branch 2 notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [220, 460]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "docflow-processing-events",
+        "responseMode": "onReceived",
+        "responseData": "{\"ok\": true}",
+        "options": {}
+      },
+      "id": "webhook-inbound",
+      "name": "Docflow Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 800],
+      "webhookId": "docflow-processing-events"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifies X-Docflow-Signature: sha256=<hex> = HMAC-SHA256(secret, `${timestamp}.${body}`)\n// using the secret returned once by POST /api/v1/settings/webhooks — see the\n// sticky note above and docs/API.md for the full scheme.\n//\n// CAVEAT: this reconstructs the signed string by re-serializing the parsed JSON\n// body, which is not guaranteed byte-identical to what Docflow actually signed.\n// For production use, enable \"Raw Body\" in the Webhook node's options and verify\n// against the raw buffer instead of re-serialized JSON.\nconst crypto = require('crypto');\n\nconst secret = $env.DOCFLOW_WEBHOOK_SECRET;\nif (!secret) {\n  throw new Error('DOCFLOW_WEBHOOK_SECRET is not set on this n8n instance');\n}\n\nconst headers = $json.headers || {};\nconst timestamp = headers['x-docflow-timestamp'];\nconst providedSignature = headers['x-docflow-signature'] || '';\nconst body = JSON.stringify($json.body);\n\nconst expectedSignature = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(`${timestamp}.${body}`)\n  .digest('hex');\n\nconst signaturesMatch =\n  providedSignature.length === expectedSignature.length &&\n  crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(providedSignature));\n\nif (!signaturesMatch) {\n  throw new Error('Docflow webhook signature verification failed');\n}\n\nreturn [{ json: $json.body }];"
+      },
+      "id": "code-verify-signature",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 800]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "needs-review",
+              "leftValue": "={{ $json.data.needs_review }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-needs-review",
+      "name": "Needs Review?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [780, 800]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "mode": "name",
+          "value": "#document-review"
+        },
+        "text": "=:page_facing_up: *Docflow document needs review*\n*Type:* {{ $json.data.document_id }}\n*Confidence:* {{ $json.data.confidence }}\n*Status:* {{ $json.data.status }}\n*Review it:* {{ $env.DOCFLOW_APP_URL }}/documents/{{ $json.data.document_id }}",
+        "otherOptions": {}
+      },
+      "id": "slack-notify-review",
+      "name": "Notify Reviewer (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1040, 720],
+      "credentials": {
+        "slackApi": {
+          "name": "Docflow Team Slack"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "noop-auto-approved",
+      "name": "Auto-Approved (No Action)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1040, 900]
+    }
+  ],
+  "connections": {
+    "Email Trigger (IMAP)": {
+      "main": [[{ "node": "Has Attachment?", "type": "main", "index": 0 }]]
+    },
+    "Has Attachment?": {
+      "main": [[{ "node": "Upload to Docflow", "type": "main", "index": 0 }], []]
+    },
+    "Docflow Webhook": {
+      "main": [[{ "node": "Verify Signature", "type": "main", "index": 0 }]]
+    },
+    "Verify Signature": {
+      "main": [[{ "node": "Needs Review?", "type": "main", "index": 0 }]]
+    },
+    "Needs Review?": {
+      "main": [
+        [{ "node": "Notify Reviewer (Slack)", "type": "main", "index": 0 }],
+        [{ "node": "Auto-Approved (No Action)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

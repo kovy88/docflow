@@ -1,0 +1,116 @@
+name: Backend
+
+on:
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend.yml"]
+  push:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/backend.yml"]
+
+defaults:
+  run:
+    working-directory: backend
+
+# A second push to the same PR cancels the still-running check for the first —
+# CI minutes spent validating a commit the author already superseded are wasted.
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.11
+      - run: uv sync --extra dev
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run mypy
+
+  # Separate job from `lint` so a formatting nit doesn't hide a real test
+  # failure behind "job failed" with no distinguishing signal in the PR checks
+  # list — a reviewer sees exactly which concern broke.
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: docflow
+          POSTGRES_PASSWORD: docflow
+          POSTGRES_DB: docflow_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U docflow -d docflow_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DOCFLOW_ENVIRONMENT: test
+      DOCFLOW_DB_URL: postgresql+asyncpg://docflow:docflow@localhost:5432/docflow_test
+      DOCFLOW_REDIS_URL: redis://localhost:6379/0
+      DOCFLOW_LLM_PROVIDER: fixture
+      DOCFLOW_SECURITY_RATE_LIMIT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.11
+      - run: uv sync --extra dev
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+      - name: Unit + integration tests
+        run: uv run pytest -v --cov --cov-report=xml --cov-report=term
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-xml
+          path: backend/coverage.xml
+          retention-days: 14
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.11
+      - run: uv sync --extra dev
+      # bandit flags patterns (subprocess, eval, hardcoded-bind-all-interfaces);
+      # every present-day finding here is already reviewed and suppressed inline
+      # with a `# noqa: S...` carrying its justification, so a bare failure here
+      # means a *new*, unreviewed pattern was introduced.
+      - run: uv run bandit -c pyproject.toml -r src -ll
+      # pip-audit checks the resolved dependency tree against the OSV advisory
+      # database. Continue-on-error: a newly disclosed CVE in a transitive
+      # dependency must not silently block every unrelated PR; it's surfaced as
+      # an annotation for a human to triage instead.
+      - run: uv run pip-audit --strict || echo "::warning::pip-audit found advisories — review before the next release"
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: docflow-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
