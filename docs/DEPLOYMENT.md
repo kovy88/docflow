@@ -5,14 +5,27 @@ managed provider (Supabase recommended — see below). No Kubernetes; see
 [ADR-011](adr/011-render-over-kubernetes.md) for why that's a deliberate
 choice, not a gap.
 
-**None of this has been deployed to a live Render/Vercel account as part of
-this build** — no hosted URL exists yet. What's verified is narrower and
-stated precisely: both Docker images build correctly and run correctly
-together via `docker compose --profile full up`, which is the same
-containers/commands/environment-variable contract the Render blueprint below
-uses. The blueprint and Vercel config encode that same contract for a
-managed host; they have not themselves been exercised against a live Render
-or Vercel account.
+**This has been deployed to live Render and Vercel accounts and verified
+end-to-end**: frontend at https://frontend-nine-brown-40.vercel.app, API at
+https://docflow-api-o6o1.onrender.com, backed by Supabase (Postgres +
+S3-compatible storage) and Render Key Value (Redis). Registration, login and
+the dashboard were exercised through the live UI, not just curled directly.
+Two deliberate gaps in that live deployment, both cost/time trade-offs made
+during setup rather than unknowns:
+
+- **No worker is deployed.** Render's free tier has no background-worker
+  plan — only Starter ($7/mo) and above support that service type. Uploaded
+  documents will sit in `pending` until a worker is added; see the
+  `docflow-worker` block in [render.yaml](../render.yaml), which is ready to
+  deploy as-is.
+- **The API service runs on Render's free web-service tier**, which spins
+  down after inactivity. The first request after a quiet period takes several
+  seconds (cold start) before the app responds; subsequent requests are
+  normal speed.
+- **`DOCFLOW_LLM_PROVIDER=google`** (Gemini 3.6 Flash), not the `anthropic`
+  default this file's blueprint originally specified — no Anthropic key was
+  available at deploy time. Gemini's free-tier key is capped at 20
+  requests/day for this model; see [EVALUATION.md](EVALUATION.md).
 
 ## Backend: Render
 

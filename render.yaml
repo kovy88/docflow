@@ -52,10 +52,10 @@ services:
       - key: DOCFLOW_SECURITY_CORS_ORIGINS
         sync: false # e.g. https://app.yourdomain.com
       - key: DOCFLOW_LLM_PROVIDER
-        value: anthropic
+        value: google
       - key: DOCFLOW_LLM_MODEL
-        value: claude-opus-5
-      - key: DOCFLOW_LLM_ANTHROPIC_API_KEY
+        value: gemini-3.6-flash
+      - key: DOCFLOW_LLM_GOOGLE_API_KEY
         sync: false
 
   - type: worker
@@ -94,10 +94,10 @@ services:
       - key: DOCFLOW_SECURITY_JWT_SECRET
         sync: false # must match docflow-api's value — see docs/DEPLOYMENT.md
       - key: DOCFLOW_LLM_PROVIDER
-        value: anthropic
+        value: google
       - key: DOCFLOW_LLM_MODEL
-        value: claude-opus-5
-      - key: DOCFLOW_LLM_ANTHROPIC_API_KEY
+        value: gemini-3.6-flash
+      - key: DOCFLOW_LLM_GOOGLE_API_KEY
         sync: false
 
 redis:
