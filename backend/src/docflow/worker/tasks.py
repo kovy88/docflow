@@ -53,6 +53,7 @@ from docflow.db.session import session_scope
 from docflow.domain.enums import DocumentStatus, JobStatus
 from docflow.domain.errors import DocflowError, ResourceNotFoundError, is_retryable
 from docflow.observability.logging import bind_context, clear_context
+from docflow.observability.metrics import job_retries, jobs_dead_lettered
 from docflow.pipeline import build_pipeline
 from docflow.services.processing_service import ProcessingService
 from docflow.worker.queue import retry_delay_seconds
@@ -109,6 +110,7 @@ async def process_document(
                     max_attempts=settings.processing.max_attempts,
                     defer_seconds=round(defer, 1),
                 )
+                job_retries.labels(error_code=result.error_code or "unknown").inc()
                 raise Retry(defer=defer)
             await _dead_letter(job_uuid, org_uuid, result.error_code)
 
@@ -141,6 +143,7 @@ async def process_document(
             logger.warning(
                 "job.retrying", error_code=exc.code, attempt=attempt, defer_seconds=round(defer, 1)
             )
+            job_retries.labels(error_code=exc.code).inc()
             raise Retry(defer=defer) from exc
         await _fail_job(job_uuid, org_uuid, exc.code, exc.message)
         return {"status": "failed", "error_code": exc.code}
@@ -154,6 +157,7 @@ async def process_document(
             base=settings.processing.retry_base_delay_seconds,
             cap=settings.processing.retry_max_delay_seconds,
         )
+        job_retries.labels(error_code="internal_error").inc()
         raise Retry(defer=defer) from exc
     finally:
         clear_context()
@@ -176,6 +180,7 @@ async def _dead_letter(job_id: uuid.UUID, org_id: uuid.UUID, error_code: str | N
                 "you can retry it, or contact support with the document id."
             ),
         )
+    jobs_dead_lettered.labels(error_code=error_code or "max_attempts_exceeded").inc()
     logger.error("job.dead_lettered", job_id=str(job_id), error_code=error_code)
 
 

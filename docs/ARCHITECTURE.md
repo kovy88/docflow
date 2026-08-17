@@ -171,10 +171,13 @@ log output through a single `ProcessorFormatter`) carry `request_id`,
 `organization_id`, `document_id`, and `job_id` wherever applicable, so a
 single document's path through upload → queue → pipeline stages → webhook
 delivery can be reconstructed from logs alone. Prometheus metrics are
-exposed at `/metrics` with route-template labels (`/documents/{id}`, never
-the concrete id) to keep cardinality bounded. See
-[SECURITY.md](SECURITY.md#logging) for what's deliberately excluded from
-logs (document contents, credentials).
+exposed at `/metrics` (`docflow/observability/metrics.py`), all with
+route/type/provider-template labels — never a document, organization or user
+id — to keep cardinality bounded: HTTP request count and latency; documents
+processed and review rate by document type; per-stage duration; LLM calls,
+tokens, cost and errors by provider/model; job retries and dead-letters by
+error code. See [SECURITY.md](SECURITY.md#logging) for what's deliberately
+excluded from logs (document contents, credentials).
 
 ## What's deliberately not here
 

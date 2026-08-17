@@ -46,6 +46,7 @@ from docflow.domain.enums import (
     JobStatus,
 )
 from docflow.domain.errors import DocflowError, ResourceNotFoundError, is_retryable
+from docflow.observability.metrics import record_document
 from docflow.pipeline import PipelineContext, PipelineRunner
 from docflow.services.document_service import current_billing_period
 from docflow.validation.paths import to_template
@@ -199,6 +200,12 @@ class ProcessingService:
                 error_message=ctx.error_message,
             )
             await self._session.commit()
+            record_document(
+                document_type=ctx.document_type_key,
+                status=DocumentStatus.FAILED.value,
+                duration_seconds=duration_ms / 1000,
+                needs_review=False,
+            )
             return ProcessingResult(
                 document_id=document.id,
                 status=DocumentStatus.FAILED,
@@ -231,6 +238,17 @@ class ProcessingService:
             cost_usd=str(ctx.total_cost_usd),
             duration_ms=duration_ms,
             document_type=ctx.document_type_key,
+        )
+
+        record_document(
+            document_type=ctx.document_type_key,
+            status=status.value,
+            duration_seconds=duration_ms / 1000,
+            # Free-text reasons (e.g. "field X needs checking, confidence NN%")
+            # are not safe as a Prometheus label — unbounded cardinality. Only
+            # the yes/no signal is recorded here; the reasons themselves are on
+            # the document record and processing timeline for a human to read.
+            needs_review=ctx.needs_review,
         )
 
         return ProcessingResult(

@@ -26,6 +26,7 @@ fixture is visible to `process_document`'s own `session_scope()` calls.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import uuid
 from collections.abc import AsyncIterator
 
@@ -153,6 +154,19 @@ def _patch_service(monkeypatch, outcome: ProcessingResult | Exception) -> None:
     monkeypatch.setattr(worker_tasks, "build_pipeline", lambda **kwargs: None)
 
 
+def _metric_value(metric, *, suffix: str = "_total", **labels: str) -> float:
+    """Read a Prometheus metric's current value via the public `.collect()` API.
+
+    Deltas (before/after around the call under test) rather than an absolute
+    value, since `REGISTRY` is a module-level singleton shared across the whole
+    test session — other tests may have already incremented the same series.
+    """
+    for sample in metric.collect()[0].samples:
+        if sample.name.endswith(suffix) and sample.labels == labels:
+            return sample.value
+    return 0.0
+
+
 class TestRaisedDocflowErrors:
     """`ProcessingService.process` raises rather than returning a FAILED result."""
 
@@ -233,8 +247,11 @@ class TestReturnedFailedResult:
     async def test_retryable_result_below_max_attempts_raises_arq_retry(
         self, worker_session, worker_org, monkeypatch
     ):
+        from docflow.observability.metrics import job_retries
+
         job_id, _ = await _make_job(worker_session, worker_org, max_attempts=3)
-        _patch_service(monkeypatch, _result(retryable=True))
+        _patch_service(monkeypatch, _result(retryable=True, error_code="provider_timeout"))
+        before = _metric_value(job_retries, error_code="provider_timeout")
 
         with pytest.raises(Retry) as exc_info:
             await worker_tasks.process_document({"job_try": 1}, str(job_id), str(worker_org.id))
@@ -242,12 +259,18 @@ class TestReturnedFailedResult:
 
         job = await JobRepository(worker_session, worker_org.id).get(job_id)
         assert job.status == JobStatus.PENDING.value
+        # A retry is precisely the case an operator needs paged on if it spikes —
+        # confirms the metric that was previously defined but never incremented.
+        assert _metric_value(job_retries, error_code="provider_timeout") == before + 1
 
     async def test_retryable_result_exhausted_is_dead_lettered(
         self, worker_session, worker_org, monkeypatch
     ):
+        from docflow.observability.metrics import jobs_dead_lettered
+
         job_id, document_id = await _make_job(worker_session, worker_org, max_attempts=3)
         _patch_service(monkeypatch, _result(retryable=True, error_code="malformed_model_output"))
+        before = _metric_value(jobs_dead_lettered, error_code="malformed_model_output")
 
         await worker_tasks.process_document({"job_try": 3}, str(job_id), str(worker_org.id))
 
@@ -256,6 +279,7 @@ class TestReturnedFailedResult:
         document = await DocumentRepository(worker_session, worker_org.id).get(document_id)
         assert document.status == DocumentStatus.FAILED.value
         assert document.error_code == "malformed_model_output"
+        assert _metric_value(jobs_dead_lettered, error_code="malformed_model_output") == before + 1
 
 
 class TestUnexpectedExceptions:
@@ -324,6 +348,83 @@ class TestStaleSweep:
         outcome = await worker_tasks.sweep_stale_jobs({})
 
         assert outcome == {"stale_documents_recovered": 0}
+
+
+class TestMetricsEmission:
+    """`record_document`/`record_stage`/`record_llm_call`/`record_validation_issue`
+    were defined in `observability/metrics.py` but never called from anywhere —
+    dead code that `docflow_documents_processed_total` etc. would report zero
+    forever. Every other test either stubs `ProcessingService` entirely (the
+    classes above) or calls `PipelineRunner` directly, bypassing
+    `ProcessingService._persist` (`test_pipeline.py`) — so nothing exercises the
+    real, unstubbed `process_document` end to end. This does, once, to prove the
+    wiring actually reaches Prometheus and not just "doesn't crash".
+    """
+
+    async def test_a_real_run_populates_the_previously_dead_metrics(
+        self, worker_session, worker_org, storage, provider, sample_invoice, monkeypatch
+    ):
+        from docflow.observability import metrics
+        from docflow.pipeline import build_pipeline as real_build_pipeline
+        from docflow.storage.base import build_key
+
+        monkeypatch.setattr(
+            worker_tasks,
+            "build_pipeline",
+            lambda **kwargs: real_build_pipeline(
+                settings=kwargs["settings"], storage=storage, provider=provider
+            ),
+        )
+
+        doc_id = uuid.uuid4()
+        key = build_key(worker_org.id, doc_id, extension="txt")
+        await storage.put(key, sample_invoice, content_type="text/plain")
+
+        documents = DocumentRepository(worker_session, worker_org.id)
+        document = await documents.create(
+            id=doc_id,
+            filename="invoice.txt",
+            content_type="text/plain",
+            size_bytes=len(sample_invoice),
+            checksum_sha256=hashlib.sha256(sample_invoice).hexdigest(),
+            storage_key=key,
+            status=DocumentStatus.UPLOADED.value,
+        )
+        jobs = JobRepository(worker_session, worker_org.id)
+        job = await jobs.create(
+            document_id=document.id, idempotency_key=uuid.uuid4().hex, max_attempts=3
+        )
+        await worker_session.commit()
+
+        stage_before = _metric_value(
+            metrics.stage_duration, suffix="_count", stage="llm_extraction"
+        )
+
+        result = await worker_tasks.process_document(
+            {"job_try": 1}, str(job.id), str(worker_org.id)
+        )
+
+        assert result["status"] in ("completed", "needs_review")
+
+        assert (
+            _metric_value(
+                metrics.documents_processed,
+                document_type="invoice",
+                status=result["status"],
+            )
+            >= 1
+        )
+        assert (
+            _metric_value(
+                metrics.llm_calls,
+                provider="fixture",
+                model="fixture-heuristic",
+                purpose="extraction",
+            )
+            >= 1
+        )
+        stage_after = _metric_value(metrics.stage_duration, suffix="_count", stage="llm_extraction")
+        assert stage_after == stage_before + 1
 
 
 # Sanity check on the fixture itself: DocflowError must actually be raisable

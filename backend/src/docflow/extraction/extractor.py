@@ -35,6 +35,7 @@ from docflow.config import LLMSettings
 from docflow.domain.enums import ValidationSeverity
 from docflow.domain.errors import (
     CostLimitExceededError,
+    DocflowError,
     MalformedModelOutputError,
     OutputTruncatedError,
 )
@@ -42,6 +43,7 @@ from docflow.llm.base import LLMProvider, LLMRequest, LLMResponse
 from docflow.llm.fixture_provider import DOCUMENT_TYPE_KEY, SOURCE_TEXT_KEY
 from docflow.llm.pricing import estimate_tokens
 from docflow.llm.schema import describe_schema_for_prompt, normalize_schema
+from docflow.observability.metrics import record_llm_call, record_llm_error
 from docflow.prompts import extraction as prompts
 from docflow.schemas.base import DocumentTypeSpec
 from docflow.validation.engine import Issue, RuleContext, ValidationEngine, validate_syntax
@@ -191,7 +193,7 @@ class LLMExtractor:
             return outcome
 
         try:
-            response = await self._call(system, repair_user, schema, spec, text)
+            response = await self._call(system, repair_user, schema, spec, text, purpose="repair")
         except (MalformedModelOutputError, OutputTruncatedError) as exc:
             # A failed repair must not lose the first, partially-good result. The
             # original outcome still routes to human review with its issues intact,
@@ -237,6 +239,8 @@ class LLMExtractor:
         schema: dict[str, Any],
         spec: DocumentTypeSpec,
         source_text: str,
+        *,
+        purpose: str = "extraction",
     ) -> LLMResponse:
         request = LLMRequest(
             system=system,
@@ -254,7 +258,21 @@ class LLMExtractor:
                 SOURCE_TEXT_KEY: source_text,
             },
         )
-        return await self._provider.complete_structured(request)
+        try:
+            response = await self._provider.complete_structured(request)
+        except DocflowError as exc:
+            record_llm_error(provider=self._provider.name, error_code=exc.code)
+            raise
+        record_llm_call(
+            provider=response.provider,
+            model=response.model,
+            purpose=purpose,
+            input_tokens=response.input_tokens,
+            output_tokens=response.output_tokens,
+            cost_usd=float(response.cost_usd),
+            latency_seconds=response.latency_ms / 1000,
+        )
+        return response
 
     def _build_outcome(
         self, response: LLMResponse, spec: DocumentTypeSpec, text: str

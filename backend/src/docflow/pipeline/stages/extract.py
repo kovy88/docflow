@@ -21,6 +21,7 @@ from docflow.domain.enums import ConfidenceBand, ProcessingStage, ValidationSeve
 from docflow.extraction.baseline import extract_baseline
 from docflow.extraction.extractor import LLMExtractor
 from docflow.llm.base import LLMProvider
+from docflow.observability.metrics import record_validation_issue
 from docflow.pipeline.context import PipelineContext
 from docflow.pipeline.stage import Stage
 from docflow.schemas.base import FieldKind, FieldSpec
@@ -143,6 +144,8 @@ class ValidationStage(Stage):
             )
         )
         ctx.issues = [*syntax_issues, *result.issues]
+        for issue in ctx.issues:
+            record_validation_issue(issue.rule_id, issue.severity.value)
 
     def detail(self, ctx: PipelineContext) -> dict[str, object]:
         errors = sum(1 for i in ctx.issues if i.severity is ValidationSeverity.ERROR)

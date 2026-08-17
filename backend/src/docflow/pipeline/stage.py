@@ -27,6 +27,7 @@ import structlog
 
 from docflow.domain.enums import ProcessingStage, StepStatus
 from docflow.domain.errors import DocflowError
+from docflow.observability.metrics import record_stage
 from docflow.pipeline.context import PipelineContext, StepRecord
 
 logger = structlog.get_logger(__name__)
@@ -138,6 +139,7 @@ def _finish(record: StepRecord, status: StepStatus, clock: float) -> None:
     record.status = status
     record.finished_at = _now()
     record.duration_ms = int((time.perf_counter() - clock) * 1000)
+    record_stage(record.stage.value, record.duration_ms / 1000)
 
 
 def _now() -> dt.datetime:
