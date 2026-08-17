@@ -96,8 +96,11 @@ Actions CI (lint, typecheck, tests against real Postgres/Redis, `bandit` +
 ## Status
 
 258 backend tests (unit + integration, against a real Postgres via
-transaction-rollback isolation), clean `ruff`/`mypy`/`bandit`. Deployed and
-live: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the URLs. See
+transaction-rollback isolation), clean `ruff`/`mypy`/`bandit`, plus 5
+Playwright E2E tests covering the critical user flow and auth/empty-state
+error paths against the real stack (`frontend/e2e`, `npm run test:e2e`).
+Deployed and live: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the
+URLs. See
 [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for what's built versus
 what's deliberately left as future work, and
 [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) for the honest trade-offs.

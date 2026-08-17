@@ -90,8 +90,19 @@ teardown, so the suite doesn't need per-test cleanup or a fresh database.
 cd frontend
 npm run lint
 npm run typecheck
-npm run build   # production build — the strongest correctness check the frontend has short of E2E
+npm run build      # production build
+npm run test:e2e   # Playwright — needs the real stack running, see below
 ```
+
+`test:e2e` runs against the real stack (Postgres, Redis, API, worker,
+frontend — not mocked network calls), covering the critical user flows:
+register → upload → wait for processing → edit a field → save → approve,
+plus login/registration error paths and empty states for a fresh account. It
+starts `docker compose --profile full up -d` itself if nothing is already
+listening on `:3000` (idempotent — a no-op if the stack is already running).
+Uses the fixture LLM provider by default (docker-compose.yml's default), so
+it's free and processes in milliseconds, not real API calls. `npm run
+test:e2e:ui` opens Playwright's UI mode for debugging a specific test.
 
 ## Linting & type checking
 

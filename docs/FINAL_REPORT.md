@@ -473,9 +473,11 @@ The real-LLM accuracy number is measured now, but on 11 completed documents
 under a free-tier key — not the confident, large-sample number a production
 decision should rest on. Everything downstream of it (cost projections, the
 ROI calculator's defaults, the ADR trade-offs that assume "accurate enough")
-is still provisional until a bigger run replaces it. Second weakest: zero
-frontend test coverage — lint/typecheck/build catch a real class of bugs,
-but not a regression in what a reviewer actually sees on screen.
+is still provisional until a bigger run replaces it. Second weakest: the new
+Playwright E2E suite (5 tests, critical user flows against the real stack)
+isn't wired into CI yet — it exists and passes, but nothing stops it from
+silently rotting the way the worker retry tests would have if they'd been
+skipped at the time they were needed most.
 
 **What would you do differently if starting over?**
 Very little architecturally — the layering (provider abstraction,

@@ -1,0 +1,14 @@
+INVOICE
+
+Invoice No.: E2E-2026-001
+Issue Date: 2026-08-17
+Due Date: 2026-09-16
+
+Supplier: E2E Test Supplier s.r.o.
+VAT ID: CZ12345678
+
+Subtotal: 826.45 EUR
+Tax: 173.55 EUR
+Total: 1000.00 EUR
+
+Currency: EUR

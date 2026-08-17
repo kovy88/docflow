@@ -58,7 +58,7 @@ stated scope limit — e.g. measured on a small or synthetic sample) ·
 | 17 | Real LLM cost/latency per document | Verified, limited | $0.0049/doc, mean 36.5s/doc — from the same 20-document run above. Latency in particular has not been investigated or optimized |
 | 18 | FK indexes present for cascade-delete and future query patterns | Verified | Fixed in `ca3cf58` — `field_corrections.document_id`, `usage_records.document_id`/`extraction_id`, `webhook_deliveries.organization_id` were missing indexes their sibling FK columns on the same tables already had. Confirmed these weren't live query bottlenecks (no code path filters on them directly yet), but `ON DELETE CASCADE`/`SET NULL` from `documents` still forces a sequential scan of these tables on every document delete without the index |
 | 19 | CI gates the things it claims to | Verified | Backend: ruff check + format check, mypy, full test suite with coverage, bandit, pip-audit (`.github/workflows/backend.yml`). Frontend: lint, typecheck, build (`.github/workflows/frontend.yml`) |
-| 20 | Frontend has automated test coverage | **Not done** | `frontend/package.json` has no `test` script at all — no unit, component, or E2E tests exist. CI only lints, typechecks, and builds. This is a real, current gap, not an oversight in this document |
+| 20 | Frontend has automated test coverage | Verified | 5 Playwright E2E tests (`frontend/e2e/`) against the real stack (Postgres, Redis, API, worker, frontend — fixture LLM provider, not mocked network calls): the critical flow (register → upload → wait for processing → edit a field → save → approve) plus auth/empty-state error paths (wrong password, duplicate email registration, fresh-account empty states, logout blocking authenticated routes). `npm run test:e2e`. Not yet wired into CI — runs locally/on demand only |
 | 21 | OCR accuracy on scanned/low-DPI documents | **Not measured** | No scanned ground-truth corpus exists for this project |
 | 22 | Accuracy on real (non-synthetic) customer documents | **Not measured** | No real-document ground-truth corpus exists or can be committed publicly; synthetic-corpus numbers are stated as an upper bound, not a prediction — see EVALUATION.md's methodology section |
 | 23 | Billing wired to a real payment processor | **Not done** | Plans/quotas are architected and enforced transactionally; no money moves through the system. Stated plainly in SECURITY.md's known gaps, not implied elsewhere |
@@ -115,7 +115,7 @@ best evidence that "Verified" in this document means something:
 
 Tracked, not hidden. In rough priority order:
 
-- Add frontend test coverage — currently zero.
+- Wire the new Playwright E2E suite into CI — currently local/on-demand only.
 - Load testing, specifically exercising the reprocess-race protection under
   real concurrent load, not just two connections in a unit test.
 - Re-verify `docker compose up` from a clean clone; re-check OpenAPI docs

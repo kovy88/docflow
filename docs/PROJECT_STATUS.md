@@ -103,9 +103,11 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
 ### Phase 11 — Testing & CI
 - [x] 258 backend tests (unit + integration against a real Postgres,
       transaction-rollback isolation) — passing, clean `ruff`/`mypy`
-- [ ] **Frontend has zero automated test coverage.** `frontend/package.json`
-      has no `test` script; CI only lints, typechecks, and builds. Stated
-      plainly rather than left implicit — see
+- [x] **Frontend E2E test coverage** — 5 Playwright tests against the real
+      stack (`frontend/e2e/`, `npm run test:e2e`): the critical flow
+      (register → upload → wait for processing → edit a field → save →
+      approve) plus auth/empty-state error paths. Not yet wired into CI
+      (local/on-demand only) — see
       [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md)
 - [x] `bandit` + `pip-audit` clean (pip-audit's one expected finding is
       auditing this project's own editable install, soft-failed in CI)
@@ -219,7 +221,8 @@ discussion.
 - OCR quality on real low-DPI scans is untested — the evaluation corpus is
   synthetic text rendered to PDF, not photographed/scanned paper.
 - No third-party security review or penetration test has been run.
-- Frontend has no automated test coverage (lint/typecheck/build only).
+- Frontend E2E tests exist (5, covering critical flows) but aren't wired
+  into CI yet — they run locally/on-demand only.
 - No load testing has been run against the live deployment.
 
 **For the full evidence-backed list — what's verified, how, and what's
