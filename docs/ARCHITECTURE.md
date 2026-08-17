@@ -142,6 +142,23 @@ disagree on a load-bearing field. Every reason is recorded (`review_reasons`
 on the document), not just a boolean, so the frontend can tell a reviewer
 *what* to look at instead of "something's uncertain."
 
+## Concurrency on shared rows
+
+A document's `status` is read-checked-then-written in a few places (most
+directly: reprocess refuses to run while a document is already in flight).
+Under Postgres's default READ COMMITTED isolation, two concurrent requests
+each doing a plain read then a write on the same row can both read the
+pre-write state and both proceed — a real bug found during this build via a
+deliberately concurrent test (`tests/integration/test_reprocess_race.py`,
+two genuinely separate connections racing `DocumentService.reprocess` against
+the same document): both callers read "not in flight" and both queued a
+job, silently doubling the LLM cost for one reprocess click. Fixed with
+`SELECT ... FOR UPDATE` (`DocumentRepository.get_for_update`) on that specific
+read-then-write sequence — the second request blocks until the first's
+transaction commits, then correctly sees the row it just changed and is
+refused. Applied narrowly, only where a stale read changes what gets
+written, not as a blanket locking policy on every read.
+
 ## Multi-tenancy
 
 Shared schema, not database-per-tenant or schema-per-tenant — see

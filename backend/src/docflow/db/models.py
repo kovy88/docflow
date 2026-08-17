@@ -656,7 +656,7 @@ class FieldCorrection(Base):
         ForeignKey("extractions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     document_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     field_path: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
@@ -702,10 +702,10 @@ class UsageRecord(Base):
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
     document_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("documents.id", ondelete="SET NULL")
+        ForeignKey("documents.id", ondelete="SET NULL"), index=True
     )
     extraction_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("extractions.id", ondelete="SET NULL")
+        ForeignKey("extractions.id", ondelete="SET NULL"), index=True
     )
 
     kind: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -784,7 +784,7 @@ class WebhookDelivery(Base):
         ForeignKey("webhook_endpoints.id", ondelete="CASCADE"), nullable=False, index=True
     )
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
     event: Mapped[str] = mapped_column(String(60), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False)

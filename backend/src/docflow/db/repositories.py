@@ -256,6 +256,21 @@ class DocumentRepository(OrgScopedRepository[Document]):
         result = await self.session.execute(self._scoped().where(Document.id == document_id))
         return result.scalar_one_or_none()
 
+    async def get_for_update(self, document_id: uuid.UUID) -> Document | None:
+        """Like `get`, but takes a row lock held until the caller's transaction ends.
+
+        Only for read-check-then-write sequences on `status` (reprocess, delete)
+        where two concurrent requests reading the same pre-write status is the bug,
+        not a performance nicety — see `DocumentService.reprocess`. A plain `get`
+        lets two concurrent reprocess calls both read "not in flight" and both
+        queue a job; this makes the second call block until the first's
+        transaction commits, then see the status it just changed.
+        """
+        result = await self.session.execute(
+            self._scoped().where(Document.id == document_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def get_with_extraction(self, document_id: uuid.UUID) -> Document | None:
         result = await self.session.execute(
             self._scoped()

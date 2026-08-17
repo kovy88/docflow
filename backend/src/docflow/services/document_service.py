@@ -204,7 +204,10 @@ class DocumentService:
     # --------------------------------------------------------------- lifecycle
 
     async def reprocess(self, document_id: uuid.UUID, *, reason: str = "manual") -> ProcessingJob:
-        document = await self.documents.get(document_id)
+        # Locked: two concurrent reprocess calls must not both read "not in
+        # flight" and both queue a job. The second call blocks here until the
+        # first's transaction commits, then sees QUEUED and is correctly refused.
+        document = await self.documents.get_for_update(document_id)
         if document is None:
             raise ResourceNotFoundError("Document not found")
 
