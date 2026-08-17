@@ -18,8 +18,9 @@ cleverness. See [docs/AI.md](docs/AI.md) for that argument in full, and
   extract text (native or OCR) → classify document type → LLM structured
   extraction against a versioned JSON Schema → three-layer validation → confidence
   scoring → human review → persistence → export/webhook.
-- **Swappable LLM provider** (Anthropic / OpenAI / a deterministic fixture for
-  tests and offline demos) behind one interface — see [docs/AI.md](docs/AI.md).
+- **Swappable LLM provider** (Anthropic / OpenAI / Gemini / a deterministic
+  fixture for tests and offline demos) behind one interface — see
+  [docs/AI.md](docs/AI.md).
 - **Multi-tenant from the schema up**: every table is organization-scoped, every
   repository injects `organization_id` server-side, cross-tenant access returns
   404 rather than 403 (see [docs/SECURITY.md](docs/SECURITY.md)).
@@ -29,8 +30,9 @@ cleverness. See [docs/AI.md](docs/AI.md) for that argument in full, and
 - **A real evaluation harness**: a 120-document synthetic corpus with exact
   ground truth, a rule-based baseline, and match-level/precision-recall/
   confidence-calibration metrics — not a vibe check. Real-LLM numbers are
-  explicitly marked "not yet measured" rather than guessed (no API key has been
-  configured in this environment).
+  measured too (83.5% field accuracy against Gemini), labeled quota-limited
+  rather than rounded up to a production claim — see
+  [docs/EVALUATION.md](docs/EVALUATION.md).
 - **A Next.js frontend** — dashboard, document list/detail with inline
   correction, review queue, settings, an ROI calculator — built to be
   demoed, not just to prove the API works.
@@ -53,9 +55,9 @@ type — so the dashboard, document list, and review queue aren't empty.
 No LLM API key is required to run the demo: with no key configured, Docflow
 uses a deterministic fixture provider that exercises the full pipeline
 (classification, extraction, validation, confidence scoring, review routing)
-without calling a real model. Set `DOCFLOW_LLM_ANTHROPIC_API_KEY` or
-`DOCFLOW_LLM_OPENAI_API_KEY` to use a real one — see
-[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
+without calling a real model. Set `DOCFLOW_LLM_ANTHROPIC_API_KEY`,
+`DOCFLOW_LLM_OPENAI_API_KEY`, or `DOCFLOW_LLM_GOOGLE_API_KEY` to use a real
+one — see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
 
 The API is at `http://localhost:8000` (interactive docs at `/docs`); Postgres
 and Redis are exposed on non-default host ports (5433, 6380) so they won't
@@ -83,7 +85,7 @@ collide with anything already running on your machine.
 
 **Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS.
 
-**AI:** Anthropic and OpenAI providers behind a shared interface; a
+**AI:** Anthropic, OpenAI, and Gemini providers behind a shared interface; a
 deterministic fixture provider for tests, CI, and API-key-free demos.
 
 **Infra:** Docker (single backend image for API + worker), Docker Compose for
@@ -93,8 +95,9 @@ Actions CI (lint, typecheck, tests against real Postgres/Redis, `bandit` +
 
 ## Status
 
-227 backend tests (unit + integration, against a real Postgres via
-transaction-rollback isolation), clean `ruff`/`mypy`/`bandit`. See
+258 backend tests (unit + integration, against a real Postgres via
+transaction-rollback isolation), clean `ruff`/`mypy`/`bandit`. Deployed and
+live: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the URLs. See
 [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for what's built versus
 what's deliberately left as future work, and
 [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) for the honest trade-offs.

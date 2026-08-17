@@ -6,7 +6,7 @@ phases done before the corresponding code existed — see git history if
 that's of interest. This version reflects what actually runs, as of the
 date below.
 
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-17
 
 ---
 
@@ -44,8 +44,9 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
       dead-lettering, per-stage timing persisted for the UI timeline
 
 ### Phase 5-7 — AI extraction, validation, review
-- [x] `LLMProvider` abstraction: Anthropic, OpenAI, and a deterministic
-      fixture (no real model calls, tests/CI/demos need no API key)
+- [x] `LLMProvider` abstraction: Anthropic, OpenAI, Gemini, and a
+      deterministic fixture (no real model calls, tests/CI/demos need no
+      API key)
 - [x] Structured output only — no tool access, no free-text channel (see
       [SECURITY.md](SECURITY.md#prompt-injection-defense))
 - [x] Cheap-first classification (heuristic, LLM only below threshold)
@@ -71,11 +72,21 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
       confidence calibration — `uv run docflow-eval` (there is no `Makefile`;
       an earlier draft of this file referenced `make eval`, which was never
       accurate)
-- [x] Baseline measured: 52.2% normalized field accuracy, 5.8% document
-      success — see [EVALUATION.md](EVALUATION.md) for the full report
-- [ ] **Real LLM accuracy — not measured.** No API key has been configured
-      in this environment. Labeled as such everywhere it would otherwise
-      appear, per explicit instruction, rather than estimated.
+- [x] Baseline measured: 56.0% normalized field accuracy, 90.1% critical-field
+      accuracy, 5.8% document success — see [EVALUATION.md](EVALUATION.md)
+      for the full report
+- [x] `docflow-calibrate` — re-derives confidence-band accuracy from the
+      production scoring code in deciles, not just the three bands. Its first
+      real run found a genuine bug (a non-breaking-space thousands separator
+      silently truncating money values, also weakening the production
+      baseline-agreement signal, not just eval numbers) — see
+      [EVALUATION.md](EVALUATION.md#confidence-calibration) and
+      [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for the full story
+- [x] **Real LLM (Gemini) accuracy — measured, quota-limited.** 83.5% field
+      accuracy, 100% required-field accuracy on the 11 of 20 documents that
+      completed under a free-tier key (9 hard-failed, most likely rate
+      limiting). Not yet re-run at a larger, non-quota-limited scale — see
+      [EVALUATION.md](EVALUATION.md) for the full numbers and caveats
 
 ### Phase 10 — Observability & security
 - [x] Structured JSON logs (`structlog`, unified with uvicorn/SQLAlchemy/arq
@@ -90,8 +101,12 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
       testing (see [SECURITY.md](SECURITY.md#tenant-isolation))
 
 ### Phase 11 — Testing & CI
-- [x] 227 backend tests (unit + integration against a real Postgres,
+- [x] 258 backend tests (unit + integration against a real Postgres,
       transaction-rollback isolation) — passing, clean `ruff`/`mypy`
+- [ ] **Frontend has zero automated test coverage.** `frontend/package.json`
+      has no `test` script; CI only lints, typechecks, and builds. Stated
+      plainly rather than left implicit — see
+      [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md)
 - [x] `bandit` + `pip-audit` clean (pip-audit's one expected finding is
       auditing this project's own editable install, soft-failed in CI)
 - [x] GitHub Actions: lint/typecheck/test (backend and frontend, separate
@@ -110,11 +125,16 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
       extract → validate → score → review-route run and a browser login
       against the containerized frontend. This surfaced and fixed real bugs
       that a written-but-unrun config would not have caught — see below.
-- [x] `render.yaml` (Render Blueprint: API, worker, managed Redis) and
-      `frontend/vercel.json` — written and internally consistent with the
-      verified Docker images, **not deployed to a live account** as part of
-      this build (see [DEPLOYMENT.md](DEPLOYMENT.md) for exactly what that
-      distinction means)
+- [x] **Deployed to live Render and Vercel accounts, not just configured.**
+      Frontend at https://frontend-nine-brown-40.vercel.app, API at
+      https://docflow-api-o6o1.onrender.com, backed by Supabase
+      (Postgres + storage) and Render Key Value (Redis). The
+      `docflow-worker` background worker is deployed and live on Render's
+      Starter plan, confirmed via the Render API rather than assumed from
+      `render.yaml` existing — see [DEPLOYMENT.md](DEPLOYMENT.md) for the
+      exact URLs and the deliberate trade-offs still in place (API on the
+      free tier, so it cold-starts; Gemini as the configured provider since
+      no Anthropic key was available at deploy time)
 - [x] Seed/demo script (`docflow-seed`) — creates a demo org and runs 5
       documents (one of each built-in type) through the real pipeline;
       idempotent; verified end-to-end including in the browser
@@ -185,13 +205,9 @@ and the dead-letter path specifically.
 Tracked honestly — see [docs/FINAL_REPORT.md](FINAL_REPORT.md) for the full
 discussion.
 
-- **Real-LLM accuracy, cost, and latency are not measured.** Requires an API
-  key not available in this environment. See
-  [EVALUATION.md](EVALUATION.md#whats-measured-vs-not-summary) — nothing
-  here is estimated in its place.
-- **Not deployed to a live Render/Vercel account.** The configs exist and
-  are consistent with the verified Docker images; they haven't themselves
-  been exercised against a real hosted environment.
+- **Real-LLM accuracy is measured but quota-limited (20 documents, 9 of
+  which hard-failed under a free-tier key), not run at production scale.**
+  See [EVALUATION.md](EVALUATION.md#whats-measured-vs-not-summary).
 - **The correction feedback loop is data-ready, not built.**
   `field_corrections` is indexed for "which fields does prompt version X get
   wrong most," but nothing automated consumes it yet.
@@ -203,3 +219,12 @@ discussion.
 - OCR quality on real low-DPI scans is untested — the evaluation corpus is
   synthetic text rendered to PDF, not photographed/scanned paper.
 - No third-party security review or penetration test has been run.
+- Frontend has no automated test coverage (lint/typecheck/build only).
+- No load testing has been run against the live deployment.
+
+**For the full evidence-backed list — what's verified, how, and what's
+explicitly not — see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).**
+It also documents three real bugs found and fixed after this file's phases
+were originally marked done: a non-functional worker retry mechanism,
+missing refresh-token revocation, and a concurrency bug that could
+double-queue a reprocessed document.

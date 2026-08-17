@@ -10,18 +10,18 @@ end-to-end**: frontend at https://frontend-nine-brown-40.vercel.app, API at
 https://docflow-api-o6o1.onrender.com, backed by Supabase (Postgres +
 S3-compatible storage) and Render Key Value (Redis). Registration, login and
 the dashboard were exercised through the live UI, not just curled directly.
-Two deliberate gaps in that live deployment, both cost/time trade-offs made
-during setup rather than unknowns:
+The `docflow-worker` background worker is also deployed and live, on
+Render's Starter plan ($7/mo — the free tier has no background-worker
+service type at all, so this is a real cost, not a config flag), confirmed
+via the Render API (`GET /v1/services/{id}/deploys` reporting `status: live`)
+rather than assumed from `render.yaml` existing. Two remaining, deliberate
+trade-offs in that live deployment:
 
-- **No worker is deployed.** Render's free tier has no background-worker
-  plan — only Starter ($7/mo) and above support that service type. Uploaded
-  documents will sit in `pending` until a worker is added; see the
-  `docflow-worker` block in [render.yaml](../render.yaml), which is ready to
-  deploy as-is.
 - **The API service runs on Render's free web-service tier**, which spins
   down after inactivity. The first request after a quiet period takes several
   seconds (cold start) before the app responds; subsequent requests are
-  normal speed.
+  normal speed. (The worker is unaffected — background workers don't spin
+  down the same way, and it's on a paid plan regardless.)
 - **`DOCFLOW_LLM_PROVIDER=google`** (Gemini 3.6 Flash), not the `anthropic`
   default this file's blueprint originally specified — no Anthropic key was
   available at deploy time. Gemini's free-tier key is capped at 20

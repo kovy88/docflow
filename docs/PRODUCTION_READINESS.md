@@ -15,12 +15,12 @@ running code and test suite during this pass, not copied from an earlier
 doc or an agent's summary. Several claims that an earlier internal audit
 described as gaps turned out, on inspection, to be *already* fixed, already
 tested, or not actually live problems yet — those distinctions are called
-out inline rather than smoothed over. Three real bugs were found and fixed
-in the course of writing this document (below); that's the point of doing
-the check for real instead of asserting from memory.
+out inline rather than smoothed over. Four real problems were found and
+fixed in the course of writing this document (below); that's the point of
+doing the check for real instead of asserting from memory.
 
-**Commits this covers:** `7638d04` through `ca3cf58` — see `git log` for the
-full history. The five most relevant to this document specifically:
+**Commits this covers:** `7638d04` through `71cca2b` — see `git log` for the
+full history. The four most relevant to this document specifically:
 
 | Commit | What |
 |---|---|
@@ -66,9 +66,9 @@ stated scope limit — e.g. measured on a small or synthetic sample) ·
 | 25 | Frontend loading/empty/error states audited across every page | **Not verified in this document** | Not re-checked in this pass; see [Open items](#open-items) |
 | 26 | Docker images rebuild clean and `docker compose up` works from a fresh clone | **Not verified in this document** | Last manually verified earlier in this project's history (see git log around the Docker-bug-fix commits); not re-run in this pass |
 | 27 | OpenAPI docs match actual request/response shapes | **Not verified in this document** | FastAPI generates these automatically from the Pydantic models, which makes drift less likely than hand-written docs, but this was not explicitly re-diffed against the schemas in this pass |
-| 28 | Architecture/status docs are current | Verified, limited | `docs/ARCHITECTURE.md`, `docs/EVALUATION.md`, and `docs/AI.md` were updated in this pass and are current as of this document's commit. `docs/AI.md` previously said "three implementations" (`AnthropicProvider`, `OpenAIProvider`, `FixtureProvider`); the fourth, `GeminiProvider`, was added to the codebase without this doc being updated — fixed here. `docs/PROJECT_STATUS.md`/`docs/FINAL_REPORT.md`/`README.md` were **not** re-swept in this pass, see [Open items](#open-items) |
+| 28 | Architecture/status docs are current | Verified | Swept every doc under `docs/` plus `README.md` for the two specific stale-claim patterns found (provider count stuck at three; test count stuck at 227) and fixed all of them: `AI.md`, `PROJECT_STATUS.md`, `FINAL_REPORT.md`, `LOCAL_DEVELOPMENT.md`, `README.md`. `DEPLOYMENT.md` had a third, more serious one — it said "no worker is deployed," which a live check of the Render API (`GET /v1/services`, `GET /v1/services/{id}/deploys`) showed was false: the worker exists, its latest deploy status is `live`, and it's on a paid Starter plan. Fixed, and cited as evidence rather than re-asserted, since a doc claiming "verified live" is exactly the kind of claim that goes stale silently |
 
-## Three real bugs, for context on how seriously to take "Verified" above
+## Four real problems, for context on how seriously to take "Verified" above
 
 Read in full in their respective docs; summarized here because they're the
 best evidence that "Verified" in this document means something:
@@ -102,13 +102,19 @@ best evidence that "Verified" in this document means something:
    than trusting the assertion on faith. See
    [ARCHITECTURE.md](ARCHITECTURE.md#concurrency-on-shared-rows).
 
+4. **`DEPLOYMENT.md` said the worker wasn't deployed; it was.** Not a code
+   bug, but the same failure mode as one — a document said something about
+   the world that a five-minute live check would have disproven. The worker
+   had been deployed to Render's Starter plan in an earlier session, but the
+   doc describing the live deployment was never updated afterward, so it
+   kept telling readers "uploaded documents will sit in `pending` forever"
+   — which would have been actively wrong operational guidance. Caught only
+   by querying the Render API directly instead of trusting the file.
+
 ## Open items
 
 Tracked, not hidden. In rough priority order:
 
-- Sweep `docs/PROJECT_STATUS.md`/`docs/FINAL_REPORT.md`/`README.md` for
-  claims that predate this session's fixes (`docs/AI.md`'s stale provider
-  count was the same class of issue — already fixed, see row 28 above).
 - Audit frontend loading/empty/error states across every page.
 - Re-verify `docker compose up` from a clean clone.
 - Add frontend test coverage — currently zero.

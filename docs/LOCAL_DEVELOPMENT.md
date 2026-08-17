@@ -68,15 +68,15 @@ confidence scoring, review routing) runs and produces genuinely different
 output per document — it is not a mock that returns a canned response. It
 is *not* a substitute for measuring real model accuracy; see
 [EVALUATION.md](EVALUATION.md) for exactly what is and isn't measured with
-it. Set `DOCFLOW_LLM_PROVIDER=anthropic` (or `openai`) and the matching
-`DOCFLOW_LLM_ANTHROPIC_API_KEY` / `DOCFLOW_LLM_OPENAI_API_KEY` to use a real
-model.
+it. Set `DOCFLOW_LLM_PROVIDER=anthropic` (or `openai`, or `google`) and the
+matching `DOCFLOW_LLM_ANTHROPIC_API_KEY` / `DOCFLOW_LLM_OPENAI_API_KEY` /
+`DOCFLOW_LLM_GOOGLE_API_KEY` to use a real model.
 
 ## Tests
 
 ```bash
 cd backend
-uv run pytest                          # 227 tests: unit + integration
+uv run pytest                          # 258 tests: unit + integration
 uv run pytest tests/unit                # unit only — no database needed
 uv run pytest tests/integration         # needs a real Postgres (docker-compose's, or DOCFLOW_DB_URL)
 uv run pytest --cov=docflow             # with coverage
@@ -110,8 +110,9 @@ CI runs the same commands — see
 
 ```bash
 cd backend
-uv run docflow-eval                       # baseline + fixture, no API key needed
-uv run docflow-eval --provider anthropic  # real model, needs a key
+uv run docflow-eval                            # baseline + fixture, no API key needed
+uv run docflow-eval --provider anthropic       # real model, needs a key
+uv run docflow-eval --provider google --size 20  # Gemini; --size caps quota spend
 ```
 
 See [EVALUATION.md](EVALUATION.md) for methodology and the actual measured

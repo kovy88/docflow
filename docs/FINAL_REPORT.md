@@ -49,17 +49,18 @@ whole project, not because it's flattering:
 
 | | |
 |---|---|
-| Pipeline runs correctly end-to-end | **Measured** — 227 automated tests + manual full-stack verification through `docker compose` |
-| Rule-based baseline accuracy (120-doc synthetic corpus) | **Measured** — 52.2% normalized field accuracy, 5.8% document success. [EVALUATION.md](EVALUATION.md) |
-| Confidence-scoring machinery is internally consistent | **Measured** — calibration table in EVALUATION.md, against the fixture extractor |
-| **Real LLM (Anthropic/OpenAI) extraction accuracy** | **Not measured.** No API key has been available in this environment. |
-| **Real LLM cost per document** | **Not measured.** The `$0.0000` figures in this report and the eval reports are the fixture provider — literally zero API calls made — not a rounded-down real number. |
-| **Real LLM latency** | **Not measured.** |
+| Pipeline runs correctly end-to-end | **Measured** — 258 automated tests + manual full-stack verification through `docker compose` and the live Render/Vercel deployment |
+| Rule-based baseline accuracy (120-doc synthetic corpus) | **Measured** — 56.0% normalized field accuracy, 90.1% critical-field accuracy, 5.8% document success. [EVALUATION.md](EVALUATION.md) |
+| Confidence-scoring machinery is internally consistent | **Measured** — and it found a real bug: a non-breaking-space thousands separator was silently truncating money values, weakening the production confidence signal, not just an eval number. Found by the calibration tool flagging a non-monotonic accuracy curve and investigating why instead of adjusting a threshold to hide it. Fixed; see [EVALUATION.md](EVALUATION.md#confidence-calibration) |
+| **Real LLM (Gemini) extraction accuracy** | **Measured, quota-limited.** 83.5% field accuracy, 100% required-field accuracy on the 11 of 20 documents that completed under a free-tier key (9 hard-failed, most likely rate limiting). Not yet run at production scale. [EVALUATION.md](EVALUATION.md) |
+| **Real LLM cost per document** | **Measured, quota-limited.** $0.0049/document on the same 20-document run. |
+| **Real LLM latency** | **Measured, quota-limited.** Mean 36.5s/document on the same run — not yet investigated or optimized. |
 | Accuracy on real (non-synthetic) documents | **Not measured** — no real-document ground-truth set exists for this project. |
 | OCR accuracy on scanned/low-DPI documents | **Not measured** — the corpus is synthetic text rendered to PDF, not photographed paper. |
 
 Nothing in this report estimates or extrapolates a number in place of these.
-Where a real number would normally go, it says "not yet measured" instead.
+Where a number is quota-limited rather than final, it says so explicitly
+rather than presenting it as a production-scale result.
 
 ## Cost model
 
@@ -72,10 +73,13 @@ captioned "see docs/EVALUATION.md for measured figures") unless real usage
 data is available, in which case it's pre-filled and captioned "from your
 measured usage" instead. The formula models human review realistically —
 10% of documents still cost review time, not assumed away — rather than
-claiming 100% automation. Because no real LLM calls have been made in this
-environment, that pre-fill has never actually fired; every dashboard cost
-figure produced so far reads `$0.0000`, honestly, because the fixture
-provider makes zero API calls.
+claiming 100% automation. Real LLM calls have now been made (the Gemini
+evaluation run, $0.0049/document — see the table above); whether the *live
+deployed* organization's own usage has accumulated enough real
+`usage_records` rows to trigger the calculator's measured-usage pre-fill
+specifically has not been checked. Locally, against the fixture provider
+(zero real API calls, by design — see [AI.md](AI.md)), every dashboard cost
+figure still reads `$0.0000`, honestly.
 
 ## Security summary
 
@@ -113,12 +117,15 @@ discussion: [DEPLOYMENT.md](DEPLOYMENT.md#scaling-notes).
   business-document corpus exists — but it means every accuracy number in
   this project is explicitly an upper bound, not a production estimate. See
   [EVALUATION.md](EVALUATION.md).
-- **Chose not to obtain a real LLM API key for this build.** The honest
-  consequence is that the single most commercially important number — "how
-  accurate is this against a real model" — is the one number this report
-  cannot give you. Everything upstream of that call (validation, confidence,
-  review, evaluation harness) is built and measured specifically so that
-  filling in that one number is a config change, not a rebuild.
+- **A real LLM key was obtained (Gemini), but the free tier caps it at 20
+  requests/day.** The single most commercially important number — "how
+  accurate is this against a real model" — now has a real answer (83.5%
+  field accuracy), but on a sample too small and too failure-prone (9 of 20
+  requests hard-failed, most likely rate limiting) to call final. Everything
+  upstream of that call (validation, confidence, review, evaluation harness)
+  was built and measured against the fixture first specifically so that
+  running the real number was a config change, not a rebuild — which is
+  exactly what happened. What's still missing is a larger, paid-tier run.
 - **Chose Render + Compose over Kubernetes.** Right-sized for the actual
   workload today (two process kinds); would need revisiting if the product
   grows into genuinely independent services. See
@@ -126,13 +133,16 @@ discussion: [DEPLOYMENT.md](DEPLOYMENT.md#scaling-notes).
 
 ## What I'd build next
 
-In priority order, and why that order: (1) measure real LLM accuracy — every
-other roadmap decision is downstream of knowing this number; (2) close the
-correction-feedback loop — the data (`field_corrections`, indexed by prompt
-version) is already there, unconsumed; (3) a real-document pilot with one
-design partner, since synthetic-corpus accuracy is explicitly a ceiling, not
-a floor; (4) DNS-rebinding-safe webhook delivery; (5) autoscaling policy for
-the worker once there's real traffic to tune it against, not before.
+In priority order, and why that order: (1) a larger, non-quota-limited real
+LLM evaluation run — the current 83.5% is measured on 11 completed
+documents, not enough to be a production claim, and every other roadmap
+decision below is downstream of knowing this number with confidence; (2)
+close the correction-feedback loop — the data (`field_corrections`, indexed
+by prompt version) is already there, unconsumed; (3) a real-document pilot
+with one design partner, since synthetic-corpus accuracy is explicitly a
+ceiling, not a floor; (4) DNS-rebinding-safe webhook delivery; (5)
+autoscaling policy for the worker once there's real traffic to tune it
+against, not before.
 
 ---
 
@@ -321,21 +331,28 @@ this step specifically. See [AI.md#classification-cheap-first](AI.md#classificat
 ### Evaluation
 
 **What's your model's actual accuracy?**
-Unmeasured for a real model — stated plainly, not rounded up or estimated.
-What *is* measured: a rule-based baseline scores 52.2% normalized field
-accuracy and 5.8% document success on a 120-document synthetic corpus,
-failing completely (0%) on line items and nested customer fields — exactly
-what a keyword/regex extractor should fail at, which is the point of having
-it as a floor. See [EVALUATION.md](EVALUATION.md).
+83.5% normalized field accuracy against Gemini, real model calls, on the 11
+of 20 evaluation documents that completed under a free-tier key (9
+hard-failed, most likely rate limiting) — measured, not estimated, but on a
+sample too small to call final. The rule-based baseline for comparison:
+56.0% normalized field accuracy and 5.8% document success on the full
+120-document synthetic corpus, failing completely (0%) on line items and
+nested customer fields — exactly what a keyword/regex extractor should fail
+at, which is the point of having it as a floor. See
+[EVALUATION.md](EVALUATION.md).
 
-**Why haven't you measured real LLM performance? Isn't that the most
+**Why is the real LLM number only from 20 documents? Isn't that the most
 important number?**
-Yes — it's explicitly the first item in "what I'd build next" above. No API
-key was available in this environment, and this project's standing rule is
-to say so plainly rather than estimate a number in its place. Every piece of
-infrastructure needed to produce that number the moment a key is available —
-corpus, metrics, baseline, report format — is built and already exercised
-via the fixture provider.
+Yes — it's explicitly the first item in "what I'd build next" above. The
+free-tier Gemini key this was run against caps at 20 requests/day, and 9 of
+those 20 hard-failed rather than returning a scored answer, most likely from
+that same rate limit. This project's standing rule is to report exactly what
+was measured rather than estimate around a limitation, so the number stands
+as "83.5% on 11 documents," not rounded up to a production claim. Every
+piece of infrastructure needed to produce a larger number — corpus, metrics,
+baseline, report format — is already built and already exercised against a
+real provider; what's missing is a paid-tier key and a bigger run, not new
+engineering.
 
 **How do you know your evaluation corpus isn't just measuring an easy
 synthetic dataset?**
@@ -452,9 +469,13 @@ sees as drop+add). See [LOCAL_DEVELOPMENT.md#database-migrations](LOCAL_DEVELOPM
 ### Self-critique
 
 **What's the weakest part of this system as it stands?**
-The gap between "the pipeline works" (measured) and "the extraction is
-accurate" (not measured for a real model) — everything downstream of that
-one missing number is provisional until it's filled in.
+The real-LLM accuracy number is measured now, but on 11 completed documents
+under a free-tier key — not the confident, large-sample number a production
+decision should rest on. Everything downstream of it (cost projections, the
+ROI calculator's defaults, the ADR trade-offs that assume "accurate enough")
+is still provisional until a bigger run replaces it. Second weakest: zero
+frontend test coverage — lint/typecheck/build catch a real class of bugs,
+but not a regression in what a reviewer actually sees on screen.
 
 **What would you do differently if starting over?**
 Very little architecturally — the layering (provider abstraction,
@@ -465,6 +486,8 @@ not as a final-audit catch — it's exactly the kind of gap that's cheap to
 close immediately and more expensive to rediscover later.
 
 **If you had one more week, what would you build?**
-A real-model accuracy run, end to end, published in [EVALUATION.md](EVALUATION.md)
-with the same rigor as the baseline numbers already there — it's the one
-deliverable everything else in this report is explicitly waiting on.
+A larger, paid-tier real-model accuracy run — the current one exists and is
+real, but 11 completed documents isn't enough to retire the caveats around
+it. Published in [EVALUATION.md](EVALUATION.md) with the same rigor as the
+numbers already there, since that document's own standing rule is not to
+round a quota-limited sample up into a production claim.
