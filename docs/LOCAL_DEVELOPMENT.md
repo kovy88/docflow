@@ -129,6 +129,29 @@ uv run docflow-eval --provider google --size 20  # Gemini; --size caps quota spe
 See [EVALUATION.md](EVALUATION.md) for methodology and the actual measured
 results.
 
+## Load test
+
+```bash
+cd backend
+uv run docflow-loadtest                                    # against localhost:8000
+uv run docflow-loadtest --base-url https://docflow-api-o6o1.onrender.com
+uv run docflow-loadtest --uploads 5 --requests 10 --reprocess 25  # heavier concurrency check
+```
+
+Registers a throwaway account, then runs three checks against a real running
+API: concurrent uploads, general API throughput, and — the one that matters —
+firing several reprocess requests at the *same* document simultaneously to
+confirm the row-lock fix (`ca3cf58`) holds: exactly one should be accepted
+(202), the rest refused (409). Exits non-zero if that property doesn't hold.
+**A non-zero exit against a real deployment doesn't automatically mean the
+fix regressed — check which commit is actually deployed first** (a redeploy
+lags behind `git push`, which lags behind a local commit; this script
+reported a failure against the live URL once for exactly that reason, not a
+code regression — see PRODUCTION_READINESS.md's changelog).
+Not a capacity-planning tool — see
+[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for what it has and
+hasn't verified.
+
 ## Database migrations
 
 One baseline migration today

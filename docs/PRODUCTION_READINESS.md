@@ -62,7 +62,7 @@ stated scope limit — e.g. measured on a small or synthetic sample) ·
 | 21 | OCR accuracy on scanned/low-DPI documents | **Not measured** | No scanned ground-truth corpus exists for this project |
 | 22 | Accuracy on real (non-synthetic) customer documents | **Not measured** | No real-document ground-truth corpus exists or can be committed publicly; synthetic-corpus numbers are stated as an upper bound, not a prediction — see EVALUATION.md's methodology section |
 | 23 | Billing wired to a real payment processor | **Not done** | Plans/quotas are architected and enforced transactionally; no money moves through the system. Stated plainly in SECURITY.md's known gaps, not implied elsewhere |
-| 24 | Load testing / capacity planning | **Not done** | No load test has been run against the deployed instance. Render's autoscaling and connection pool sizing are configured but unverified under real concurrent load |
+| 24 | Load testing / capacity planning | Verified, limited | `docflow-loadtest` (`backend/src/docflow/scripts/load_test.py`) against the local stack: 10 concurrent uploads (0 errors, mean 199ms), 50 general API requests (0 errors, p95 167ms), and — the one that matters — 10 concurrent reprocess calls on the *same* document: exactly 1 accepted (202), 9 refused (409), confirming the `ca3cf58` row-lock fix holds under real 10-way HTTP contention, not just the 2-connection unit test. Re-ran at 25-way contention too: still exactly 1/24. Light local check, not a capacity-planning benchmark or a test of the live Render deployment specifically — connection pool sizing and autoscaling under sustained real-world load are still unverified |
 | 25 | Frontend loading/empty/error states audited across every page | **Not verified in this document** | Not re-checked in this pass; see [Open items](#open-items) |
 | 26 | Docker images rebuild clean and `docker compose up` works from a fresh clone | **Not verified in this document** | Last manually verified earlier in this project's history (see git log around the Docker-bug-fix commits); not re-run in this pass |
 | 27 | OpenAPI docs match actual request/response shapes | **Not verified in this document** | FastAPI generates these automatically from the Pydantic models, which makes drift less likely than hand-written docs, but this was not explicitly re-diffed against the schemas in this pass |
@@ -99,8 +99,10 @@ best evidence that "Verified" in this document means something:
    both queue a job. Verified with two genuinely separate Postgres
    connections racing each other, and verified the test actually catches
    the bug (fails against the pre-fix code, passes against the fix) rather
-   than trusting the assertion on faith. See
-   [ARCHITECTURE.md](ARCHITECTURE.md#concurrency-on-shared-rows).
+   than trusting the assertion on faith. Re-checked later at real HTTP scale
+   with `docflow-loadtest` (row 24 below): 10, then 25, concurrent reprocess
+   calls over real HTTP against the same document — exactly one accepted
+   every time. See [ARCHITECTURE.md](ARCHITECTURE.md#concurrency-on-shared-rows).
 
 4. **`DEPLOYMENT.md` said the worker wasn't deployed; it was.** Not a code
    bug, but the same failure mode as one — a document said something about
@@ -116,8 +118,8 @@ best evidence that "Verified" in this document means something:
 Tracked, not hidden. In rough priority order:
 
 - Wire the new Playwright E2E suite into CI — currently local/on-demand only.
-- Load testing, specifically exercising the reprocess-race protection under
-  real concurrent load, not just two connections in a unit test.
+- A real capacity-planning load test against the live Render deployment
+  (sustained load, not a 10-25 request burst against localhost).
 - Re-verify `docker compose up` from a clean clone; re-check OpenAPI docs
   against the actual schemas.
 - Decide whether the DNS-rebinding gap in webhook SSRF protection is worth
