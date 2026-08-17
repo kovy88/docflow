@@ -13,10 +13,10 @@ because a third-party service is unavailable.
 ## Decision
 
 One `LLMProvider` interface (`complete_structured`, `health_check`,
-`aclose`); `AnthropicProvider`, `OpenAIProvider`, and a `FixtureProvider`
-implement it. Everything above the interface — the pipeline, classification,
-confidence scoring — depends only on the interface. See
-[AI.md](../AI.md#provider-abstraction).
+`aclose`); `AnthropicProvider`, `OpenAIProvider`, `GeminiProvider`, and a
+`FixtureProvider` implement it. Everything above the interface — the
+pipeline, classification, confidence scoring — depends only on the
+interface. See [AI.md](../AI.md#provider-abstraction).
 
 ## Alternatives considered
 
@@ -31,14 +31,19 @@ confidence scoring — depends only on the interface. See
   abstraction choices and its pace of tracking each vendor's structured-
   output API (which has genuine per-vendor differences — see
   [AI.md](../AI.md#structured-output-not-free-text) on JSON Schema
-  normalization). For two providers plus a fixture, a ~100-line interface
-  this codebase controls fully was judged simpler than adopting and tracking
-  a third-party abstraction's own versioning.
+  normalization). For two providers plus a fixture at the time of this
+  decision, a ~100-line interface this codebase controls fully was judged
+  simpler than adopting and tracking a third-party abstraction's own
+  versioning.
 
 ## Consequences
 
-- Adding a third real provider, or swapping which one is default, touches
-  one new file and a config value — not pipeline code.
+- Adding another real provider, or swapping which one is default, touches
+  one new file and a config value — not pipeline code. Borne out in
+  practice: `GeminiProvider` was added after this decision was made, and it
+  cost exactly that — one file (`llm/google_provider.py`) and a config
+  value, zero changes to the pipeline, classification, or confidence-scoring
+  code that depends on the interface.
 - The fixture provider is a first-class implementation of the same
   interface, not a mock framework's patch target — which is what makes
   `docker compose up && docflow-seed` work with zero credentials and still
