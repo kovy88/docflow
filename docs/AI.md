@@ -28,11 +28,12 @@ class LLMProvider(abc.ABC):
     async def aclose(self) -> None: ...
 ```
 
-Three implementations (`backend/src/docflow/llm/`): `AnthropicProvider`,
-`OpenAIProvider`, and `FixtureProvider` — a deterministic, rule-based
-stand-in that implements the same interface without calling a real model.
-Selected by `DOCFLOW_LLM_PROVIDER`; nothing above this interface (pipeline,
-classification, confidence scoring) knows or cares which one is active.
+Four implementations (`backend/src/docflow/llm/`): `AnthropicProvider`,
+`OpenAIProvider`, `GeminiProvider` (Google), and `FixtureProvider` — a
+deterministic, rule-based stand-in that implements the same interface
+without calling a real model. Selected by `DOCFLOW_LLM_PROVIDER`; nothing
+above this interface (pipeline, classification, confidence scoring) knows or
+cares which one is active.
 
 The fixture provider exists for three reasons, not one:
 - **Tests and CI never need a network call or a real API key.**
@@ -45,7 +46,7 @@ The fixture provider exists for three reasons, not one:
   ([EVALUATION.md](EVALUATION.md)) — it establishes that the pipeline
   works, not that extraction is accurate.
 
-Swapping providers, or adding a fourth, touches one file and zero pipeline
+Swapping providers, or adding another, touches one file and zero pipeline
 code — see [ADR-004](adr/004-llm-provider-abstraction.md) for why this was
 worth the abstraction cost.
 
@@ -53,10 +54,10 @@ worth the abstraction cost.
 
 Every extraction call requests structured output constrained to the target
 document type's JSON Schema (Anthropic's `output_config.format`, OpenAI's
-equivalent). The model does not have tool access and does not produce a free
-prose channel in this path — its only way to respond is a value conforming
-to a schema Docflow controls. This is a security property as much as a
-correctness one: see
+equivalent, Gemini's `response_json_schema`). The model does not have tool
+access and does not produce a free prose channel in this path — its only way
+to respond is a value conforming to a schema Docflow controls. This is a
+security property as much as a correctness one: see
 [SECURITY.md#prompt-injection](SECURITY.md#prompt-injection-defense) for what
 that closes off.
 
@@ -64,7 +65,7 @@ Schemas are normalized to a common subset before being handed to a provider,
 because "JSON Schema" is not quite one format across vendors — differences in
 supported keywords and strictness are reconciled in
 `backend/src/docflow/llm/schema.py` so the same document-type schema works
-unchanged against either provider.
+unchanged across every provider.
 
 ## Classification: cheap-first
 
