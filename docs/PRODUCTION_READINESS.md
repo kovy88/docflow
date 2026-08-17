@@ -115,15 +115,22 @@ best evidence that "Verified" in this document means something:
 
 Tracked, not hidden. In rough priority order:
 
-- Audit frontend loading/empty/error states across every page.
-- Re-verify `docker compose up` from a clean clone.
 - Add frontend test coverage — currently zero.
-- A larger, non-quota-limited real-LLM evaluation run (current Gemini numbers
-  are on 20 documents, 9 of which hard-failed).
+- Load testing, specifically exercising the reprocess-race protection under
+  real concurrent load, not just two connections in a unit test.
+- Re-verify `docker compose up` from a clean clone; re-check OpenAPI docs
+  against the actual schemas.
 - Decide whether the DNS-rebinding gap in webhook SSRF protection is worth
   closing (delivery-time re-resolution or an egress proxy) or stays a stated
   limitation.
-- Load testing before any claim about real production capacity.
+
+**Decided, not just deferred:** a larger real-LLM evaluation run was
+considered and explicitly declined — scaling past Gemini's 20-request/day
+free tier would need either a paid tier or a different provider's key,
+neither of which was worth it for this project's purpose. The 20-document,
+11-completed numbers stand as final, reported with their quota-limited scope
+stated plainly rather than presented as a production-scale result. See
+[EVALUATION.md](EVALUATION.md).
 
 ## Re-verifying this document
 
