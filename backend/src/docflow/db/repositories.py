@@ -474,6 +474,7 @@ class ExtractionRepository(OrgScopedRepository[Extraction]):
                 Extraction.needs_review.is_(True),
                 Extraction.status == ExtractionStatus.NEEDS_REVIEW.value,
             )
+            .options(selectinload(Extraction.fields), selectinload(Extraction.issues))
             .order_by(Extraction.overall_confidence.asc().nullsfirst())
             .limit(limit)
             .offset(offset)

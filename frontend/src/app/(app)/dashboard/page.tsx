@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { analytics, type Dashboard } from "@/lib/api";
-import { formatCurrency, formatDuration, titleCase } from "@/lib/utils";
-import { Card, CardBody, Skeleton, Button } from "@/components/ui";
+import { formatCurrency, formatDuration, titleCase, cn } from "@/lib/utils";
+import { Card, CardBody, Skeleton, Button, STATUS_TONE_BAR } from "@/components/ui";
 import { RoiCalculator } from "@/components/roi-calculator";
 
 export default function DashboardPage() {
@@ -94,7 +94,7 @@ export default function DashboardPage() {
                       <div className="w-32 shrink-0 text-sm text-subtle">{titleCase(status)}</div>
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                         <div
-                          className="h-full rounded-full bg-brand"
+                          className={cn("h-full rounded-full transition-all", STATUS_TONE_BAR[status] ?? "bg-brand")}
                           style={{
                             width: `${(count / Math.max(1, data.total_documents)) * 100}%`,
                           }}

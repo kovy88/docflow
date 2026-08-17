@@ -9,15 +9,15 @@
  * instead of a `dark:` class on every element.
  */
 :root {
-  --canvas: 250 250 249; /* page background */
+  --canvas: 247 249 252; /* page background */
   --surface: 255 255 255; /* cards, panels */
-  --muted: 245 245 244; /* subtle fills, table stripes */
-  --line: 228 228 225; /* borders */
-  --ink: 28 25 23; /* primary text */
-  --subtle: 120 113 108; /* secondary text */
-  --brand: 79 70 229; /* indigo-600 — actions, links, focus */
+  --muted: 241 245 249; /* subtle fills, table stripes */
+  --line: 226 232 240; /* borders */
+  --ink: 15 23 42; /* primary text */
+  --subtle: 100 116 139; /* secondary text */
+  --brand: 20 74 132; /* primary action and focus */
   --brand-ink: 255 255 255;
-  --ok: 22 163 74;
+  --ok: 5 150 105;
   --warn: 202 138 4;
   --danger: 220 38 38;
 
@@ -26,15 +26,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: 15 15 14;
-    --surface: 24 24 23;
-    --muted: 32 32 30;
-    --line: 51 51 48;
-    --ink: 245 245 244;
-    --subtle: 158 150 143;
-    --brand: 129 140 248;
-    --brand-ink: 15 15 14;
-    --ok: 74 222 128;
+    --canvas: 8 11 18;
+    --surface: 15 20 30;
+    --muted: 21 27 40;
+    --line: 32 40 56;
+    --ink: 236 240 247;
+    --subtle: 141 152 171;
+    --brand: 96 148 204;
+    --brand-ink: 8 11 18;
+    --ok: 52 211 153;
     --warn: 250 204 21;
     --danger: 248 113 113;
   }
@@ -48,6 +48,7 @@ body {
   background: rgb(var(--canvas));
   color: rgb(var(--ink));
   font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
 }
 
 @font-face {
@@ -62,6 +63,43 @@ body {
 
 .font-mono {
   font-variant-numeric: tabular-nums;
+}
+
+/* Shared surface treatment. It gives dense operational screens a quiet sense
+ * of depth without relying on loud gradients or oversized rounded elements. */
+.app-surface {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.025), 0 8px 24px rgb(15 23 42 / 0.035);
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(rgb(var(--line) / 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--line) / 0.45) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 78%);
+}
+
+/* Soft directional glow behind the hero. Sits under .landing-grid; low
+ * opacity so it reads as light in the room, not a gradient banner. */
+.landing-glow {
+  background: radial-gradient(
+    640px circle at 50% 0%,
+    rgb(var(--brand) / 0.1),
+    transparent 65%
+  );
+}
+
+.split-panel {
+  background:
+    radial-gradient(520px circle at 15% 15%, rgb(var(--brand-ink) / 0.08), transparent 60%),
+    linear-gradient(160deg, rgb(20 74 132) 0%, rgb(13 51 92) 100%);
+}
+@media (prefers-color-scheme: dark) {
+  .split-panel {
+    background:
+      radial-gradient(520px circle at 15% 15%, rgb(255 255 255 / 0.05), transparent 60%),
+      linear-gradient(160deg, rgb(13 51 92) 0%, rgb(6 26 48) 100%);
+  }
 }
 
 /* Skeleton shimmer for loading states */

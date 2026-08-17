@@ -19,9 +19,9 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 type ButtonSize = "sm" | "md" | "lg";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-brand-ink hover:opacity-90 shadow-sm",
+  primary: "bg-brand text-brand-ink shadow-sm shadow-brand/20 hover:bg-brand/90 hover:shadow-md hover:shadow-brand/20",
   secondary: "bg-muted text-ink hover:bg-line",
-  outline: "border border-line bg-surface text-ink hover:bg-muted",
+  outline: "border border-line bg-surface text-ink shadow-sm hover:bg-muted hover:border-subtle/30",
   ghost: "text-ink hover:bg-muted",
   danger: "bg-danger text-white hover:opacity-90",
 };
@@ -44,7 +44,7 @@ export const Button = forwardRef<
     ref={ref}
     disabled={disabled || loading}
     className={cn(
-      "inline-flex items-center justify-center font-medium transition-colors duration-150",
+      "inline-flex items-center justify-center font-medium transition-all duration-150",
       "disabled:opacity-50 disabled:cursor-not-allowed",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
       buttonVariants[variant],
@@ -63,7 +63,7 @@ Button.displayName = "Button";
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cn("rounded-xl border border-line bg-surface shadow-sm", className)}>
+    <div className={cn("app-surface rounded-xl border border-line bg-surface", className)}>
       {children}
     </div>
   );
@@ -127,6 +127,17 @@ const STATUS_CONFIG: Record<string, { tone: BadgeTone; label: string }> = {
   failed: { tone: "danger", label: "Failed" },
 };
 
+/** Bar-fill color per status, for the dashboard breakdown — mirrors STATUS_CONFIG's tones. */
+export const STATUS_TONE_BAR: Record<string, string> = {
+  uploaded: "bg-subtle",
+  queued: "bg-subtle",
+  processing: "bg-brand",
+  needs_review: "bg-warn",
+  completed: "bg-ok",
+  rejected: "bg-danger",
+  failed: "bg-danger",
+};
+
 export function StatusBadge({ status }: { status: string }) {
   const config = STATUS_CONFIG[status] ?? { tone: "neutral" as const, label: status };
   const pulsing = status === "processing" || status === "queued";
@@ -151,7 +162,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
     <input
       ref={ref}
       className={cn(
-        "h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-subtle",
+        "h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink shadow-sm shadow-slate-950/[0.02] placeholder:text-subtle",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:border-brand",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         className,
@@ -167,7 +178,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-subtle",
+        "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink shadow-sm shadow-slate-950/[0.02] placeholder:text-subtle",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:border-brand",
         className,
       )}

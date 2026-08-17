@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type Extraction } from "@/lib/api";
 import { Badge, Card, ConfidenceBadge, EmptyState, Skeleton } from "@/components/ui";
+import { Icons } from "@/components/app-shell";
 
 export default function ReviewQueuePage() {
   const [items, setItems] = useState<Extraction[] | null>(null);
@@ -32,6 +33,7 @@ export default function ReviewQueuePage() {
       {items && items.length === 0 && (
         <Card>
           <EmptyState
+            icon={<Icons.Check className="h-8 w-8" />}
             title="Nothing needs review"
             description="Every processed document met its confidence threshold and passed validation."
           />

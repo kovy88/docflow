@@ -6,6 +6,7 @@ import { documents, type DocumentSummary, type Page } from "@/lib/api";
 import { formatBytes, formatRelativeTime, formatDuration, cn } from "@/lib/utils";
 import { Card, EmptyState, Input, Skeleton, StatusBadge } from "@/components/ui";
 import { UploadDropzone } from "@/components/upload-dropzone";
+import { Icons } from "@/components/app-shell";
 
 const STATUS_FILTERS = [
   { value: "", label: "All" },
@@ -92,6 +93,7 @@ export default function DocumentsPage() {
 
         {page && page.items.length === 0 && (
           <EmptyState
+            icon={<Icons.File className="h-8 w-8" />}
             title="No documents yet"
             description="Upload your first document above to see it processed here."
           />
