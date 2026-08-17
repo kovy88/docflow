@@ -31,7 +31,9 @@ endpoints 404, some don't" is itself a fingerprinting signal.
 
 **Tested, not just designed.** Tenant isolation has dedicated tests
 asserting that organization A's token cannot read, modify, or enumerate
-organization B's documents, extractions, or settings.
+organization B's documents, extractions, API keys, or webhooks —
+`TestTenantIsolation` and the cross-tenant cases in `TestApiKeys` /
+`TestWebhookRegistration` (`backend/tests/integration/test_api.py`).
 
 **A real cross-tenant bug found during this build, for context on why this
 gets tested hard:** the deterministic job id fed to the queue was originally
@@ -91,15 +93,26 @@ detection because it doesn't depend on anticipating the attacker's wording.
   silently accepted as one. Without that check, a refresh token (which lives
   far longer) becomes a de facto extra-long access token, which defeats the
   point of separating them.
+- **Refresh-token revocation:** `POST /auth/logout` revokes the refresh
+  token's `jti` in a blocklist (`revoked_tokens`), checked on every
+  `/auth/refresh`. Found missing during this build — the token was minted
+  with a `jti` "to support revocation" from day one, but nothing ever
+  checked one, so a leaked refresh token was valid for its full 14-day
+  lifetime with no way to kill it. Access tokens are not revocable by the
+  same mechanism (deliberately — see `security/tokens.py`); the remedy for
+  a leaked access token is its own 30-minute expiry.
 - **API keys** for machine/integration access: `dfk_<43 random chars>`, only
   a SHA-256 digest stored, shown in full exactly once at creation. Both JWTs
   and API keys authenticate through the same `Authorization: Bearer` header,
   disambiguated by the `dfk_` prefix — downstream authorization code never
   branches on *how* the caller authenticated, only on the resulting
   principal (role, organization).
-- **Role-based authorization:** organization roles (owner/admin/member) gate
-  admin-only actions (API key and webhook management) via a dependency, not
-  a scattered per-route check.
+- **Role-based authorization:** organization roles (owner/admin/member/
+  viewer) gate admin-only actions (API key and webhook management, document
+  deletion) and member-minimum actions (upload, reprocess) via a dependency,
+  not a scattered per-route check. `TestRoleEnforcement`
+  (`backend/tests/integration/test_api.py`) asserts a viewer is rejected
+  from each.
 - **Login timing:** a lookup for a non-existent email still runs a dummy
   password verification (`dummy_verify`) so response timing doesn't
   distinguish "wrong password" from "no such account." An earlier version

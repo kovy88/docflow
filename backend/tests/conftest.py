@@ -229,6 +229,38 @@ async def client(session: AsyncSession, storage, provider) -> AsyncIterator[Asyn
     set_provider(None)
 
 
+@pytest_asyncio.fixture
+async def viewer_client(
+    session: AsyncSession, storage, provider, viewer_principal: AuthPrincipal
+) -> AsyncIterator[AsyncClient]:
+    """A client authenticated as a VIEWER in `organization` — for role-gate tests.
+
+    Bypasses real JWT auth (`get_principal`) rather than registering a viewer
+    through the API, because there is no invite/add-member endpoint to create
+    one with — see `viewer_principal`'s own history for why that fixture
+    existed unused before this. `organization`/`user` are the same rows
+    `viewer_principal` is built from, so a document created directly against
+    `organization` (see TestRoleEnforcement) is one this client can see but
+    should not be allowed to act on.
+    """
+    from docflow.api.deps import get_principal, get_session, get_storage_backend
+    from docflow.llm.registry import set_provider
+    from docflow.main import create_app
+
+    set_provider(provider)
+    app = create_app()
+    app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[get_storage_backend] = lambda: storage
+    app.dependency_overrides[get_principal] = lambda: viewer_principal
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as http_client:
+        yield http_client
+
+    app.dependency_overrides.clear()
+    set_provider(None)
+
+
 # --------------------------------------------------------------------- samples
 
 SAMPLE_INVOICE = """\

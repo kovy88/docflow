@@ -312,6 +312,35 @@ class TestMoneyParsing:
         assert parse_decimal("1,234,567.89") == Decimal("1234567.89")
 
 
+class TestBaselineAmountExtraction:
+    """Regression coverage for the rule-based extractor's label-anchored amounts.
+
+    Found via `docflow-calibrate`: a non-breaking space thousands separator
+    (`\xa0`, what Czech documents actually use — pdfplumber preserves it
+    verbatim) isn't in `AMOUNT_RE`'s character class, so it split `78\xa0287,00`
+    into two regex matches (`78`, `287,00`); "take the last figure on the line"
+    then silently kept only the tail, worth 287.00 instead of 78287.00. This
+    extractor backs both the `fixture` provider and the production baseline
+    cross-check confidence signal (`docflow.domain.confidence`), so the bug
+    wasn't confined to eval numbers — it also affected the corroboration signal
+    real LLM extractions get on the majority-Czech corpus this product targets.
+    """
+
+    def test_non_breaking_space_thousands_separator_is_not_truncated(self):
+        from docflow.extraction.baseline import extract_baseline
+
+        text = "Objednávka\nCelkem: 78\xa0287,00 CZK\n"
+        result = extract_baseline(text, "purchase_order")
+        assert result.data["total"] == "78287.00"
+
+    def test_multiple_non_breaking_space_groups_in_one_amount(self):
+        from docflow.extraction.baseline import extract_baseline
+
+        text = "Smlouva\nHodnota smlouvy: 1\xa0060\xa0000 CZK\n"
+        result = extract_baseline(text, "contract")
+        assert result.data["total_value"] == "1060000"
+
+
 class TestContractRules:
     VALID_CONTRACT: ClassVar[dict] = {
         "title": "Service Agreement",

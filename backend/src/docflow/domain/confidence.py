@@ -41,8 +41,9 @@ is a one-line change rather than a re-weighting exercise.
 
 Weights are declared as constants rather than learned, because we do not have enough
 labelled production data to fit them without overfitting. They are a defensible prior;
-`scripts/calibrate_confidence.py` re-derives the *band thresholds* from the evaluation
-set, which is the part that actually matters operationally.
+`docflow-calibrate` (`scripts/calibrate_confidence.py`) re-derives the *band
+thresholds* from the evaluation set, which is the part that actually matters
+operationally.
 """
 
 from __future__ import annotations
@@ -56,8 +57,8 @@ from docflow.domain.enums import ConfidenceBand
 
 # --------------------------------------------------------------------- thresholds
 
-# Band boundaries. Re-derived from the evaluation set by
-# `scripts/calibrate_confidence.py`; see docs/EVALUATION.md for the current
+# Band boundaries. Re-derived from the evaluation set by `docflow-calibrate`
+# (`scripts/calibrate_confidence.py`); see docs/EVALUATION.md for the current
 # empirical accuracy within each band.
 HIGH_THRESHOLD = 0.85
 MEDIUM_THRESHOLD = 0.60

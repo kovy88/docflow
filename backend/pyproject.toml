@@ -68,6 +68,7 @@ dev = [
 [project.scripts]
 docflow-eval = "docflow.eval.cli:main"
 docflow-seed = "docflow.scripts.seed:main"
+docflow-calibrate = "docflow.scripts.calibrate_confidence:main"
 
 [build-system]
 requires = ["hatchling"]

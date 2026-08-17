@@ -265,7 +265,15 @@ class LabelExtractor:
           rate is not the amount. Any figure immediately followed by `%` is a rate.
         * **Take the last remaining figure.** On a labelled line the value is
           conventionally last: `Total (incl. 21% VAT) ......... 39 930,00`.
+
+        Czech/European documents commonly group thousands with a non-breaking
+        space (`\xa0`) rather than an ASCII one — `AMOUNT_RE`'s character class
+        only recognises the latter, so an ungrounded `\xa0` splits `78\xa0287,00`
+        into two matches (`78`, `287,00`) and "take the last" silently keeps only
+        the tail. Folding all Unicode whitespace to ASCII space before matching
+        keeps a grouped number as a single candidate.
         """
+        raw = normalize_whitespace(raw) or ""
         candidates: list[str] = []
         for match in AMOUNT_RE.finditer(raw):
             trailing = raw[match.end() :].lstrip()

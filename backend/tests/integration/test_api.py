@@ -294,6 +294,123 @@ class TestTenantIsolation:
         assert response.json() == []
 
 
+class TestRoleEnforcement:
+    """`principal.can(...)` role gates (documents.py, settings_routes.py).
+
+    Untestable through `client` alone: `POST /auth/register` always makes the
+    registrant OWNER (routes/auth.py), and there is no invite/add-member
+    endpoint — so there was previously no way to reach these checks with a
+    non-owner caller. `viewer_client` (conftest.py) exists for exactly this,
+    built from fixtures (`viewer_principal`) that were added but never used
+    until now.
+    """
+
+    @pytest.fixture
+    async def document_in_org(self, session, organization) -> str:
+        from docflow.db.repositories import DocumentRepository
+        from docflow.domain.enums import DocumentStatus
+
+        documents = DocumentRepository(session, organization.id)
+        document = await documents.create(
+            filename="viewer-test.txt",
+            content_type="text/plain",
+            size_bytes=10,
+            checksum_sha256=uuid.uuid4().hex,
+            storage_key="orig/viewer-test.txt",
+            status=DocumentStatus.COMPLETED.value,
+        )
+        await session.flush()
+        return str(document.id)
+
+    async def test_viewer_cannot_upload(self, viewer_client, sample_invoice):
+        response = await viewer_client.post(
+            "/api/v1/documents",
+            files={"file": ("invoice.txt", sample_invoice, "text/plain")},
+        )
+        assert response.status_code == 403
+
+    async def test_viewer_cannot_reprocess(self, viewer_client, document_in_org):
+        response = await viewer_client.post(f"/api/v1/documents/{document_in_org}/reprocess")
+        assert response.status_code == 403
+
+    async def test_viewer_cannot_delete(self, viewer_client, document_in_org):
+        response = await viewer_client.delete(f"/api/v1/documents/{document_in_org}")
+        assert response.status_code == 403
+
+    async def test_viewer_can_still_read(self, viewer_client, document_in_org):
+        """The gate is on writes, not on the role existing at all."""
+        response = await viewer_client.get(f"/api/v1/documents/{document_in_org}")
+        assert response.status_code == 200
+
+    async def test_viewer_cannot_create_api_key(self, viewer_client):
+        response = await viewer_client.post(
+            "/api/v1/settings/api-keys", json={"name": "should-fail"}
+        )
+        assert response.status_code == 403
+
+    async def test_viewer_cannot_register_webhook(self, viewer_client):
+        response = await viewer_client.post(
+            "/api/v1/settings/webhooks",
+            json={"url": "https://example.com/hook", "events": ["document.processed"]},
+        )
+        assert response.status_code == 403
+
+
+class TestPreviouslyUncoveredEndpoints:
+    """Endpoints the coverage audit found with zero tests of any kind."""
+
+    async def test_review_queue_starts_empty(self, client):
+        token = (await register(client))["access_token"]
+        response = await client.get("/api/v1/reviews/queue", headers=auth(token))
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_usage_summary_starts_at_zero(self, client):
+        token = (await register(client))["access_token"]
+        response = await client.get("/api/v1/usage", headers=auth(token))
+        assert response.status_code == 200
+        body = response.json()
+        assert body["documents"] == 0
+        assert body["quota"] == 50
+        assert body["plan"] == "free"
+
+    async def test_corrections_analytics_starts_empty(self, client):
+        token = (await register(client))["access_token"]
+        response = await client.get("/api/v1/analytics/corrections", headers=auth(token))
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_readiness_reports_ready_when_dependencies_are_up(self, client):
+        response = await client.get("/readiness")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "ready"
+        assert body["checks"] == {
+            "database": True,
+            "redis": True,
+            "storage": True,
+            "llm_provider": True,
+        }
+
+    async def test_session_refresh_and_logout_use_the_current_session(self, client):
+        """auth/refresh, auth/session and auth/logout are also covered directly
+        in TestAuth; this is the one place they're exercised back-to-back as a
+        session lifecycle rather than each in isolation."""
+        body = await register(client)
+        session_resp = await client.get("/api/v1/auth/session", headers=auth(body["access_token"]))
+        assert session_resp.status_code == 200
+
+        refreshed = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": body["refresh_token"]}
+        )
+        assert refreshed.status_code == 200
+
+        logged_out = await client.post(
+            "/api/v1/auth/logout", json={"refresh_token": refreshed.json()["refresh_token"]}
+        )
+        assert logged_out.status_code == 204
+
+
 class TestErrorContract:
     async def test_errors_use_the_documented_envelope(self, client):
         token = (await register(client))["access_token"]
@@ -426,6 +543,28 @@ class TestApiKeys:
             await client.get("/api/v1/documents", headers=auth(created["api_key"]))
         ).status_code == 401
 
+    async def test_cross_tenant_cannot_revoke_another_orgs_key(self, client):
+        """docs/SECURITY.md claims isolation is tested for documents, extractions,
+        *and settings* — this is the settings half, previously missing (every
+        prior api-keys test used one org for both creation and deletion)."""
+        a = await register(client, email="a@example.com", organization_name="Org A")
+        b = await register(client, email="b@example.com", organization_name="Org B")
+        created = (
+            await client.post(
+                "/api/v1/settings/api-keys", headers=auth(a["access_token"]), json={"name": "a-key"}
+            )
+        ).json()
+
+        response = await client.delete(
+            f"/api/v1/settings/api-keys/{created['id']}", headers=auth(b["access_token"])
+        )
+        assert response.status_code == 404
+
+        # And it still works — the cross-tenant delete did not revoke it.
+        assert (
+            await client.get("/api/v1/documents", headers=auth(created["api_key"]))
+        ).status_code == 200
+
 
 class TestWebhookRegistration:
     async def test_ssrf_url_is_rejected(self, client):
@@ -449,3 +588,45 @@ class TestWebhookRegistration:
 
         listing = (await client.get("/api/v1/settings/webhooks", headers=auth(token))).json()
         assert "secret" not in listing[0]
+
+    async def test_cross_tenant_cannot_delete_another_orgs_webhook(self, client):
+        """Previously untested in any form — not just cross-tenant: this route
+        was never called by any test at all."""
+        a = await register(client, email="a@example.com", organization_name="Org A")
+        b = await register(client, email="b@example.com", organization_name="Org B")
+        created = (
+            await client.post(
+                "/api/v1/settings/webhooks",
+                headers=auth(a["access_token"]),
+                json={"url": "https://example.com/hook", "events": ["document.processed"]},
+            )
+        ).json()
+
+        response = await client.delete(
+            f"/api/v1/settings/webhooks/{created['id']}", headers=auth(b["access_token"])
+        )
+        assert response.status_code == 404
+
+        # Still there — owner's own listing is unaffected by the cross-tenant attempt.
+        listing = (
+            await client.get("/api/v1/settings/webhooks", headers=auth(a["access_token"]))
+        ).json()
+        assert len(listing) == 1
+
+    async def test_owner_can_delete_their_own_webhook(self, client):
+        token = (await register(client))["access_token"]
+        created = (
+            await client.post(
+                "/api/v1/settings/webhooks",
+                headers=auth(token),
+                json={"url": "https://example.com/hook", "events": ["document.processed"]},
+            )
+        ).json()
+
+        response = await client.delete(
+            f"/api/v1/settings/webhooks/{created['id']}", headers=auth(token)
+        )
+        assert response.status_code == 204
+
+        listing = (await client.get("/api/v1/settings/webhooks", headers=auth(token))).json()
+        assert listing == []
