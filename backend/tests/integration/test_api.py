@@ -108,6 +108,61 @@ class TestAuth:
         response = await client.get("/api/v1/documents", headers=headers)
         assert response.status_code in (401, 403)
 
+    async def test_session_reports_the_caller(self, client):
+        body = await register(client)
+        response = await client.get("/api/v1/auth/session", headers=auth(body["access_token"]))
+        assert response.status_code == 200
+        assert response.json()["user"]["email"] == REGISTRATION["email"]
+
+    async def test_refresh_issues_a_new_working_access_token(self, client):
+        body = await register(client)
+        response = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": body["refresh_token"]}
+        )
+        assert response.status_code == 200
+        new_access = response.json()["access_token"]
+        assert (await client.get("/api/v1/documents", headers=auth(new_access))).status_code == 200
+
+    async def test_logout_revokes_the_refresh_token(self, client):
+        """The gap this closes: `create_refresh_token` mints a `jti` "to support
+        revocation" (its own docstring), but nothing checked it before `/auth/logout`
+        existed — a leaked refresh token was valid for its full 14-day lifetime with
+        no way to kill it."""
+        body = await register(client)
+        refresh_token = body["refresh_token"]
+
+        logout_response = await client.post(
+            "/api/v1/auth/logout", json={"refresh_token": refresh_token}
+        )
+        assert logout_response.status_code == 204
+
+        reuse_response = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
+        )
+        assert reuse_response.status_code == 401
+
+    async def test_logout_is_idempotent(self, client):
+        body = await register(client)
+        refresh_token = body["refresh_token"]
+        first = await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+        second = await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+        assert first.status_code == second.status_code == 204
+
+    async def test_logout_with_an_already_invalid_token_does_not_error(self, client):
+        response = await client.post(
+            "/api/v1/auth/logout", json={"refresh_token": "not-a-real-token"}
+        )
+        assert response.status_code == 204
+
+    async def test_access_token_is_not_revoked_by_logout(self, client):
+        """Documented, deliberate scope: logout revokes the refresh token so it
+        can't mint further access tokens. It does not, and by design cannot
+        cheaply, revoke an access token already issued — see security/tokens.py."""
+        body = await register(client)
+        await client.post("/api/v1/auth/logout", json={"refresh_token": body["refresh_token"]})
+        response = await client.get("/api/v1/documents", headers=auth(body["access_token"]))
+        assert response.status_code == 200
+
 
 class TestUpload:
     async def test_upload_returns_202_immediately(self, client, sample_invoice):
@@ -287,6 +342,54 @@ class TestSystemEndpoints:
         invoice = next(t for t in types if t["key"] == "invoice")
         assert invoice["required_fields"]
         assert invoice["critical_fields"]
+
+
+class TestLocalStorageDownload:
+    """`GET /api/v1/storage/{key}` — what `LocalStorage.presigned_url()` points at.
+
+    This route intentionally does not use the normal bearer-auth dependency:
+    the URL it serves is handed to a plain browser navigation (`window.open`,
+    see documents/[id]/page.tsx), which carries no Authorization header. Its
+    own HMAC signature *is* the auth check — these tests are exactly the
+    "possession of a key is never sufficient" property from storage/base.py.
+    """
+
+    async def test_valid_signed_url_downloads_the_object(self, client, storage):
+        await storage.put("org/x/original.txt", b"hello world", content_type="text/plain")
+        url = await storage.presigned_url("org/x/original.txt", filename="invoice.txt")
+
+        response = await client.get(url)
+
+        assert response.status_code == 200
+        assert response.content == b"hello world"
+        assert 'filename="invoice.txt"' in response.headers["content-disposition"]
+
+    async def test_tampered_signature_is_rejected(self, client, storage):
+        await storage.put("org/x/original.txt", b"hello world", content_type="text/plain")
+        url = await storage.presigned_url("org/x/original.txt")
+
+        tampered = url[:-1] + ("0" if url[-1] != "0" else "1")
+        response = await client.get(tampered)
+
+        assert response.status_code == 401
+
+    async def test_expired_url_is_rejected(self, client, storage):
+        await storage.put("org/x/original.txt", b"hello world", content_type="text/plain")
+        url = await storage.presigned_url("org/x/original.txt", expires_in=-1)
+
+        response = await client.get(url)
+
+        assert response.status_code == 401
+
+    async def test_signed_url_for_one_key_does_not_grant_another(self, client, storage):
+        await storage.put("org/x/a.txt", b"file a", content_type="text/plain")
+        await storage.put("org/x/b.txt", b"file b", content_type="text/plain")
+        url_for_a = await storage.presigned_url("org/x/a.txt")
+
+        redirected = url_for_a.replace("a.txt", "b.txt")
+        response = await client.get(redirected)
+
+        assert response.status_code == 401
 
 
 class TestApiKeys:

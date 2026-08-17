@@ -25,11 +25,13 @@ fixture is visible to `process_document`'s own `session_scope()` calls.
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from collections.abc import AsyncIterator
 
 import pytest
 import pytest_asyncio
+from arq import Retry
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -107,7 +109,11 @@ async def worker_org(worker_session: AsyncSession) -> Organization:
 
 
 async def _make_job(
-    worker_session: AsyncSession, org: Organization, *, max_attempts: int = 3
+    worker_session: AsyncSession,
+    org: Organization,
+    *,
+    max_attempts: int = 3,
+    processing_started_at: object = None,
 ) -> tuple[uuid.UUID, uuid.UUID]:
     documents = DocumentRepository(worker_session, org.id)
     document = await documents.create(
@@ -118,6 +124,8 @@ async def _make_job(
         storage_key="orig/test.txt",
         status=DocumentStatus.PROCESSING.value,
     )
+    if processing_started_at is not None:
+        document.processing_started_at = processing_started_at
     jobs = JobRepository(worker_session, org.id)
     job = await jobs.create(
         document_id=document.id, idempotency_key=uuid.uuid4().hex, max_attempts=max_attempts
@@ -154,8 +162,15 @@ class TestRaisedDocflowErrors:
         job_id, _ = await _make_job(worker_session, worker_org, max_attempts=3)
         _patch_service(monkeypatch, ProviderTimeoutError("provider timed out"))
 
-        with pytest.raises(ProviderTimeoutError):
+        # arq redelivers on `arq.Retry` and only `arq.Retry` — a bare re-raise of
+        # the original error (what this asserted before) is invisible to arq's
+        # dispatcher and the job dies after one attempt regardless of
+        # `max_attempts`. See the "Redelivery is arq.Retry" note in
+        # worker/tasks.py's module docstring.
+        with pytest.raises(Retry) as exc_info:
             await worker_tasks.process_document({"job_try": 1}, str(job_id), str(worker_org.id))
+        assert isinstance(exc_info.value.__cause__, ProviderTimeoutError)
+        assert exc_info.value.defer_score is not None
 
         # Not failed yet — arq is expected to redeliver.
         job = await JobRepository(worker_session, worker_org.id).get(job_id)
@@ -215,14 +230,15 @@ class TestReturnedFailedResult:
     completed but decided the document failed (e.g. every extraction attempt
     was rejected)."""
 
-    async def test_retryable_result_below_max_attempts_raises_retryable_job_error(
+    async def test_retryable_result_below_max_attempts_raises_arq_retry(
         self, worker_session, worker_org, monkeypatch
     ):
         job_id, _ = await _make_job(worker_session, worker_org, max_attempts=3)
         _patch_service(monkeypatch, _result(retryable=True))
 
-        with pytest.raises(worker_tasks.RetryableJobError):
+        with pytest.raises(Retry) as exc_info:
             await worker_tasks.process_document({"job_try": 1}, str(job_id), str(worker_org.id))
+        assert exc_info.value.defer_score is not None
 
         job = await JobRepository(worker_session, worker_org.id).get(job_id)
         assert job.status == JobStatus.PENDING.value
@@ -249,8 +265,9 @@ class TestUnexpectedExceptions:
         job_id, _ = await _make_job(worker_session, worker_org, max_attempts=3)
         _patch_service(monkeypatch, RuntimeError("something nobody anticipated"))
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(Retry) as exc_info:
             await worker_tasks.process_document({"job_try": 1}, str(job_id), str(worker_org.id))
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
 
     async def test_exhausted_fails_as_internal_error(self, worker_session, worker_org, monkeypatch):
         job_id, document_id = await _make_job(worker_session, worker_org, max_attempts=3)
@@ -265,6 +282,48 @@ class TestUnexpectedExceptions:
         assert job.status == JobStatus.FAILED.value
         document = await DocumentRepository(worker_session, worker_org.id).get(document_id)
         assert document.status == DocumentStatus.FAILED.value
+
+
+class TestStaleSweep:
+    """`sweep_stale_jobs` — the backstop for a worker that died mid-job and left
+    a document at `processing` with nothing else that will ever revisit it."""
+
+    async def test_recovers_a_document_stuck_past_the_threshold(self, worker_session, worker_org):
+        long_ago = dt.datetime.now(dt.UTC) - dt.timedelta(hours=2)
+        job_id, document_id = await _make_job(
+            worker_session, worker_org, processing_started_at=long_ago
+        )
+
+        outcome = await worker_tasks.sweep_stale_jobs({})
+
+        assert outcome == {"stale_documents_recovered": 1}
+        document = await DocumentRepository(worker_session, worker_org.id).get(document_id)
+        assert document.status == DocumentStatus.FAILED.value
+        assert document.error_code == "processing_timeout"
+        job = await JobRepository(worker_session, worker_org.id).get(job_id)
+        assert job.status == JobStatus.FAILED.value
+
+    async def test_leaves_a_recently_started_document_alone(self, worker_session, worker_org):
+        just_now = dt.datetime.now(dt.UTC) - dt.timedelta(seconds=5)
+        _, document_id = await _make_job(worker_session, worker_org, processing_started_at=just_now)
+
+        outcome = await worker_tasks.sweep_stale_jobs({})
+
+        assert outcome == {"stale_documents_recovered": 0}
+        document = await DocumentRepository(worker_session, worker_org.id).get(document_id)
+        assert document.status == DocumentStatus.PROCESSING.value
+
+    async def test_ignores_documents_that_already_finished(self, worker_session, worker_org):
+        long_ago = dt.datetime.now(dt.UTC) - dt.timedelta(hours=2)
+        _, document_id = await _make_job(worker_session, worker_org, processing_started_at=long_ago)
+        await DocumentRepository(worker_session, worker_org.id).set_status(
+            document_id, DocumentStatus.COMPLETED
+        )
+        await worker_session.commit()
+
+        outcome = await worker_tasks.sweep_stale_jobs({})
+
+        assert outcome == {"stale_documents_recovered": 0}
 
 
 # Sanity check on the fixture itself: DocflowError must actually be raisable

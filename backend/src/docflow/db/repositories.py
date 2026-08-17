@@ -44,6 +44,7 @@ from docflow.db.models import (
     ProcessingJob,
     ProcessingStep,
     Review,
+    RevokedToken,
     UsageRecord,
     User,
     ValidationIssue,
@@ -110,10 +111,12 @@ class UserRepository:
         self, user_id: uuid.UUID, organization_id: uuid.UUID
     ) -> Membership | None:
         result = await self.session.execute(
-            select(Membership).where(
+            select(Membership)
+            .where(
                 Membership.user_id == user_id,
                 Membership.organization_id == organization_id,
             )
+            .options(selectinload(Membership.organization))
         )
         return result.scalar_one_or_none()
 
@@ -212,6 +215,33 @@ class ApiKeyRepository:
 
     async def touch(self, key: ApiKey) -> None:
         key.last_used_at = dt.datetime.now(dt.UTC)
+
+
+class RevokedTokenRepository:
+    """Refresh-token blocklist. See `RevokedToken` for why this isn't a session table."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def is_revoked(self, jti: str) -> bool:
+        result = await self.session.execute(select(RevokedToken.id).where(RevokedToken.jti == jti))
+        return result.scalar_one_or_none() is not None
+
+    async def revoke(self, *, jti: str, user_id: uuid.UUID, expires_at: dt.datetime) -> None:
+        # Idempotent: logging out twice with the same token (a retried request, a
+        # double-click) should not raise on the unique `jti` constraint.
+        exists = await self.session.execute(select(RevokedToken.id).where(RevokedToken.jti == jti))
+        if exists.scalar_one_or_none() is not None:
+            return
+        self.session.add(RevokedToken(jti=jti, user_id=user_id, expires_at=expires_at))
+        await self.session.flush()
+
+    async def purge_expired(self) -> int:
+        """Reclaim blocklist rows past their own token expiry. Not scheduled — see docs/LIMITATIONS.md."""
+        result = await self.session.execute(
+            delete(RevokedToken).where(RevokedToken.expires_at < dt.datetime.now(dt.UTC))
+        )
+        return int(cast(CursorResult[Any], result).rowcount or 0)
 
 
 # =============================================================================

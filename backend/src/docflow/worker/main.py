@@ -8,11 +8,12 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 import structlog
+from arq import cron
 
 from docflow.config import get_settings
 from docflow.observability.logging import configure_logging
 from docflow.worker.queue import redis_settings
-from docflow.worker.tasks import deliver_webhook, process_document
+from docflow.worker.tasks import deliver_webhook, process_document, sweep_stale_jobs
 
 logger = structlog.get_logger(__name__)
 
@@ -56,6 +57,10 @@ class WorkerSettings:
     """
 
     functions: ClassVar = [process_document, deliver_webhook]
+    # Runs every 5 minutes and recovers documents a dead worker left stuck at
+    # `processing` — see `sweep_stale_jobs`'s docstring for exactly which
+    # failure mode this is the backstop for, and why nothing else catches it.
+    cron_jobs: ClassVar = [cron(sweep_stale_jobs, minute=set(range(0, 60, 5)))]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = redis_settings()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 
 import structlog
@@ -10,6 +11,7 @@ from fastapi import APIRouter, status
 from docflow.api.deps import CurrentPrincipal, SessionDep, SettingsDep
 from docflow.api.schemas import (
     LoginRequest,
+    LogoutRequest,
     OrganizationSummary,
     RefreshRequest,
     RegisterRequest,
@@ -17,12 +19,14 @@ from docflow.api.schemas import (
     TokenResponse,
     UserSummary,
 )
-from docflow.db.repositories import OrganizationRepository, UserRepository
+from docflow.db.repositories import OrganizationRepository, RevokedTokenRepository, UserRepository
 from docflow.domain.enums import OrgRole, PlanTier
 from docflow.domain.errors import (
+    AuthenticationError,
     ConflictError,
     InvalidCredentialsError,
     ResourceNotFoundError,
+    TokenExpiredError,
     ValidationRequestError,
 )
 from docflow.security.passwords import (
@@ -134,6 +138,10 @@ async def refresh(
     )
     import uuid
 
+    revoked = RevokedTokenRepository(session)
+    if await revoked.is_revoked(claims["jti"]):
+        raise InvalidCredentialsError("This session has been signed out")
+
     users = UserRepository(session)
     user = await users.get(uuid.UUID(claims["sub"]))
     if user is None or not user.is_active:
@@ -146,6 +154,40 @@ async def refresh(
         raise InvalidCredentialsError("You no longer have access to this organization")
 
     return _token_response(user, membership.organization, OrgRole(membership.role), settings)
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke a refresh token",
+    description=(
+        "Revokes the given refresh token so it can no longer be exchanged for a "
+        "new access token, even before its 14-day expiry. The access token already "
+        "issued alongside it stays valid until its own (30-minute) expiry — there is "
+        "no server-side check on access tokens, by design (see security/tokens.py)."
+    ),
+)
+async def logout(payload: LogoutRequest, session: SessionDep, settings: SettingsDep) -> None:
+    import uuid
+
+    # A refresh token that's already invalid (expired, malformed, wrong type) has
+    # nothing to revoke — logout should not fail just because the token driving it
+    # was already dead. Swallow this once, deliberately: not the pattern anywhere
+    # else in this file, which is exactly why it's commented.
+    try:
+        claims = decode_token(
+            payload.refresh_token, settings=settings.security, expected_type="refresh"
+        )
+    except (AuthenticationError, TokenExpiredError):
+        return
+
+    revoked = RevokedTokenRepository(session)
+    await revoked.revoke(
+        jti=claims["jti"],
+        user_id=uuid.UUID(claims["sub"]),
+        expires_at=dt.datetime.fromtimestamp(claims["exp"], tz=dt.UTC),
+    )
+    return
 
 
 @router.get("/session", response_model=SessionResponse, summary="Current session")

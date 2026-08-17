@@ -32,7 +32,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from docflow.api.errors import register_exception_handlers
-from docflow.api.routes import analytics, auth, documents, health, reviews, settings_routes
+from docflow.api.routes import analytics, auth, documents, health, reviews, settings_routes, storage
 from docflow.config import Settings, get_settings
 from docflow.observability.logging import configure_logging
 from docflow.observability.middleware import (
@@ -142,6 +142,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(reviews.router, prefix=prefix)
     app.include_router(analytics.router, prefix=prefix)
     app.include_router(settings_routes.router, prefix=prefix)
+    app.include_router(storage.router, prefix=prefix)
 
     @app.get("/", include_in_schema=False)
     async def root() -> JSONResponse:

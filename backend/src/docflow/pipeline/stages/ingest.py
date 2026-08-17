@@ -120,7 +120,7 @@ class TextPersistenceStage(Stage):
     show evidence snippets without re-opening the source file.
     """
 
-    stage = ProcessingStage.METADATA_EXTRACTION
+    stage = ProcessingStage.PERSISTENCE
     optional = True
 
     def __init__(self, storage: StorageBackend) -> None:

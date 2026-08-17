@@ -73,10 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    const refreshToken = tokens.refresh;
     tokens.clear();
     setSession(null);
     setStatus("unauthenticated");
     router.push("/login");
+    // Fire-and-forget: revoke server-side so the refresh token can't be reused
+    // if it leaked, but the user shouldn't wait on it — they're already logged
+    // out locally, and the token is worthless client-side either way.
+    if (refreshToken) void auth.logout(refreshToken).catch(() => {});
   }, [router]);
 
   const value = useMemo(

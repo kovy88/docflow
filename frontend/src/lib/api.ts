@@ -289,6 +289,13 @@ export const auth = {
       organization: TokenResponse["organization"];
       role: string;
     }>(v1("/auth/session")),
+  logout: (refreshToken: string) =>
+    api<void>(v1("/auth/logout"), {
+      body: { refresh_token: refreshToken },
+      // A logout call must not itself trigger a token-refresh retry loop — the
+      // whole point is to end the session, not extend it.
+      retryOnAuthFailure: false,
+    }),
 };
 
 export const documents = {

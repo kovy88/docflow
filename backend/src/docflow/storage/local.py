@@ -13,25 +13,69 @@ concurrently.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import io
 import shutil
+import time
 from pathlib import Path
 from typing import BinaryIO
 from urllib.parse import quote
 
 import structlog
 
-from docflow.domain.errors import StorageError, StorageObjectNotFoundError
+from docflow.domain.errors import AuthenticationError, StorageError, StorageObjectNotFoundError
 from docflow.storage.base import StorageBackend, StoredObject
 
 logger = structlog.get_logger(__name__)
 
 
+def _signature(secret: str, key: str, expires: int) -> str:
+    # HMAC over key+expiry, not a bearer token: the URL returned by
+    # `presigned_url()` is handed to `window.open()` by the frontend (see
+    # documents/[id]/page.tsx), a plain navigation that carries no
+    # Authorization header. `/api/v1/storage/{key}` therefore cannot require
+    # the usual bearer-auth dependency — it has to carry its own proof, the
+    # same way an S3 presigned URL's query-string signature does. The `Signed`
+    # in the docflow module docstring means this, not a JWT.
+    message = f"{key}:{expires}".encode()
+    return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
+
+
+def sign_local_key(secret: str, key: str, *, expires_in: int) -> tuple[int, str]:
+    expires = int(time.time()) + expires_in
+    return expires, _signature(secret, key, expires)
+
+
+def verify_local_signature(secret: str, key: str, *, expires: int, signature: str) -> None:
+    if time.time() > expires:
+        raise AuthenticationError("This download link has expired")
+    expected = _signature(secret, key, expires)
+    if not hmac.compare_digest(expected, signature):
+        raise AuthenticationError("Invalid download link")
+
+
 class LocalStorage(StorageBackend):
-    def __init__(self, root: str | Path, *, public_base_url: str = "") -> None:
+    def __init__(self, root: str | Path, *, public_base_url: str = "", secret: str = "") -> None:
         self._root = Path(root).resolve()
         self._root.mkdir(parents=True, exist_ok=True)
         self._public_base_url = public_base_url.rstrip("/")
+        # Signs presigned-URL query params — see `_signature()`. Reuses the app's
+        # JWT secret rather than a dedicated one: this backend is already refused
+        # in production (`Settings.validate_for_environment`), so a second secret
+        # to provision and rotate would be cost with no real benefit.
+        self._secret = secret
+
+    def verify_presigned(self, key: str, *, expires: int, signature: str) -> None:
+        """Checked by `api/routes/storage.py` against *this instance's* secret.
+
+        Deliberately not `settings.security.jwt_secret` read fresh from the route
+        — tests override the storage backend with its own `LocalStorage` (see
+        `conftest.py`'s `storage` fixture), and a URL minted by one secret must be
+        verified against that same secret, not whatever the global settings
+        singleton currently holds.
+        """
+        verify_local_signature(self._secret, key, expires=expires, signature=signature)
 
     def _path(self, key: str) -> Path:
         """Resolve a key to a path, refusing anything that escapes the root.
@@ -93,14 +137,17 @@ class LocalStorage(StorageBackend):
     async def presigned_url(
         self, key: str, *, expires_in: int = 300, filename: str | None = None
     ) -> str:
-        """Local storage cannot presign, so this points back at the API.
-
-        The API's own download endpoint re-checks authorization and streams the
-        bytes. Slower than a real presigned URL, and correct — which is the right
-        trade for a development backend.
+        """Local storage cannot presign against a real object store, so this
+        mints its own short-lived, HMAC-signed URL and points it at
+        `GET /api/v1/storage/{key}` (`api/routes/storage.py`), which verifies the
+        signature instead of the usual bearer token — see `_signature()` for why
+        it can't just require the normal auth dependency like every other route.
         """
-        name = f"?filename={quote(filename)}" if filename else ""
-        return f"{self._public_base_url}/api/v1/storage/{quote(key, safe='')}{name}"
+        expires, signature = sign_local_key(self._secret, key, expires_in=expires_in)
+        query = f"expires={expires}&sig={signature}"
+        if filename:
+            query += f"&filename={quote(filename)}"
+        return f"{self._public_base_url}/api/v1/storage/{quote(key, safe='')}?{query}"
 
     async def health_check(self) -> bool:
         try:

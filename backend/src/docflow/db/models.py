@@ -185,6 +185,43 @@ class ApiKey(Base, TimestampMixin):
     revoked_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class RevokedToken(Base):
+    """Refresh-token blocklist: a jti explicitly revoked before its own expiry.
+
+    Deliberately **not** a session table recording every issued token — that would
+    turn every login into a write and every authenticated request into a lookup.
+    Access tokens are never revoked here; at a 30-minute TTL the remedy for a leaked
+    one is to wait it out. Only refresh tokens (14-day TTL) are worth an explicit
+    kill switch, and only on logout / "sign out everywhere" is a row written.
+
+    No `organization_id`: `jti` is 24 bytes of `token_urlsafe` randomness embedded in
+    the token itself, so a lookup can never be guided or enumerated cross-tenant —
+    the isolation argument that motivates `organization_id` on business tables
+    (see the module docstring) doesn't apply to a table keyed by an unguessable value.
+
+    Rows past `expires_at` are dead weight — the JWT's own `exp` claim already
+    rejects the token by then — so `RevokedTokenRepository.purge_expired()` exists
+    for an operator to reclaim the space. Nothing calls it on a schedule yet; see
+    docs/LIMITATIONS.md.
+    """
+
+    __tablename__ = "revoked_tokens"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    jti: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # The token's own `exp`, copied here so an expired blocklist entry can be told
+    # apart from one still worth checking, without decoding a JWT to find out.
+    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: dt.datetime.now(dt.UTC)
+    )
+
+    __table_args__ = (Index("ix_revoked_tokens_expires_at", "expires_at"),)
+
+
 # =============================================================================
 # Schema registry
 # =============================================================================

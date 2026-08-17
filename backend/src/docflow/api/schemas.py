@@ -54,6 +54,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
 class OrganizationSummary(ApiModel):
     id: uuid.UUID
     name: str

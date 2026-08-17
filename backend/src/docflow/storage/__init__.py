@@ -8,7 +8,9 @@ from docflow.storage.base import StorageBackend, StoredObject, build_key, organi
 _backend: StorageBackend | None = None
 
 
-def build_storage(settings: StorageSettings, *, public_base_url: str = "") -> StorageBackend:
+def build_storage(
+    settings: StorageSettings, *, public_base_url: str = "", secret: str = ""
+) -> StorageBackend:
     if settings.backend == "s3":
         from docflow.storage.s3 import S3Storage
 
@@ -16,14 +18,18 @@ def build_storage(settings: StorageSettings, *, public_base_url: str = "") -> St
 
     from docflow.storage.local import LocalStorage
 
-    return LocalStorage(settings.local_root, public_base_url=public_base_url)
+    return LocalStorage(settings.local_root, public_base_url=public_base_url, secret=secret)
 
 
 def get_storage() -> StorageBackend:
     global _backend
     if _backend is None:
         settings = get_settings()
-        _backend = build_storage(settings.storage, public_base_url=settings.public_base_url)
+        _backend = build_storage(
+            settings.storage,
+            public_base_url=settings.public_base_url,
+            secret=settings.security.jwt_secret,
+        )
     return _backend
 
 

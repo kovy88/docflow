@@ -187,6 +187,13 @@ class ProcessingSettings(_Base):
     retry_max_delay_seconds: float = 60.0
     job_timeout_seconds: int = 300
     worker_concurrency: int = 8
+    # How long a document may sit at `processing` before the stale-job sweep
+    # (worker/tasks.py::sweep_stale_jobs) marks it failed. Deliberately generous
+    # relative to job_timeout_seconds * max_attempts (~15 min worst case with
+    # backoff) — this is a backstop for a worker that died outright (crash, OOM,
+    # SIGKILL), not a tighter timeout on ordinary retries, which already have
+    # their own path to `failed`. See docs/DECISIONS.md.
+    stale_processing_threshold_seconds: int = 1800
 
     ocr_enabled: bool = True
     # If native text extraction yields fewer than this many characters per page,
