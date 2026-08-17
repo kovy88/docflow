@@ -77,9 +77,7 @@ class GeminiProvider(LLMProvider):
             from google import genai
             from google.genai import types
         except ImportError as exc:  # pragma: no cover - dependency is declared
-            raise ProviderNotConfiguredError(
-                "The `google-genai` package is not installed"
-            ) from exc
+            raise ProviderNotConfiguredError("The `google-genai` package is not installed") from exc
 
         self._types = types
         self._client = genai.Client(
@@ -91,9 +89,7 @@ class GeminiProvider(LLMProvider):
         )
         self._model = model
 
-    async def complete_structured(  # noqa: PLR0912 — one branch per provider failure mode
-        self, request: LLMRequest
-    ) -> LLMResponse:
+    async def complete_structured(self, request: LLMRequest) -> LLMResponse:
         from google.genai import errors as genai_errors
 
         types = self._types
