@@ -45,6 +45,10 @@ DIFFICULTY_FEATURES = {
     "diacritics_stripped": "OCR-style loss of Czech diacritics",
     "rounding": "total rounded to whole currency units",
     "credit_note": "negative amounts",
+    # Not injected by a generator below — added by `eval/scan_simulation.py` when a
+    # document is routed through a real render -> degrade -> OCR pass instead of
+    # being handed to the extractor as clean text.
+    "ocr_scanned": "real OCR errors from a simulated scan, not clean synthetic text",
 }
 
 

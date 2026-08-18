@@ -200,7 +200,17 @@ class ProcessingSettings(_Base):
     # treat the page as scanned and route it to OCR.
     ocr_chars_per_page_threshold: int = 120
     ocr_dpi: int = 300
-    ocr_language: str = "eng"
+    # Tesseract `+`-joined multi-language mode. English-only silently dropped
+    # accuracy on the diacritics this market's actual documents use (á é í ý ó
+    # ú ů ě š č ř ž ď ť ň) — the Docker image already installs `tesseract-ocr-ces`
+    # for exactly this reason (see Dockerfile), but nothing was requesting the
+    # pack. `eng` stays in the mix because CZ/CEE business documents routinely
+    # mix in Latin-script numbers, IBANs, and English terms. Measured, not
+    # assumed: `eng` alone scored 7.9-10.3% character error rate against real
+    # Czech text (ICDAR2019 post-OCR dataset + a synthetic invoice paragraph);
+    # `eng+ces` on the same images scored 0.0-0.7%. See
+    # `tests/unit/test_ocr_language.py`.
+    ocr_language: str = "eng+ces"
 
     # Documents whose overall confidence is below this always go to human review,
     # regardless of validation outcome.

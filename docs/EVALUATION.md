@@ -25,9 +25,12 @@ document, not a live link). The baseline/fixture numbers below are from a
 same-day run, before the fix, is what found it); a second OpenAI run, also
 2026-08-18, full 120-document corpus, same seed, targets `gpt-5.6-luna` —
 OpenAI's July 2026 cost/speed-tier model — for a direct, same-day comparison
-against `gpt-4.1-mini`; the Gemini numbers (a secondary data point —
-free-tier quota capped the sample at 20 documents) are from a 2026-08-17
-run, predating the fix.
+against `gpt-4.1-mini`, together with a third pass of the same corpus
+through a real render→degrade→OCR step before extraction (`--scan`, see
+`eval/scan_simulation.py`) to measure what a real scan actually costs
+accuracy-wise, not just clean synthetic text; the Gemini numbers (a
+secondary data point — free-tier quota capped the sample at 20 documents)
+are from a 2026-08-17 run, predating the fix.
 
 ## Methodology
 
@@ -67,20 +70,21 @@ honest headline for a product decision.
 
 ## Results
 
-Four runs, at two different corpus sizes, for a reason that matters: the
+Six runs, at two different corpus sizes, for a reason that matters: the
 rule-based row runs for free and locally, so it uses the full 120-document
-corpus; all three LLM rows spend real API cost per document, but only
-Gemini's was constrained to a slice — by a free-tier daily quota (20
-requests/day), not by choice. Both OpenAI rows (`gpt-4.1-mini` and
-`gpt-5.6-luna`) use the full 120-document corpus against a real model, same
-as the rule-based row, with zero hard failures on either.
+corpus; every LLM row spends real API cost per document, but only Gemini's
+was constrained to a slice — by a free-tier daily quota (20 requests/day),
+not by choice. `gpt-4.1-mini`, `gpt-5.6-luna`, and `gpt-5.6-luna (scanned)`
+each use the full 120-document corpus against a real model, same as the
+rule-based row, with zero hard failures across any of them.
 
 | Run | Documents | Field acc. (normalized) | Required fields | Critical fields | Doc success | Review rate | Cost/doc | Mean latency |
 |---|---|---|---|---|---|---|---|---|
 | baseline (rules) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 81.7% | $0.0000 | 0.8 ms |
 | fixture (not an LLM) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 81.7% | $0.0000 | 4.1 ms |
 | **openai/gpt-4.1-mini (real LLM)** | **120** | **80.0%** | **100.0%** | **79.6%** | **100.0%** | **17.5%** | **$0.0018** | **8,227 ms** |
-| openai/gpt-5.6-luna (real LLM) | 120 | 80.8% | 100.0% | 77.8% | 100.0% | 17.5% | $0.0010 | 6,938 ms |
+| openai/gpt-5.6-luna (real LLM) | 120 | 80.8% | 100.0% | 77.1% | 100.0% | 17.5% | $0.0010 | 6,795 ms |
+| openai/gpt-5.6-luna (scanned) | 120 | 79.3% | 99.0% | 79.6% | 93.3% | 81.7% | $0.0010 | 6,959 ms |
 | google/gemini-3.6-flash (real LLM, quota-limited, predates the fix below) | 20 (11 completed) | 83.5% | 100.0% | 75.4% | 100.0% | 45.5% | $0.0049 | 36,537 ms |
 
 The two rule-based rows land on identical accuracy because the fixture
@@ -115,18 +119,116 @@ GPT-5.6 family is not a strict upgrade over gpt-4.1-mini on this corpus, and
 the numbers say so plainly rather than needing to be argued. Overall field
 accuracy is a statistical tie (80.8% vs. 80.0% — well inside normal noise at
 120 documents); required-field accuracy and document success rate are
-identical (100.0%/100.0%); critical-field accuracy is actually 1.8 points
-*lower* for Luna (77.8% vs. 79.6%) — small enough to plausibly be noise at
-this sample size, but a real measured number, not the improvement a newer,
-cheaper model gets assumed to deliver by default. What *is* unambiguously
-better: cost (44% lower — $0.0010/doc vs. $0.0018/doc) and latency (16%
-lower — mean 6,938 ms vs. 8,227 ms). Review rate lands on the identical
-17.5% for both, a coincidence worth naming rather than reading a story into.
-The two models also fail on the same fields for what is very likely the same
-reason — see "Where the models actually fail" below. **The honest read:
-gpt-5.6-luna is a cost/latency win here, not an accuracy win.** Whether that
-trade is worth making for a given deployment is a product decision this
-document surfaces the numbers for, not one it makes for you.
+identical (100.0%/100.0%); critical-field accuracy is 2.5 points *lower* for
+Luna (77.1% vs. 79.6%) — small enough to plausibly be noise at this sample
+size (Luna's own clean-run critical-field number moved from 77.8% to 77.1%
+between two otherwise-identical same-day runs — see the temperature note
+below for why — so a 2.5-point gap against a different model is not
+obviously more than that same noise floor), but a real measured number, not
+the improvement a newer, cheaper model gets assumed to deliver by default.
+What *is* unambiguously better: cost (44% lower — $0.0010/doc vs.
+$0.0018/doc) and latency (17% lower — mean 6,795 ms vs. 8,227 ms). Review
+rate lands on the identical 17.5% for both, a coincidence worth naming
+rather than reading a story into. The two models also fail on the same
+fields for what is very likely the same reason — see "Where the models
+actually fail" below. **The honest read: gpt-5.6-luna is a cost/latency win
+here, not an accuracy win.** Whether that trade is worth making for a given
+deployment is a product decision this document surfaces the numbers for,
+not one it makes for you.
+
+**Why two "clean" gpt-5.6-luna runs don't match exactly.** gpt-5.6-luna
+rejects any non-default `temperature` outright (see
+[openai_provider.py](../backend/src/docflow/llm/openai_provider.py) —
+confirmed against the real API, not assumed), so unlike gpt-4.1-mini it
+cannot be pinned to `temperature=0` for reproducibility. Every number
+attributed to it above is real and measured, but expect low-single-point
+drift between independent runs of the identical corpus/prompt/code as a
+property of the model, not of this harness.
+
+### Does OCR actually hurt accuracy? A real scan simulation
+
+Every row above this point, including every real-LLM row, hands the
+extractor **clean synthetic text** — `eval/runner.py` says so in its own
+docstring ("documents are already text"), and it was true at every corpus
+size ever run. `docs/AI.md`'s OCR routing and `documents/text_extraction.py`
+have existed since early in this project, and until this run **the eval
+harness had never once exercised that code path.** No number in this
+document, before this section, says anything about what happens to accuracy
+when a document actually needs OCR.
+
+**Methodology** (`backend/src/docflow/eval/scan_simulation.py`, `--scan`).
+For each of the 120 documents: render its ground-truth text to a PDF
+(reportlab, monospace font, preserving the generators' column alignment) →
+rasterise at 150 DPI (below the pipeline's own 300 DPI default, deliberately
+worse than a good scan) → degrade with a small random rotation, Gaussian
+noise, blur, and reduced contrast (seeded per document id via SHA-256, not
+Python's `hash()` — the latter is randomised per process and would silently
+break reproducibility between runs) → run the degraded **image** through the
+real `TextExtractor`, the same code a real scanned upload hits. The
+resulting OCR'd text — not the clean original — is what gpt-5.6-luna
+actually saw. Ground-truth fields are unchanged, because the underlying
+document didn't change; only what OCR could recover from it did.
+
+| | Clean text | Real scan simulation | Delta |
+|---|---|---|---|
+| Field accuracy | 80.8% | 79.3% | −1.5 pt |
+| Required-field accuracy | 100.0% | 99.0% | −1.0 pt |
+| Document success rate | 100.0% | 93.3% | **−6.7 pt** |
+| Validation failure rate | 17.5% | 24.2% | +6.7 pt |
+| **Review rate** | **17.5%** | **81.7%** | **+64.2 pt** |
+| Recall | 88.7% | 86.2% | −2.5 pt |
+| Precision | 82.4% | 81.3% | −1.1 pt |
+
+**The headline isn't the accuracy drop — it's the review-rate jump.** Field
+accuracy barely moved (−1.5 points); review rate moved by 64 points, from
+"most documents go straight through" to "four in five need a human." That
+gap is the confidence-scoring machinery working as designed, not a
+contradiction to explain away: `pipeline/stages/extract.py`'s real
+`context_signal = 0.65 if used_ocr else 0.95` now actually fires in this
+harness for the first time (`eval/runner.py::_score` previously hardcoded
+`context=0.95` unconditionally — every eval run before this one was
+implicitly scoring as if OCR never happens), and grounding
+(weight 0.40, the largest single signal) checks whether the extracted value
+appears in the **OCR'd** source text, not the original clean text. A model
+that correctly infers `13` from context when OCR actually produced `E3` gets
+the field right — good for accuracy — but scores low on grounding, because
+`13` genuinely does not appear anywhere in what OCR gave it — appropriately
+flagging a document a human should glance at, even though the final answer
+was correct. That is arguably the *correct* product behavior for a
+real deployment (see `AI.md`'s "central bet": nobody should trust an LLM
+extraction unsupervised), not a flaw in either the scorer or the model.
+
+Doc success (−6.7 pt) and validation failure rate (+6.7 pt) landing on the
+identical figure is not a coincidence to chase — a required field going
+wrong is exactly the kind of thing the validation layer (e.g. a
+subtotal/total mismatch) tends to catch too, so the same underlying
+documents plausibly drive both numbers.
+
+**Confidence calibration, scanned run — one honest wrinkle, not chased
+further.** The scanned run's medium confidence band is *more* accurate
+(89.3%, n=205) than its high band (81.0%, n=2,706) — high should be ≥
+medium in a well-calibrated score, and here it isn't. This is a smaller,
+single-band version of the shape that turned out to be a real bug twice
+before in this document (nbsp thousands-separators, ungrounded currency
+codes), so it is named here rather than smoothed over. It has **not** been
+investigated to a root cause the way those two were — the saved report
+keeps aggregate band statistics, not the per-field detail that would be
+needed to tell "a third real calibration bug" apart from "205 fields is a
+modest bucket and OCR-era noise is a plausible enough explanation on its
+own." Flagged for whoever looks at this next, same as the Gemini
+hard-failure cause below.
+
+**What this does and does not prove.** Same caveat as the rest of this
+document, one layer deeper: this measures accuracy under a *simulated* scan
+of *synthetic* text, not a real scan of a real document — no rendering
+pipeline reproduces a genuine flatbed scanner, phone camera, or fax the way
+an actual bad scan does, and the simulated degradation parameters (150 DPI,
+±2° rotation, light noise/blur) are a reasonable guess, not a measured
+match to any real scanner's output. What it *does* support, same as
+everywhere else in this document: relative comparison — clean vs. scanned,
+same model, same corpus, same code — which is exactly why the −1.5-point
+accuracy delta and the +64-point review-rate delta are both trustworthy
+numbers even though "79.3% is accurate on real scans" would not be.
 
 **On the Gemini row, read the good numbers and the bad number together, and
 don't let their similar size fool you into treating them as one fact.**
@@ -175,8 +277,8 @@ precision cost (it also gets some of those attempts wrong) — the normal
 shape of an LLM-vs-regex trade, and exactly why confidence scoring and human
 review exist downstream rather than trusting either number alone.
 
-OpenAI (gpt-5.6-luna, 120 docs): precision 82.4%, recall 88.8%, F1 85.5%
-(2,448 true positives, 524 false positives, 308 false negatives) — the same
+OpenAI (gpt-5.6-luna, 120 docs): precision 82.4%, recall 88.7%, F1 85.4%
+(2,444 true positives, 521 false positives, 312 false negatives) — the same
 shape as gpt-4.1-mini on the same corpus, marginally higher on both precision
 and recall rather than trading one for the other.
 
@@ -230,10 +332,13 @@ for the exact same reason.
 | `line_items.0.unit` | 21.1% | 95 |
 | `bank_details.account_number` | 20.0% | 75 |
 | `bank_details.iban` | 20.0% | 75 |
-| `line_items.0.tax_rate` | 33.3% | 75 |
+| `line_items.1.unit` | 22.5% | 71 |
+| `line_items.2.unit` | 25.0% | 40 |
+| `line_items.0.tax_rate` | 37.3% | 75 |
+| `line_items.1.tax_rate` | 50.9% | 55 |
 | `purchase_order_number` | 52.0% | 75 |
+| `amount_due` | 68.0% | 75 |
 | `payment_terms` | 75.8% | 99 |
-| `amount_due` | 72.0% | 75 |
 
 `purchase_order_number` lands on the identical 52.0% for both models — not a
 story, just two models converging on the same ambiguous subset of the
@@ -279,19 +384,19 @@ OpenAI (gpt-5.6-luna, 120 docs — full corpus, not a slice):
 
 | Hazard | Accuracy |
 |---|---|
+| ambiguous_date | 77.3% |
 | label_variants | 77.5% |
 | extra_numbers | 78.1% |
-| ambiguous_date | 78.4% |
-| no_currency_code | 80.0% |
-| (none) | 81.1% |
-| diacritics_stripped | 81.4% |
-| decimal_comma | 83.1% |
+| diacritics_stripped | 78.5% |
+| no_currency_code | 79.8% |
+| (none) | 81.8% |
+| decimal_comma | 83.2% |
 
-Same shape as gpt-4.1-mini's row directly above: same worst hazard
-(`label_variants`), same best (`decimal_comma`), a marginally wider range
-(77.5%–83.1% vs. 77.9%–81.2%). The address/bank-identifier gap is, again, not
-explained by any of these hazards — it shows up in the "no injected
-difficulty" column too (81.1%).
+Same shape as gpt-4.1-mini's row directly above: same worst hazards
+(`ambiguous_date`/`label_variants`), same best (`decimal_comma`), a
+marginally wider range (77.3%–83.2% vs. 77.9%–81.2%). The address/bank-
+identifier gap is, again, not explained by any of these hazards — it shows
+up in the "no injected difficulty" column too (81.8%).
 
 Gemini (20 docs — small enough that per-hazard figures are indicative, not
 conclusive):
@@ -478,7 +583,7 @@ assuming `groundable=True` is safe.
 
 **A second real-LLM data point, post-fix.** The gpt-5.6-luna run (see
 Results) is a later, independent check that both fixes above hold outside
-gpt-4.1-mini: its low band (25 fields, mean score 0.544 — the same number the
+gpt-4.1-mini: its low band (32 fields, mean score 0.544 — the same number the
 currency bug used to produce, since the weighted-average formula is
 unchanged) is 0.0% actually accurate, i.e. genuinely wrong values scoring
 low, not the inverted pattern either bug produced. Expected, since both fixes
@@ -501,7 +606,8 @@ investigation above.
 | Real LLM latency | **Measured** — mean 8.2s/doc (gpt-4.1-mini); mean 6.9s/doc (gpt-5.6-luna — 16% faster); mean 36.5s/doc (Gemini). None have been investigated or optimized |
 | Real LLM confidence calibration | **Measured, full corpus** — 2,983 fields (gpt-4.1-mini), large enough to draw a real conclusion from, and it did: found and fixed a second real bug (every `currency` field scoring low regardless of correctness), which is why the OpenAI review rate above went from a first-pass 50.8% to a final 17.5% — a real, verified product improvement, not a report footnote |
 | Accuracy on real (non-synthetic) documents | **Not measured** — no ground-truth corpus of real documents exists for this project |
-| OCR accuracy on scanned/low-DPI documents | **Not measured** — no scanned ground-truth set has been run |
+| OCR accuracy on scanned/low-DPI documents | **Measured, full corpus, simulated scans** — 120 documents rendered, degraded, and OCR'd for real (`--scan`; see "Does OCR actually hurt accuracy?" above): field accuracy −1.5 pt (80.8%→79.3%), doc success −6.7 pt (100%→93.3%), review rate **+64.2 pt** (17.5%→81.7%). **Caveat that still applies:** simulated degradation of synthetic text, not a real scanner on a real document — see the section above for exactly what that does and doesn't support |
+| Czech OCR language configuration | **Measured** — `ocr_language` defaulted to English-only despite the Docker image installing the Czech pack for exactly this market; real Tesseract runs against real Czech text (ICDAR2019 academic ground truth + a written invoice paragraph) showed 7.9-10.3% character error rate with `eng` alone vs. 0.0-0.7% with `eng+ces`. Fixed; regression test in `tests/unit/test_ocr_language.py` |
 | Why the Gemini run's hard failures happened | **Not conclusively determined** — rate limiting is the strong suspect given the code path and the free-tier key used, but per-document error codes aren't persisted in the report, so this is an informed inference, not a re-derivable fact |
 
 If you're evaluating this project and want to reproduce or extend this: any

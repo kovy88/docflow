@@ -22,10 +22,18 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from docflow.config import get_settings
-from docflow.eval.dataset import DEFAULT_CORPUS_PATH, build_corpus, read_corpus, write_corpus
+from docflow.config import Settings, get_settings
+from docflow.eval.dataset import (
+    DEFAULT_CORPUS_PATH,
+    GroundTruth,
+    build_corpus,
+    read_corpus,
+    write_corpus,
+)
 from docflow.eval.metrics import EvaluationReport, compare_reports
 from docflow.eval.runner import BaselineRunner, ExtractorRunner, RunnerConfig
+from docflow.eval.scan_simulation import ScanSimulationUnavailableError, build_scanned_corpus
+from docflow.llm.base import LLMProvider
 from docflow.observability.logging import configure_logging
 
 RESULTS_DIR = Path(__file__).resolve().parents[3] / "eval_results"
@@ -273,6 +281,14 @@ async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0915 — linear CLI
                 await runner.run(corpus, config=RunnerConfig(label, concurrency=args.concurrency))
             )
             print(f"  done in {reports[-1].wall_clock_seconds:.1f}s")
+
+            if args.scan:
+                scanned_report = await _run_scanned(
+                    corpus, provider=provider, settings=settings, label=label, args=args
+                )
+                if scanned_report is not None:
+                    reports.append(scanned_report)
+
             await provider.aclose()
 
     if not reports:
@@ -312,6 +328,49 @@ async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0915 — linear CLI
     return 0
 
 
+async def _run_scanned(
+    corpus: list[GroundTruth],
+    *,
+    provider: LLMProvider,
+    settings: Settings,
+    label: str,
+    args: argparse.Namespace,
+) -> EvaluationReport | None:
+    """Render -> degrade -> real-OCR the corpus, then run the same extractor on it.
+
+    Answers a different question than the clean-text row above: not "how good is
+    this model at extraction" but "how much of that accuracy survives a real scan."
+    See `eval/scan_simulation.py`. Failures here are toolchain problems (no
+    Tesseract, no monospace font) rather than per-document ones — printed and
+    skipped rather than failing the whole run, so a machine without OCR installed
+    still gets every other row.
+    """
+    from docflow.domain.errors import OCRUnavailableError
+
+    print(f"\nRendering + degrading + OCR-ing the corpus for {label} (scanned)...")
+    try:
+        scanned_corpus, skipped = build_scanned_corpus(corpus, settings=settings.processing)
+    except (ScanSimulationUnavailableError, OCRUnavailableError) as exc:
+        print(f"! Skipping scanned run: {exc}")
+        return None
+
+    if skipped:
+        print(
+            f"  {len(skipped)} document(s) skipped (scan/OCR failed): "
+            f"{', '.join(doc_id for doc_id, _reason in skipped[:5])}"
+            f"{' ...' if len(skipped) > 5 else ''}"
+        )
+    print(f"  {len(scanned_corpus)} document(s) scanned, running extraction...")
+
+    scanned_label = f"{label} (scanned)"
+    runner = ExtractorRunner(provider, settings=settings)
+    report = await runner.run(
+        scanned_corpus, config=RunnerConfig(scanned_label, concurrency=args.concurrency)
+    )
+    print(f"  done in {report.wall_clock_seconds:.1f}s")
+    return report
+
+
 def _build_provider(name: str, settings):
     from docflow.config import LLMSettings
     from docflow.llm.registry import build_provider
@@ -332,6 +391,14 @@ def main() -> int:
         "--provider", choices=["anthropic", "openai", "google", "fixture"], default=None
     )
     parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument(
+        "--scan",
+        action="store_true",
+        help="also run the LLM extractor on a render->degrade->real-OCR pass of the "
+        "corpus, as a second labelled row, to measure how much accuracy survives a "
+        "real scan instead of clean synthetic text (requires Tesseract installed "
+        "locally; see eval/scan_simulation.py)",
+    )
     args = parser.parse_args()
 
     return asyncio.run(_run(args))

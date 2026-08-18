@@ -200,7 +200,9 @@ class ExtractorRunner:
         needs_review = any(i.severity.value == "error" for i in issues)
 
         if config.score_confidence:
-            confidences, overall = self._score(outcome.data, spec, item.text, issues)
+            confidences, overall = self._score(
+                outcome.data, spec, item.text, issues, used_ocr="ocr_scanned" in item.difficulty
+            )
             needs_review = needs_review or (overall is not None and overall < spec.review_threshold)
 
         return DocumentOutcome(
@@ -223,8 +225,15 @@ class ExtractorRunner:
             difficulty=item.difficulty,
         )
 
-    def _score(self, data, spec, text, issues):
-        """Reuses the production confidence signals so calibration is measured, not modelled."""
+    def _score(self, data, spec, text, issues, *, used_ocr: bool = False):
+        """Reuses the production confidence signals so calibration is measured, not modelled.
+
+        `used_ocr` mirrors `pipeline/stages/extract.py`'s real `context_signal = 0.65 if
+        ctx.used_ocr else 0.95` — this runner normally never sees an OCR'd document (see
+        module docstring), so it always fell through to the native-text 0.95. Scanned-corpus
+        runs (`eval/scan_simulation.py`) tag `item.difficulty` with `"ocr_scanned"`, which
+        `_evaluate` passes through here so the discount actually fires for them too.
+        """
         source_normalised = normalise_for_matching(text)
         error_paths = {i.field_path for i in issues if i.field_path and i.severity.value == "error"}
         warn_paths = {
@@ -253,7 +262,7 @@ class ExtractorRunner:
                     grounding=grounding,
                     format_cleanliness=format_signal,
                     validation=validation,
-                    context=0.95,
+                    context=0.65 if used_ocr else 0.95,
                 ),
             )
             scored.append(confidence)
