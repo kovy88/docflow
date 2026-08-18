@@ -104,6 +104,17 @@ PRICING: dict[str, ModelPricing] = {
     "gpt-4.1-mini": ModelPricing(
         "openai", "gpt-4.1-mini", _d("0.40"), _d("1.60"), context_window=1_000_000
     ),
+    "gpt-5.6-luna": ModelPricing(
+        "openai",
+        "gpt-5.6-luna",
+        _d("0.10"),
+        _d("0.60"),
+        context_window=1_050_000,
+        notes="Fastest/cheapest tier of the GPT-5.6 family (flagship is Sol, "
+        "mid-tier is Terra). Sourced from third-party model listings (OpenRouter, "
+        "AWS Bedrock, Cloudflare) — openai.com is not reachable from this "
+        "environment to confirm directly.",
+    ),
     # --- Fixture -------------------------------------------------------------
     # Deterministic local provider. Free by construction — it makes no API call.
     "fixture-heuristic": ModelPricing(
