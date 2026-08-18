@@ -39,6 +39,18 @@ logger = structlog.get_logger(__name__)
 class OpenAIProvider(LLMProvider):
     name = "openai"
 
+    # GPT-5.6 models are unified reasoning models: OpenAI's API rejects any
+    # non-default `temperature` for them outright (400 `unsupported_value`,
+    # "Only the default (1) value is supported") rather than clamping or
+    # ignoring it. Confirmed against the real API with gpt-5.6-luna, not
+    # inferred from docs — the same shape of restriction the Anthropic
+    # provider already has unconditionally (see `LLMSettings.effort`), just
+    # newly true for one OpenAI model family too. Prefix-matched so Sol/Terra
+    # inherit it without a separate confirmed failure for each: the cost of
+    # being wrong here is silently using OpenAI's default temperature for a
+    # model that would've accepted ours, not a hard error.
+    _NO_TEMPERATURE_PREFIXES = ("gpt-5.6",)
+
     def __init__(
         self,
         *,
@@ -70,25 +82,28 @@ class OpenAIProvider(LLMProvider):
         schema = ensure_nullable(normalize_schema(request.json_schema, require_all_properties=True))
         started = time.perf_counter()
 
-        try:
-            completion = await self._client.chat.completions.create(
-                model=self._model,
-                max_completion_tokens=request.max_output_tokens,
-                temperature=request.temperature,
-                timeout=request.timeout_seconds,
-                messages=[
-                    {"role": "system", "content": request.system},
-                    {"role": "user", "content": request.user_content},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": request.schema_name,
-                        "strict": True,
-                        "schema": schema,
-                    },
+        create_kwargs: dict[str, Any] = {
+            "model": self._model,
+            "max_completion_tokens": request.max_output_tokens,
+            "timeout": request.timeout_seconds,
+            "messages": [
+                {"role": "system", "content": request.system},
+                {"role": "user", "content": request.user_content},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": request.schema_name,
+                    "strict": True,
+                    "schema": schema,
                 },
-            )
+            },
+        }
+        if not self._model.startswith(self._NO_TEMPERATURE_PREFIXES):
+            create_kwargs["temperature"] = request.temperature
+
+        try:
+            completion = await self._client.chat.completions.create(**create_kwargs)
         except openai.AuthenticationError as exc:
             raise ProviderAuthError("OpenAI rejected the API key") from exc
         except openai.PermissionDeniedError as exc:

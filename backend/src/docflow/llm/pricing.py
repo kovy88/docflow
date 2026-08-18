@@ -17,7 +17,7 @@ from decimal import Decimal
 
 # Update this when the table below changes. Surfaced in the usage dashboard so a
 # stale table is visible rather than silently wrong.
-PRICING_AS_OF = "2026-06-24"
+PRICING_AS_OF = "2026-08-18"
 
 MILLION = Decimal("1000000")
 
@@ -103,6 +103,21 @@ PRICING: dict[str, ModelPricing] = {
     "gpt-4.1": ModelPricing("openai", "gpt-4.1", _d("2.00"), _d("8.00"), context_window=1_000_000),
     "gpt-4.1-mini": ModelPricing(
         "openai", "gpt-4.1-mini", _d("0.40"), _d("1.60"), context_window=1_000_000
+    ),
+    # Source: https://developers.openai.com/api/docs/models/gpt-5.6-luna (fetched
+    # 2026-08-18). Current price reflects OpenAI's 2026-07-30 cut from the launch
+    # price (an 80% reduction) — verify this hasn't moved again before trusting it
+    # for billing.
+    "gpt-5.6-luna": ModelPricing(
+        "openai",
+        "gpt-5.6-luna",
+        _d("0.20"),
+        _d("1.20"),
+        context_window=1_050_000,
+        notes="Cost/speed-optimized tier of the GPT-5.6 family (below Terra and "
+        "Sol) — see docs/EVALUATION.md before assuming it beats gpt-4.1-mini on "
+        "accuracy; that's an empirical question this project measures rather "
+        "than assumes.",
     ),
     # --- Fixture -------------------------------------------------------------
     # Deterministic local provider. Free by construction — it makes no API call.

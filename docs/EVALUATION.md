@@ -11,6 +11,7 @@ cd backend
 uv run docflow-eval                            # rule-based baseline + fixture provider
 uv run docflow-eval --provider anthropic        # requires DOCFLOW_LLM_ANTHROPIC_API_KEY
 uv run docflow-eval --provider openai           # requires DOCFLOW_LLM_OPENAI_API_KEY
+DOCFLOW_LLM_MODEL=gpt-5.6-luna uv run docflow-eval --provider openai  # a specific OpenAI model
 uv run docflow-eval --provider google --size 20 # requires DOCFLOW_LLM_GOOGLE_API_KEY; --size caps quota spend
 ```
 
@@ -21,9 +22,12 @@ document, not a live link). The baseline/fixture numbers below are from a
 2026-08-18 run; the OpenAI numbers (the primary real-LLM result — full
 120-document corpus, no quota limit) are from a 2026-08-18 run against
 `gpt-4.1-mini`, after the currency-calibration fix below (an earlier
-same-day run, before the fix, is what found it); the Gemini numbers (a
-secondary data point — free-tier quota capped the sample at 20 documents)
-are from a 2026-08-17 run, predating the fix.
+same-day run, before the fix, is what found it); a second OpenAI run, also
+2026-08-18, full 120-document corpus, same seed, targets `gpt-5.6-luna` —
+OpenAI's July 2026 cost/speed-tier model — for a direct, same-day comparison
+against `gpt-4.1-mini`; the Gemini numbers (a secondary data point —
+free-tier quota capped the sample at 20 documents) are from a 2026-08-17
+run, predating the fix.
 
 ## Methodology
 
@@ -63,18 +67,20 @@ honest headline for a product decision.
 
 ## Results
 
-Three runs, at two different corpus sizes, for a reason that matters: the
-rule-based rows run for free and locally, so they use the full 120-document
-corpus; both LLM rows spend real API cost per document, but only Gemini's was
-constrained to a slice — by a free-tier daily quota (20 requests/day), not by
-choice. The OpenAI row is the full 120-document corpus against a real model,
-same as the rule-based rows, with zero hard failures.
+Four runs, at two different corpus sizes, for a reason that matters: the
+rule-based row runs for free and locally, so it uses the full 120-document
+corpus; all three LLM rows spend real API cost per document, but only
+Gemini's was constrained to a slice — by a free-tier daily quota (20
+requests/day), not by choice. Both OpenAI rows (`gpt-4.1-mini` and
+`gpt-5.6-luna`) use the full 120-document corpus against a real model, same
+as the rule-based row, with zero hard failures on either.
 
 | Run | Documents | Field acc. (normalized) | Required fields | Critical fields | Doc success | Review rate | Cost/doc | Mean latency |
 |---|---|---|---|---|---|---|---|---|
 | baseline (rules) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 81.7% | $0.0000 | 0.8 ms |
 | fixture (not an LLM) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 81.7% | $0.0000 | 4.1 ms |
 | **openai/gpt-4.1-mini (real LLM)** | **120** | **80.0%** | **100.0%** | **79.6%** | **100.0%** | **17.5%** | **$0.0018** | **8,227 ms** |
+| openai/gpt-5.6-luna (real LLM) | 120 | 80.8% | 100.0% | 77.8% | 100.0% | 17.5% | $0.0010 | 6,938 ms |
 | google/gemini-3.6-flash (real LLM, quota-limited, predates the fix below) | 20 (11 completed) | 83.5% | 100.0% | 75.4% | 100.0% | 45.5% | $0.0049 | 36,537 ms |
 
 The two rule-based rows land on identical accuracy because the fixture
@@ -103,6 +109,24 @@ This is a standard, unmodified run — same corpus, same prompts, same command
 as every other row in this table, no special-casing for this provider or this
 model. The "upper bound, not a prediction" caveat in Methodology applies to
 it exactly as much as to the rows above it.
+
+**gpt-5.6-luna vs. gpt-4.1-mini, same corpus, same day.** OpenAI's July 2026
+GPT-5.6 family is not a strict upgrade over gpt-4.1-mini on this corpus, and
+the numbers say so plainly rather than needing to be argued. Overall field
+accuracy is a statistical tie (80.8% vs. 80.0% — well inside normal noise at
+120 documents); required-field accuracy and document success rate are
+identical (100.0%/100.0%); critical-field accuracy is actually 1.8 points
+*lower* for Luna (77.8% vs. 79.6%) — small enough to plausibly be noise at
+this sample size, but a real measured number, not the improvement a newer,
+cheaper model gets assumed to deliver by default. What *is* unambiguously
+better: cost (44% lower — $0.0010/doc vs. $0.0018/doc) and latency (16%
+lower — mean 6,938 ms vs. 8,227 ms). Review rate lands on the identical
+17.5% for both, a coincidence worth naming rather than reading a story into.
+The two models also fail on the same fields for what is very likely the same
+reason — see "Where the models actually fail" below. **The honest read:
+gpt-5.6-luna is a cost/latency win here, not an accuracy win.** Whether that
+trade is worth making for a given deployment is a product decision this
+document surfaces the numbers for, not one it makes for you.
 
 **On the Gemini row, read the good numbers and the bad number together, and
 don't let their similar size fool you into treating them as one fact.**
@@ -151,9 +175,14 @@ precision cost (it also gets some of those attempts wrong) — the normal
 shape of an LLM-vs-regex trade, and exactly why confidence scoring and human
 review exist downstream rather than trusting either number alone.
 
+OpenAI (gpt-5.6-luna, 120 docs): precision 82.4%, recall 88.8%, F1 85.5%
+(2,448 true positives, 524 false positives, 308 false negatives) — the same
+shape as gpt-4.1-mini on the same corpus, marginally higher on both precision
+and recall rather than trading one for the other.
+
 Gemini (20 docs): precision 86.2%, recall 88.1%, F1 87.1% (237 true
 positives, 38 false positives, 32 false negatives) — consistent with the
-OpenAI row on the same corpus, different provider.
+OpenAI rows on the same corpus, different provider.
 
 ### Where the models actually fail
 
@@ -189,6 +218,31 @@ this is spread evenly across the schema — the fields a business actually
 keys off (invoice number, dates, total) are the required fields that hit
 100%; the fields still weak are specifically the ones this table names.
 
+gpt-5.6-luna's failure list (120 docs) overlaps almost entirely with
+gpt-4.1-mini's, which is the more informative result than either list on its
+own: both models land on 0% for the exact same two fields, almost certainly
+for the exact same reason.
+
+| Field | Accuracy | Occurrences |
+|---|---|---|
+| `supplier.address` | 0.0% | 95 |
+| `customer.address` | 0.0% | 75 |
+| `line_items.0.unit` | 21.1% | 95 |
+| `bank_details.account_number` | 20.0% | 75 |
+| `bank_details.iban` | 20.0% | 75 |
+| `line_items.0.tax_rate` | 33.3% | 75 |
+| `purchase_order_number` | 52.0% | 75 |
+| `payment_terms` | 75.8% | 99 |
+| `amount_due` | 72.0% | 75 |
+
+`purchase_order_number` lands on the identical 52.0% for both models — not a
+story, just two models converging on the same ambiguous subset of the
+corpus. `payment_terms` and `amount_due` show up as secondary weak spots for
+Luna without being notable for gpt-4.1-mini — a smaller, model-specific
+pattern layered on top of the dominant one. The dominant one — addresses and
+bank identifiers failing on both models — is a property of this extraction
+approach on this corpus, not of either specific model's release.
+
 ### Accuracy by injected difficulty
 
 Rule-based rows (identical, 120 docs):
@@ -220,6 +274,24 @@ type disproportionately breaks it, and the "no injected difficulty" baseline
 (79.5%) isn't higher than most of the hazard rows, meaning the accuracy gap
 documented above (addresses, per-line tax rates) isn't explained by these
 hazards either — it's a distinct, separate weakness.
+
+OpenAI (gpt-5.6-luna, 120 docs — full corpus, not a slice):
+
+| Hazard | Accuracy |
+|---|---|
+| label_variants | 77.5% |
+| extra_numbers | 78.1% |
+| ambiguous_date | 78.4% |
+| no_currency_code | 80.0% |
+| (none) | 81.1% |
+| diacritics_stripped | 81.4% |
+| decimal_comma | 83.1% |
+
+Same shape as gpt-4.1-mini's row directly above: same worst hazard
+(`label_variants`), same best (`decimal_comma`), a marginally wider range
+(77.5%–83.1% vs. 77.9%–81.2%). The address/bank-identifier gap is, again, not
+explained by any of these hazards — it shows up in the "no injected
+difficulty" column too (81.1%).
 
 Gemini (20 docs — small enough that per-hazard figures are indicative, not
 conclusive):
@@ -404,6 +476,18 @@ pipeline is expected to normalise) is not eliminated. Any other normalised
 field kind added in the future should be checked against this before
 assuming `groundable=True` is safe.
 
+**A second real-LLM data point, post-fix.** The gpt-5.6-luna run (see
+Results) is a later, independent check that both fixes above hold outside
+gpt-4.1-mini: its low band (25 fields, mean score 0.544 — the same number the
+currency bug used to produce, since the weighted-average formula is
+unchanged) is 0.0% actually accurate, i.e. genuinely wrong values scoring
+low, not the inverted pattern either bug produced. Expected, since both fixes
+live in the document-type schemas and the baseline extractor rather than in
+any provider-specific code — but which *fields* landed in that low band
+isn't determined here; the saved report keeps aggregate band statistics, not
+a per-field breakdown, the same limitation noted for the Gemini hard-failure
+investigation above.
+
 ## What's measured vs. not — summary
 
 | Claim | Status |
@@ -412,9 +496,9 @@ assuming `groundable=True` is safe.
 | Rule-based baseline accuracy on synthetic corpus | **Measured** — this document, 120 docs |
 | Confidence-scoring machinery functions correctly | **Measured** — found and fixed a real bug (above), which is stronger evidence than a clean run would have been |
 | Classification accuracy (heuristic cascade) | **Measured** — 100% on this corpus (see caveat: synthetic documents use the same vocabulary the heuristic was written against) |
-| Real LLM extraction accuracy | **Measured, full corpus** — 120 documents, openai/gpt-4.1-mini, 80.0% field accuracy, 100% required-field accuracy, 100% doc success, zero hard failures. A second provider (Gemini) corroborates on a smaller, quota-limited slice — see below |
-| Real LLM cost per document | **Measured** — $0.0018/doc (gpt-4.1-mini, 120-doc run); $0.0049/doc (Gemini, 20-doc run) |
-| Real LLM latency | **Measured** — mean 8.2s/doc (gpt-4.1-mini); mean 36.5s/doc (Gemini). Neither has been investigated or optimized |
+| Real LLM extraction accuracy | **Measured, full corpus** — 120 documents, openai/gpt-4.1-mini, 80.0% field accuracy, 100% required-field accuracy, 100% doc success, zero hard failures. A second OpenAI model (gpt-5.6-luna, same corpus) lands within noise on accuracy (80.8%) but is cheaper and faster — see below. A third provider (Gemini) corroborates on a smaller, quota-limited slice |
+| Real LLM cost per document | **Measured** — $0.0018/doc (gpt-4.1-mini, 120-doc run); $0.0010/doc (gpt-5.6-luna, 120-doc run — 44% cheaper); $0.0049/doc (Gemini, 20-doc run) |
+| Real LLM latency | **Measured** — mean 8.2s/doc (gpt-4.1-mini); mean 6.9s/doc (gpt-5.6-luna — 16% faster); mean 36.5s/doc (Gemini). None have been investigated or optimized |
 | Real LLM confidence calibration | **Measured, full corpus** — 2,983 fields (gpt-4.1-mini), large enough to draw a real conclusion from, and it did: found and fixed a second real bug (every `currency` field scoring low regardless of correctness), which is why the OpenAI review rate above went from a first-pass 50.8% to a final 17.5% — a real, verified product improvement, not a report footnote |
 | Accuracy on real (non-synthetic) documents | **Not measured** — no ground-truth corpus of real documents exists for this project |
 | OCR accuracy on scanned/low-DPI documents | **Not measured** — no scanned ground-truth set has been run |
