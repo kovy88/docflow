@@ -30,9 +30,9 @@ cleverness. See [docs/AI.md](docs/AI.md) for that argument in full, and
 - **A real evaluation harness**: a 120-document synthetic corpus with exact
   ground truth, a rule-based baseline, and match-level/precision-recall/
   confidence-calibration metrics — not a vibe check. Real-LLM numbers are
-  measured too (83.5% field accuracy against Gemini), labeled quota-limited
-  rather than rounded up to a production claim — see
-  [docs/EVALUATION.md](docs/EVALUATION.md).
+  measured on the full corpus too (80.0% field accuracy, 100% doc success,
+  zero hard failures against OpenAI; a second provider corroborates on a
+  smaller slice) — see [docs/EVALUATION.md](docs/EVALUATION.md).
 - **A Next.js frontend** — dashboard, document list/detail with inline
   correction, review queue, settings, an ROI calculator — built to be
   demoed, not just to prove the API works.
@@ -95,7 +95,7 @@ Actions CI (lint, typecheck, tests against real Postgres/Redis, `bandit` +
 
 ## Status
 
-258 backend tests (unit + integration, against a real Postgres via
+263 backend tests (unit + integration, against a real Postgres via
 transaction-rollback isolation), clean `ruff`/`mypy`/`bandit`, plus 5
 Playwright E2E tests covering the critical user flow and auth/empty-state
 error paths against the real stack (`frontend/e2e`, `npm run test:e2e`).

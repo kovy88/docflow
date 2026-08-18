@@ -76,17 +76,23 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
       accuracy, 5.8% document success — see [EVALUATION.md](EVALUATION.md)
       for the full report
 - [x] `docflow-calibrate` — re-derives confidence-band accuracy from the
-      production scoring code in deciles, not just the three bands. Its first
-      real run found a genuine bug (a non-breaking-space thousands separator
-      silently truncating money values, also weakening the production
-      baseline-agreement signal, not just eval numbers) — see
+      production scoring code in deciles, not just the three bands. Found
+      two genuine bugs, not one: a non-breaking-space thousands separator
+      silently truncating money values (fixture data), and every `currency`
+      field scoring artificially low regardless of correctness (found only
+      once a full real-model run existed — see below). Both also weakened
+      production confidence scoring, not just eval numbers — see
       [EVALUATION.md](EVALUATION.md#confidence-calibration) and
       [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for the full story
-- [x] **Real LLM (Gemini) accuracy — measured, quota-limited.** 83.5% field
-      accuracy, 100% required-field accuracy on the 11 of 20 documents that
-      completed under a free-tier key (9 hard-failed, most likely rate
-      limiting). Not yet re-run at a larger, non-quota-limited scale — see
-      [EVALUATION.md](EVALUATION.md) for the full numbers and caveats
+- [x] **Real LLM accuracy — measured, full corpus, two providers.** OpenAI
+      (gpt-4.1-mini): 120/120 documents, zero hard failures, 80.0% field
+      accuracy, 100% required-field accuracy, 100% doc success. Gemini:
+      83.5% field accuracy on 11 of 20 documents that completed under a
+      free-tier key (9 hard-failed, most likely rate limiting) — kept as a
+      secondary, quota-limited data point. Fixing the currency-calibration
+      bug above dropped the OpenAI run's review rate from 50.8% to
+      **17.5%** — a real, measured product improvement, not just a report
+      number — see [EVALUATION.md](EVALUATION.md) for the full numbers
 
 ### Phase 10 — Observability & security
 - [x] Structured JSON logs (`structlog`, unified with uvicorn/SQLAlchemy/arq
@@ -101,7 +107,7 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
       testing (see [SECURITY.md](SECURITY.md#tenant-isolation))
 
 ### Phase 11 — Testing & CI
-- [x] 258 backend tests (unit + integration against a real Postgres,
+- [x] 263 backend tests (unit + integration against a real Postgres,
       transaction-rollback isolation) — passing, clean `ruff`/`mypy`
 - [x] **Frontend E2E test coverage** — 5 Playwright tests against the real
       stack (`frontend/e2e/`, `npm run test:e2e`): the critical flow
@@ -207,9 +213,13 @@ and the dead-letter path specifically.
 Tracked honestly — see [docs/FINAL_REPORT.md](FINAL_REPORT.md) for the full
 discussion.
 
-- **Real-LLM accuracy is measured but quota-limited (20 documents, 9 of
-  which hard-failed under a free-tier key), not run at production scale.**
-  See [EVALUATION.md](EVALUATION.md#whats-measured-vs-not-summary).
+- **Real-LLM accuracy is measured against the full, unlimited 120-document
+  corpus** (OpenAI, 80.0% field accuracy, 100% doc success), not just a
+  quota-limited slice — a secondary Gemini data point remains quota-limited
+  (20 documents, 9 hard-failed under a free-tier key). Neither has been run
+  at a production customer's actual document volume/variety, which is a
+  different claim than "not run at scale" was implying before this was
+  fixed. See [EVALUATION.md](EVALUATION.md#whats-measured-vs-not-summary).
 - **The correction feedback loop is data-ready, not built.**
   `field_corrections` is indexed for "which fields does prompt version X get
   wrong most," but nothing automated consumes it yet.

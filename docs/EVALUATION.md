@@ -17,10 +17,13 @@ uv run docflow-eval --provider google --size 20 # requires DOCFLOW_LLM_GOOGLE_AP
 Output goes to `backend/eval_results/` as both JSON and a Markdown report
 (`latest.md` / `latest.json`, plus a timestamped copy of each run — the
 directory is gitignored, so what's below is a snapshot copied into this
-document, not a live link). The baseline/fixture numbers below are from
-`backend/eval_results/latest.md`, generated 2026-08-17; the Gemini numbers
-are from `backend/eval_results/gemini-latest.md`, generated 2026-08-17
-08:11 UTC.
+document, not a live link). The baseline/fixture numbers below are from a
+2026-08-18 run; the OpenAI numbers (the primary real-LLM result — full
+120-document corpus, no quota limit) are from a 2026-08-18 run against
+`gpt-4.1-mini`, after the currency-calibration fix below (an earlier
+same-day run, before the fix, is what found it); the Gemini numbers (a
+secondary data point — free-tier quota capped the sample at 20 documents)
+are from a 2026-08-17 run, predating the fix.
 
 ## Methodology
 
@@ -60,27 +63,46 @@ honest headline for a product decision.
 
 ## Results
 
-Two separate runs, at two different corpus sizes, for a reason that matters:
-the rule-based rows run for free and locally, so they use the full 120-document
-corpus; the Gemini row spends real API quota per document, so it ran against a
-20-document slice. The numbers are not on equal footing and the table below
-doesn't pretend otherwise.
+Three runs, at two different corpus sizes, for a reason that matters: the
+rule-based rows run for free and locally, so they use the full 120-document
+corpus; both LLM rows spend real API cost per document, but only Gemini's was
+constrained to a slice — by a free-tier daily quota (20 requests/day), not by
+choice. The OpenAI row is the full 120-document corpus against a real model,
+same as the rule-based rows, with zero hard failures.
 
 | Run | Documents | Field acc. (normalized) | Required fields | Critical fields | Doc success | Review rate | Cost/doc | Mean latency |
 |---|---|---|---|---|---|---|---|---|
 | baseline (rules) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 81.7% | $0.0000 | 0.8 ms |
-| fixture (not an LLM) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 95.0% | $0.0000 | 4.1 ms |
-| google/gemini-3.6-flash (real LLM) | 20 | 83.5% | 100.0% | 75.4% | 100.0% | 45.5% | $0.0049 | 36,537 ms |
+| fixture (not an LLM) | 120 | 56.0% | 52.2% | 90.1% | 5.8% | 81.7% | $0.0000 | 4.1 ms |
+| **openai/gpt-4.1-mini (real LLM)** | **120** | **80.0%** | **100.0%** | **79.6%** | **100.0%** | **17.5%** | **$0.0018** | **8,227 ms** |
+| google/gemini-3.6-flash (real LLM, quota-limited, predates the fix below) | 20 (11 completed) | 83.5% | 100.0% | 75.4% | 100.0% | 45.5% | $0.0049 | 36,537 ms |
 
 The two rule-based rows land on identical accuracy because the fixture
 provider *is* the rule-based baseline, called through the `LLMProvider`
 interface instead of directly (see [AI.md](AI.md#provider-abstraction)) — not
-a coincidence to explain away. Their review rate differs (81.7% vs. 95.0%)
-because confidence scoring runs against each path slightly differently — the
-baseline path never invokes the baseline-cross-check signal (nothing
-independent to cross-check against itself), while the fixture path exercises
-the full scoring formula including the self-agreement guard described in
-[AI.md](AI.md#confidence-scoring).
+a coincidence to explain away. Their review rate now matches too (81.7%
+each) — it didn't always; see the confidence-calibration section for why a
+real bug used to make the fixture row's review rate higher for a reason that
+had nothing to do with real risk.
+
+**The OpenAI row is the number to trust for "does this actually work."** Full
+corpus, zero hard failures, real cost tracking (not the false $0.0000 a model
+missing from the pricing table would silently report — verified against
+`llm/pricing.py` before trusting this number, see below). Required-field
+accuracy and document success rate both hit 100% — every one of the 120
+documents had every field a human actually needs correct. The gap to 100%
+field accuracy (80.0%) is concentrated in a specific, explicable place: see
+"fields with the most errors" below, not spread evenly across everything.
+**Review rate is the number worth pausing on: 17.5%, not the ~51% an earlier
+same-day run showed** — see the confidence-calibration section for why
+that first number was itself measuring a bug, not real risk, and why fixing
+it changed the *product's actual behavior* (a third fewer documents sent to
+human review), not just a report footnote.
+
+This is a standard, unmodified run — same corpus, same prompts, same command
+as every other row in this table, no special-casing for this provider or this
+model. The "upper bound, not a prediction" caveat in Methodology applies to
+it exactly as much as to the rows above it.
 
 **On the Gemini row, read the good numbers and the bad number together, and
 don't let their similar size fool you into treating them as one fact.**
@@ -122,25 +144,50 @@ low recall is exactly what a keyword/pattern baseline should produce: when it
 commits to a value it's usually right, but it leaves most fields blank rather
 than guessing — particularly line items and nested objects (below).
 
-Gemini: precision 86.2%, recall 88.1%, F1 87.1% (237 true positives, 38 false
-positives, 32 false negatives) — recall well above the rule-based baseline,
-consistent with an LLM attempting fields a label-anchored regex leaves blank.
+OpenAI (gpt-4.1-mini, 120 docs): precision 81.7%, recall 88.4%, F1 84.9%
+(2,436 true positives, 547 false positives, 320 false negatives) — recall far
+above the rule-based baseline (it attempts nearly everything), at some
+precision cost (it also gets some of those attempts wrong) — the normal
+shape of an LLM-vs-regex trade, and exactly why confidence scoring and human
+review exist downstream rather than trusting either number alone.
 
-### Where the baseline fails completely
+Gemini (20 docs): precision 86.2%, recall 88.1%, F1 87.1% (237 true
+positives, 38 false positives, 32 false negatives) — consistent with the
+OpenAI row on the same corpus, different provider.
 
-| Field | Accuracy |
-|---|---|
-| `line_items.*` (all sub-fields) | 0.0% |
-| `customer`, `customer.name`, `customer.registration_id` | 0.0% |
-| `tax_rate` | 0.0% |
+### Where the models actually fail
 
-A regex/keyword baseline has no mechanism for table extraction or
-disambiguating "the second party mentioned" as the customer rather than the
-supplier — it was never designed to. This is the expected shape of a
-rule-based floor, not a bug: it's *supposed* to be beatable, so that a real
-model's score means something relative to it. A model scoring below this
-baseline on line items would be a real red flag; scoring near it on the
-fields regex handles fine (dates, simple totals) would not be surprising.
+The rule-based baseline fails completely (0% accuracy) on `line_items.*` (all
+sub-fields), `customer`/`customer.name`/`customer.registration_id`, and
+`tax_rate` — a regex/keyword baseline has no mechanism for table extraction
+or disambiguating "the second party mentioned" as the customer rather than
+the supplier. Expected shape of a rule-based floor, not a bug — it's
+*supposed* to be beatable.
+
+The real model's failures are a different, more specific shape — not spread
+across whole field categories, concentrated in a few fields (120-doc OpenAI
+run):
+
+| Field | Accuracy | Occurrences |
+|---|---|---|
+| `supplier.address` | 0.0% | 95 |
+| `customer.address` | 0.0% | 75 |
+| `line_items.0.tax_rate` | 6.7% | 75 |
+| `line_items.0.unit` | 14.7% | 95 |
+| `bank_details.account_number` | 20.0% | 75 |
+| `bank_details.iban` | 20.0% | 75 |
+| `purchase_order_number` | 52.0% | 75 |
+
+Multi-line addresses fail completely — 0% on both `supplier.address` and
+`customer.address`, not "mostly right." Worth a real look before calling this
+production-ready for a workflow that needs addresses; not investigated
+further in this pass. Everything else in that list is a narrower, more
+believable LLM failure mode: per-line-item tax rates and units (easy to
+transpose across rows in a multi-line-item document), and bank identifiers
+(long alphanumeric strings genuinely hard to transcribe exactly). None of
+this is spread evenly across the schema — the fields a business actually
+keys off (invoice number, dates, total) are the required fields that hit
+100%; the fields still weak are specifically the ones this table names.
 
 ### Accuracy by injected difficulty
 
@@ -155,6 +202,24 @@ Rule-based rows (identical, 120 docs):
 | no_currency_code | 57.3% |
 | decimal_comma | 57.4% |
 | diacritics_stripped | 57.8% |
+
+OpenAI (gpt-4.1-mini, 120 docs — full corpus, not a slice):
+
+| Hazard | Accuracy |
+|---|---|
+| label_variants | 77.9% |
+| extra_numbers | 78.4% |
+| diacritics_stripped | 78.6% |
+| ambiguous_date | 79.3% |
+| no_currency_code | 79.5% |
+| (none) | 79.5% |
+| decimal_comma | 81.2% |
+
+Tight range (77.9%–81.2%) across every injected hazard — no single difficulty
+type disproportionately breaks it, and the "no injected difficulty" baseline
+(79.5%) isn't higher than most of the hazard rows, meaning the accuracy gap
+documented above (addresses, per-line tax rates) isn't explained by these
+hazards either — it's a distinct, separate weakness.
 
 Gemini (20 docs — small enough that per-hazard figures are indicative, not
 conclusive):
@@ -249,59 +314,114 @@ genuinely-correct fields for no reason, and a higher one would not have
 excluded them at all. The remaining ~6-point gap after the fix does not
 currently justify a threshold change either — see "known limitation" below.
 
-**Production-band view, post-fix** (fixture, 120 docs):
+**Production-band view** (fixture, 120 docs, after both fixes below):
 
 | Band | Fields | Actual accuracy | Mean score |
 |---|---|---|---|
-| high | 1,123 | 95.0% | 0.972 |
+| high | 1,165 | 95.2% | 0.972 |
 | medium | 120 | 100.0% | 0.816 |
-| low | 42 | 100.0% | 0.544 |
 
-Gemini, 20 docs (too small to re-derive decile thresholds from, shown for
-comparison only — no `medium`-band fields were observed in this run):
+No `low` band at all anymore — every low-band field in this corpus was a
+`currency` field wrongly scored (see the second bug, immediately below); once
+that stopped happening, nothing else in this corpus scores low enough to
+land there.
+
+### Second bug this tool found: every `currency` field scored low, regardless of correctness
+
+The nbsp fix above was found against the fixture provider. This one wasn't
+found until a full, unlimited real-LLM run existed (120 documents, OpenAI,
+see Results) — the first calibration sample with enough real-model volume to
+show something with confidence rather than noise:
+
+| Band (before this fix) | Fields | Actual accuracy | Mean score |
+|---|---|---|---|
+| high | 2,922 | 81.6% | 0.985 |
+| low | 62 | 98.4% | 0.544 |
+
+The *low* band was *more* accurate (98.4%) than the *high* band (81.6%) — the
+opposite of what a working score should show, and not small-sample noise (62
+fields is a small band, but 81.6% vs. 98.4% on the *high* band's 2,922 fields
+is not). Investigating instead of shrugging (same approach as the nbsp bug)
+found every field in the low band was of kind `currency`. Root cause: the
+corpus (like real Czech-market documents) mixes currency notation — some
+documents spell it out (`...64 700,00 CZK`), others use the local symbol
+(`...72 300,00 Kč`) — and the model correctly normalises either to an ISO
+4217 code (`CZK`). But `currency` fields defaulted to `groundable=True`, so
+grounding checked whether `CZK` appears *verbatim* in the source text — which
+it doesn't, for every document using the symbol form. A **correct** value
+scored as ungrounded, dragging every currency field's confidence down to
+~0.544 (hand-computed from the weighted formula before trusting the
+diagnosis: `(0.10×0.40 + 1.0×0.15 + 1.0×0.15 + 0.95×0.10) / 0.80 = 0.544` —
+an exact match to the observed mean score).
+
+**This wasn't just a calibration curiosity — it was quietly changing the
+product's actual behavior.** `currency` is a `required` field on three of the
+four document types, and document-level confidence is floored at the minimum
+confidence of any required field (`domain/confidence.py::aggregate`, by
+design — see its own docstring). Every document with a required currency
+field had its overall confidence dragged down by this bug, regardless of how
+correct everything else was. Measured effect: the OpenAI run's review rate
+dropped from **50.8% to 17.5%** after the fix — roughly a third of all
+documents in a from-scratch run were being sent to human review for a reason
+that had nothing to do with actual risk.
+
+**Fix.** `groundable=False` on the `currency` field across all four document
+schemas (`schemas/types/{invoice,receipt,purchase_order,contract}.py`) — the
+same shape of fix already applied to `notes`/enum/boolean fields, just missed
+for this one kind. Correctness for a currency field is "is it a valid ISO
+code," which the existing format signal already checks; grounding was simply
+the wrong check to apply to it. Regression tests:
+`test_normalised_currency_code_does_not_match_a_local_symbol` and
+`test_currency_fields_are_not_graded_on_grounding` (parametrized across all
+four document types) in `tests/unit/test_confidence_and_security.py` —
+confirmed the second one fails without the fix before trusting it, same
+discipline as every other regression test in this project.
+
+**Result, before and after** (OpenAI, gpt-4.1-mini, full 120-doc corpus):
+
+| | Before | After |
+|---|---|---|
+| Confidence bands | high 81.6% (n=2,922), low 98.4% (n=62) — inverted | high 81.7% (n=2,983) — clean, no low band |
+| Review rate | 50.8% | 17.5% |
+| Field/required/critical/doc-success accuracy | unchanged (80.4/100/79.5/100%) | unchanged (80.0/100/79.6/100%) — confirms this was a confidence bug, not an extraction bug |
+
+Gemini, 20 docs (predates this fix, too small to have shown the pattern
+clearly on its own — shown for historical comparison only):
 
 | Band | Fields | Actual accuracy | Mean score |
 |---|---|---|---|
 | high | 270 | 85.9% | 0.985 |
 | low | 5 | 100.0% | 0.544 |
 
-Read the fixture table cautiously even after the fix: it's the fixture
-extractor's confidence against its own (rule-based) accuracy, not a real
-model's. It confirms the calibration *machinery* — bands, scoring,
-aggregation, and now the grounding signal's amount-parsing dependency — works
-correctly end to end, and it's what caught the bug above. Whether
-`HIGH_THRESHOLD`/`MEDIUM_THRESHOLD` are the *right* cut points for real LLM
-behavior at scale is still a claim that needs a larger, non-quota-limited
-real-provider run to make.
-
-**Known limitation, stated plainly.** The grounding signal's structural blind
-spot — a value whose digits are a trailing substring of the correct value's
-digits (once separators are normalised away) scores as fully grounded even
-when it's wrong — is fixed for *this specific* cause (nbsp thousands
-separators) but not eliminated as a class. Any future bug that truncates or
-otherwise mangles a numeric value in a way that happens to leave a real
-substring behind would have the same blind spot. The fix here closes the one
-concrete, verified instance found; it is not a general hardening of grounding
-against numeric substring collisions.
+**Known limitation, stated plainly.** Both bugs found by this tool share a
+structural shape: a signal (grounding) scoring a *correct* value as
+suspicious because of a representation mismatch between what the model
+correctly produced and what literally appears in the source — truncated
+digits for the nbsp bug, a normalised ISO code for this one. Both concrete
+instances are fixed; the *class* of blind spot (grounding assumes the
+correct value always appears verbatim, which is false for anything the
+pipeline is expected to normalise) is not eliminated. Any other normalised
+field kind added in the future should be checked against this before
+assuming `groundable=True` is safe.
 
 ## What's measured vs. not — summary
 
 | Claim | Status |
 |---|---|
-| Pipeline runs end-to-end (upload → classify → extract → validate → score → route) | **Measured** — 256 automated tests, plus manual full-stack verification through `docker compose` |
+| Pipeline runs end-to-end (upload → classify → extract → validate → score → route) | **Measured** — 263 automated tests, plus manual full-stack verification through `docker compose` and the live deployment |
 | Rule-based baseline accuracy on synthetic corpus | **Measured** — this document, 120 docs |
 | Confidence-scoring machinery functions correctly | **Measured** — found and fixed a real bug (above), which is stronger evidence than a clean run would have been |
 | Classification accuracy (heuristic cascade) | **Measured** — 100% on this corpus (see caveat: synthetic documents use the same vocabulary the heuristic was written against) |
-| Real LLM extraction accuracy | **Measured, quota-limited** — 20 documents, google/gemini-3.6-flash, 83.5% field accuracy on completed requests (see the hard-failure caveat above) |
-| Real LLM cost per document | **Measured** — $0.0049/doc on the same 20-document run |
-| Real LLM latency | **Measured** — mean 36.5s/doc on the same run; not yet explained or optimized |
-| Real LLM confidence calibration | **Measured, quota-limited** — see table above; too small a sample to re-derive thresholds from |
+| Real LLM extraction accuracy | **Measured, full corpus** — 120 documents, openai/gpt-4.1-mini, 80.0% field accuracy, 100% required-field accuracy, 100% doc success, zero hard failures. A second provider (Gemini) corroborates on a smaller, quota-limited slice — see below |
+| Real LLM cost per document | **Measured** — $0.0018/doc (gpt-4.1-mini, 120-doc run); $0.0049/doc (Gemini, 20-doc run) |
+| Real LLM latency | **Measured** — mean 8.2s/doc (gpt-4.1-mini); mean 36.5s/doc (Gemini). Neither has been investigated or optimized |
+| Real LLM confidence calibration | **Measured, full corpus** — 2,983 fields (gpt-4.1-mini), large enough to draw a real conclusion from, and it did: found and fixed a second real bug (every `currency` field scoring low regardless of correctness), which is why the OpenAI review rate above went from a first-pass 50.8% to a final 17.5% — a real, verified product improvement, not a report footnote |
 | Accuracy on real (non-synthetic) documents | **Not measured** — no ground-truth corpus of real documents exists for this project |
 | OCR accuracy on scanned/low-DPI documents | **Not measured** — no scanned ground-truth set has been run |
-| Why 45% of the Gemini run hard-failed | **Not conclusively determined** — rate limiting is the strong suspect given the code path and the free-tier key used, but per-document error codes aren't persisted in the report, so this is an informed inference, not a re-derivable fact |
+| Why the Gemini run's hard failures happened | **Not conclusively determined** — rate limiting is the strong suspect given the code path and the free-tier key used, but per-document error codes aren't persisted in the report, so this is an informed inference, not a re-derivable fact |
 
-If you're evaluating this project and want a larger real-LLM run: supply an
-Anthropic, OpenAI, or Google API key with more headroom than a free-tier key
-and run the command at the top of this document, optionally with `--size` to
-control cost. Nothing else changes — the corpus, the metrics, and the report
-format are identical regardless of which extractor is under test.
+If you're evaluating this project and want to reproduce or extend this: any
+of Anthropic, OpenAI, or Google will work — run the command at the top of
+this document, optionally with `--size` to control cost. Nothing else
+changes — the corpus, the metrics, and the report format are identical
+regardless of which extractor is under test.

@@ -15,12 +15,12 @@ running code and test suite during this pass, not copied from an earlier
 doc or an agent's summary. Several claims that an earlier internal audit
 described as gaps turned out, on inspection, to be *already* fixed, already
 tested, or not actually live problems yet — those distinctions are called
-out inline rather than smoothed over. Four real problems were found and
+out inline rather than smoothed over. Five real problems were found and
 fixed in the course of writing this document (below); that's the point of
 doing the check for real instead of asserting from memory.
 
-**Commits this covers:** `7638d04` through `71cca2b` — see `git log` for the
-full history. The four most relevant to this document specifically:
+**Commits this covers:** `7638d04` onward — see `git log` for the full
+history. The five most relevant to this document specifically:
 
 | Commit | What |
 |---|---|
@@ -28,6 +28,7 @@ full history. The four most relevant to this document specifically:
 | `f140942` | Built the confidence-calibration tool; it found a real bug (non-breaking-space thousands separator silently truncating amounts) that was also weakening the production baseline cross-check signal, not just eval numbers |
 | `71fbd47` | Five Prometheus metrics were defined and documented but never called from anywhere — wired them up |
 | `ca3cf58` | Concurrent reprocess requests could both succeed and double-queue a document (TOCTOU race); fixed with row locking, verified the regression test fails without the fix |
+| (see below) | A full, unlimited real-LLM evaluation run (120 documents, OpenAI) found a second confidence-calibration bug: every `currency`-kind field scored artificially low regardless of correctness |
 
 ## Evidence table
 
@@ -53,9 +54,9 @@ stated scope limit — e.g. measured on a small or synthetic sample) ·
 | 12 | Structured logs support tracing one document's path end to end | Verified | `request_id`/`organization_id`/`document_id`/`job_id` bound throughout; manually traced during Docker verification |
 | 13 | Health/readiness endpoints reflect real dependency state | Verified | `/health` and `/readiness` check DB and Redis for real, not a hardcoded 200; see `tests/integration/test_api.py::TestPreviouslyUncoveredEndpoints` |
 | 14 | Rule-based baseline extractor accuracy | Verified | 56.0% field accuracy / 90.1% critical-field accuracy on the 120-doc synthetic corpus, current as of the nbsp fix — see [EVALUATION.md](EVALUATION.md) |
-| 15 | Confidence-score calibration (does the score predict correctness?) | Verified, limited | `docflow-calibrate` re-derives decile-level accuracy from the same production scoring code; found and fixed a real bug (nbsp thousands separator, see below); post-fix, top-decile accuracy is 93.9% (n=923) against fixture data. This is the fixture extractor's confidence against its own accuracy — confirms the *machinery* works, not that thresholds are correctly tuned for real-model behavior at scale. See [EVALUATION.md](EVALUATION.md#confidence-calibration) |
-| 16 | Real LLM (Gemini) extraction accuracy | Verified, limited | 83.5% field accuracy, 100% required-field accuracy, on 11 of 20 documents that completed (9 hard-failed, most likely free-tier rate limiting — see EVALUATION.md for why this isn't fully confirmable after the fact). Not re-run at larger scale; treat as directional, not final |
-| 17 | Real LLM cost/latency per document | Verified, limited | $0.0049/doc, mean 36.5s/doc — from the same 20-document run above. Latency in particular has not been investigated or optimized |
+| 15 | Confidence-score calibration (does the score predict correctness?) | Verified | `docflow-calibrate` re-derives band accuracy from the same production scoring code; found and fixed *two* real bugs, not one — the nbsp thousands-separator bug (below) against fixture data, and a second, arguably more important one against a full real-model run: every `currency` field scored artificially low regardless of correctness, which — because currency is a required field — silently inflated the review rate on **50.8% of documents to a corrected 17.5%**. Post-fix: fixture shows only `high`/`medium` bands, no `low` at all; the real-model run (2,983 fields, OpenAI, full 120-doc corpus) shows a clean single `high` band at 81.7% accuracy, no inversion. See [EVALUATION.md](EVALUATION.md#confidence-calibration) |
+| 16 | Real LLM extraction accuracy | Verified | 120 documents, openai/gpt-4.1-mini, full corpus, zero hard failures: 80.0% field accuracy, 100% required-field accuracy, 100% doc success. A second provider (Gemini) corroborates on a smaller, quota-limited slice (20 documents, 11 completed, 83.5% field accuracy) — see [EVALUATION.md](EVALUATION.md) for both |
+| 17 | Real LLM cost/latency per document | Verified | $0.0018/doc, mean 8.2s/doc (gpt-4.1-mini, 120-doc run); $0.0049/doc, mean 36.5s/doc (Gemini, 20-doc run). Neither latency figure has been investigated or optimized |
 | 18 | FK indexes present for cascade-delete and future query patterns | Verified | Fixed in `ca3cf58` — `field_corrections.document_id`, `usage_records.document_id`/`extraction_id`, `webhook_deliveries.organization_id` were missing indexes their sibling FK columns on the same tables already had. Confirmed these weren't live query bottlenecks (no code path filters on them directly yet), but `ON DELETE CASCADE`/`SET NULL` from `documents` still forces a sequential scan of these tables on every document delete without the index |
 | 19 | CI gates the things it claims to | Verified | Backend: ruff check + format check, mypy, full test suite with coverage, bandit, pip-audit (`.github/workflows/backend.yml`). Frontend: lint, typecheck, build (`.github/workflows/frontend.yml`) |
 | 20 | Frontend has automated test coverage | Verified | 5 Playwright E2E tests (`frontend/e2e/`) against the real stack (Postgres, Redis, API, worker, frontend — fixture LLM provider, not mocked network calls): the critical flow (register → upload → wait for processing → edit a field → save → approve) plus auth/empty-state error paths (wrong password, duplicate email registration, fresh-account empty states, logout blocking authenticated routes). `npm run test:e2e`. Not yet wired into CI — runs locally/on demand only |
@@ -113,6 +114,30 @@ best evidence that "Verified" in this document means something:
    — which would have been actively wrong operational guidance. Caught only
    by querying the Render API directly instead of trusting the file.
 
+5. **Every `currency`-kind field scored artificially low, regardless of
+   correctness.** Found only once a full, unlimited real-LLM run (120
+   documents, OpenAI, see rows 16/17) made the confidence-calibration
+   sample large enough to trust: the *low* confidence band was *more*
+   accurate than the *high* band, the opposite of what a working score
+   should show. Root cause, fully verified (not left as a guess): the model
+   correctly normalises a document's currency notation to an ISO 4217 code
+   (`CZK`), but the corpus itself mixes notations — some documents spell it
+   out, others use the local symbol (`Kč`) — and the code doesn't literally
+   appear in source text using the symbol form. Grounding (the confidence
+   signal that checks for literal appearance) scored a *correct* value as
+   ungrounded, pulling every currency field's score down to ~0.544 — the
+   exact mean score observed, confirmed by hand-computing the weighted
+   formula before trusting the diagnosis. Fixed by marking `currency`-kind
+   fields `groundable=False` across all four document schemas (correctness
+   for this kind is "is it a valid ISO code," already covered by the format
+   signal, not "does it appear verbatim") — the same shape of fix as the
+   `notes`/enum/boolean fields that were already non-groundable, just missed
+   for this one kind. Regression tests:
+   `test_normalised_currency_code_does_not_match_a_local_symbol` and
+   `test_currency_fields_are_not_graded_on_grounding` (parametrized across
+   all four document types) in `tests/unit/test_confidence_and_security.py`
+   — confirmed the second one fails without the fix before trusting it.
+
 ## Open items
 
 Tracked, not hidden. In rough priority order:
@@ -126,13 +151,14 @@ Tracked, not hidden. In rough priority order:
   closing (delivery-time re-resolution or an egress proxy) or stays a stated
   limitation.
 
-**Decided, not just deferred:** a larger real-LLM evaluation run was
-considered and explicitly declined — scaling past Gemini's 20-request/day
-free tier would need either a paid tier or a different provider's key,
-neither of which was worth it for this project's purpose. The 20-document,
-11-completed numbers stand as final, reported with their quota-limited scope
-stated plainly rather than presented as a production-scale result. See
-[EVALUATION.md](EVALUATION.md).
+**Resolved, not just deferred:** a larger real-LLM evaluation run was
+initially declined (Gemini's 20-request/day free tier would need a paid
+tier or a different provider's key), but a working OpenAI key became
+available afterward and was used to run the complete, unlimited 120-document
+corpus — see row 16 above and [EVALUATION.md](EVALUATION.md). That run is
+what surfaced the second confidence-calibration bug (row 15) — direct
+evidence that this wasn't a wasted step even though the first-choice provider
+(Gemini) didn't pan out.
 
 ## Re-verifying this document
 
@@ -142,12 +168,13 @@ uv sync --extra dev --extra ocr
 uv run ruff check src tests && uv run ruff format --check src tests
 uv run mypy
 uv run alembic upgrade head
-uv run pytest tests/ -v                    # 258 tests as of this writing
+uv run pytest tests/ -v                    # 263 tests as of this writing
 uv run bandit -c pyproject.toml -r src -ll
 uv run pip-audit
 DOCFLOW_LLM_PROVIDER=fixture uv run docflow-calibrate   # confidence calibration, free/local
 uv run docflow-eval                                     # baseline + fixture accuracy, free/local
+cd ../frontend && npm run test:e2e                      # needs docker compose running
 ```
 
-Row 16/17 (real Gemini numbers) require `DOCFLOW_LLM_GOOGLE_API_KEY` and
-spend real API quota — see [EVALUATION.md](EVALUATION.md#run-it-yourself).
+Row 16/17 (real LLM numbers) require a provider API key and spend real quota
+— see [EVALUATION.md](EVALUATION.md#run-it-yourself).

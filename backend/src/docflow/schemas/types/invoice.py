@@ -156,7 +156,11 @@ class Invoice(BaseModel):
     currency: CurrencyCode | None = Field(
         default=None,
         json_schema_extra=spec_field(
-            "Currency", FieldKind.CURRENCY, required=True, hint="ISO 4217 code"
+            "Currency",
+            FieldKind.CURRENCY,
+            required=True,
+            groundable=False,
+            hint="ISO 4217 code",
         ),
     )
     subtotal: Money | None = Field(

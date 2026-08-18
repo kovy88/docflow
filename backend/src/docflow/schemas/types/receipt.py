@@ -64,7 +64,9 @@ class Receipt(BaseModel):
 
     currency: CurrencyCode | None = Field(
         default=None,
-        json_schema_extra=spec_field("Currency", FieldKind.CURRENCY, required=True),
+        json_schema_extra=spec_field(
+            "Currency", FieldKind.CURRENCY, required=True, groundable=False
+        ),
     )
     subtotal: Money | None = Field(
         default=None, json_schema_extra=spec_field("Subtotal", FieldKind.MONEY)

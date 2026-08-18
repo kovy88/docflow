@@ -76,7 +76,7 @@ matching `DOCFLOW_LLM_ANTHROPIC_API_KEY` / `DOCFLOW_LLM_OPENAI_API_KEY` /
 
 ```bash
 cd backend
-uv run pytest                          # 258 tests: unit + integration
+uv run pytest                          # 263 tests: unit + integration
 uv run pytest tests/unit                # unit only — no database needed
 uv run pytest tests/integration         # needs a real Postgres (docker-compose's, or DOCFLOW_DB_URL)
 uv run pytest --cov=docflow             # with coverage

@@ -62,6 +62,23 @@ class TestGrounding:
         pre = normalise_for_matching(self.SOURCE)
         assert grounding_score("2024-0412", self.SOURCE, source_normalised=pre) == 1.0
 
+    def test_normalised_currency_code_does_not_match_a_local_symbol(self):
+        """A real, verified gap, not a hypothetical.
+
+        The corpus itself mixes both notations — some documents spell the
+        currency out (`...64 700,00 CZK`), others use the local symbol
+        (`...72 300,00 Kč`). The model (correctly) normalises either to an
+        ISO 4217 code, but the code doesn't literally appear in source text
+        using the symbol form. Found via a real evaluation run where every
+        field of kind `currency` landed in the `low` confidence band despite
+        being 100% correct. See `FieldKind.CURRENCY`'s `groundable=False` in
+        the schema types for the actual fix: grounding is simply the wrong
+        check for a field whose correctness is about matching an ISO code,
+        not appearing verbatim in the source.
+        """
+        source = "Celkem k uhrade: 39 930,00 Kč\nACME s.r.o."
+        assert grounding_score("CZK", source) == 0.10
+
 
 class TestConfidenceComposition:
     def test_unknown_signals_are_excluded_not_zeroed(self):
@@ -151,6 +168,19 @@ class TestSchemaNormalisation:
             assert banned not in text, f"{banned} survived normalisation for {key}"
         assert "docflow" not in text, "internal metadata leaked into the provider schema"
         assert normalized["additionalProperties"] is False
+
+    @pytest.mark.parametrize("key", ["invoice", "contract", "purchase_order", "receipt"])
+    def test_currency_fields_are_not_graded_on_grounding(self, key):
+        """Regression for a real, confirmed finding: a model correctly
+        normalising `Kč`/`Kc` to `CZK` scores as ungrounded (the ISO code
+        doesn't appear verbatim when the source uses a local symbol), which
+        pulled every `currency`-kind field into the `low` confidence band
+        despite being 100% correct in a real 120-document evaluation run.
+        See `test_normalised_currency_code_does_not_match_a_local_symbol`
+        above for the underlying mechanism this field-level flag avoids."""
+        spec = get_registry().resolve(key).field_by_path("currency")
+        assert spec is not None
+        assert spec.groundable is False
 
     def test_field_hints_become_descriptions(self):
         schema = normalize_schema(get_registry().resolve("invoice").json_schema())

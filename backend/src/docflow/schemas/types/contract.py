@@ -124,7 +124,8 @@ class Contract(BaseModel):
         json_schema_extra=spec_field("Contract value", FieldKind.MONEY),
     )
     currency: CurrencyCode | None = Field(
-        default=None, json_schema_extra=spec_field("Currency", FieldKind.CURRENCY)
+        default=None,
+        json_schema_extra=spec_field("Currency", FieldKind.CURRENCY, groundable=False),
     )
     payment_terms: CleanStr | None = Field(
         default=None, json_schema_extra=spec_field("Payment terms", FieldKind.STRING)
