@@ -211,12 +211,12 @@ IČO: {supplier[1]}    DIČ: {supplier[2]}
 {customer[3]}
 IČO: {customer[1]}
 
-{"Popis":<32}{"Množství" if czech else "Qty":>10}{"Cena/ks" if czech else "Unit price":>14}{"Celkem" if czech else "Amount":>16}
-{"-" * 72}
+{"Popis":<32}{"Množství" if czech else "Qty":>10}{"MJ" if czech else "Unit":>8}{"Cena/ks" if czech else "Unit price":>14}{"Celkem" if czech else "Amount":>16}
+{"-" * 80}
 """
     for item in items:
         text += (
-            f"{item['description']:<32}{item['quantity']:>10}"
+            f"{item['description']:<32}{item['quantity']:>10}{item['unit']:>8}"
             f"{money(Decimal(item['unit_price'])):>14}{money(Decimal(item['line_total'])):>16}\n"
         )
 
@@ -231,13 +231,21 @@ IBAN: {iban}
 """
 
     # Decoy numbers that look like amounts. A naive "largest number on the page"
-    # heuristic picks the phone number; this is why the corpus includes them.
+    # heuristic picks the phone number; this is why the corpus includes them. The
+    # PO-shaped line is not decorative to a schema-driven extractor, though: it is
+    # exactly what the real, declared `Invoice.purchase_order_number` field asks
+    # for, and it must be recorded in ground truth whenever it is written — it was
+    # silently absent from `fields` on all 75 invoices, decoy or not, which scored
+    # every correct extraction of it as wrong. See
+    # docs/EVALUATION_ERROR_ANALYSIS.md, Finding 4.
+    purchase_order_number = None
     if rng.random() < 0.5:
         difficulty.append("extra_numbers")
         text += (
             f"\nTel: +420 {rng.randint(200, 799)} {rng.randint(100, 999)} {rng.randint(100, 999)}\n"
         )
-        text += f"{'Č. objednávky' if czech else 'PO'}: OBJ-{rng.randint(1000, 9999)}\n"
+        purchase_order_number = f"OBJ-{rng.randint(1000, 9999)}"
+        text += f"{'Č. objednávky' if czech else 'PO'}: {purchase_order_number}\n"
 
     if rng.random() < 0.2:
         difficulty.append("diacritics_stripped")
@@ -255,8 +263,13 @@ IBAN: {iban}
                 "name": supplier[0],
                 "registration_id": supplier[1],
                 "vat_id": supplier[2],
+                "address": supplier[3],
             },
-            "customer": {"name": customer[0], "registration_id": customer[1]},
+            "customer": {
+                "name": customer[0],
+                "registration_id": customer[1],
+                "address": customer[3],
+            },
             "issue_date": issue.isoformat(),
             "due_date": due.isoformat(),
             "currency": currency,
@@ -265,6 +278,7 @@ IBAN: {iban}
             "tax_rate": str(vat_rate),
             "total": str(total),
             "variable_symbol": variable_symbol,
+            "purchase_order_number": purchase_order_number,
             "bank_details": {"iban": iban, "account_number": account},
             "line_items": items,
         },
@@ -334,8 +348,8 @@ Platební podmínky: 30 dní od dodání
         difficulty=["decimal_comma"],
         fields={
             "po_number": po_number,
-            "buyer": {"name": buyer[0], "registration_id": buyer[1]},
-            "supplier": {"name": supplier[0]},
+            "buyer": {"name": buyer[0], "registration_id": buyer[1], "address": buyer[3]},
+            "supplier": {"name": supplier[0], "address": supplier[3]},
             "order_date": order_date.isoformat(),
             "requested_delivery_date": delivery.isoformat(),
             "currency": "CZK",
