@@ -49,14 +49,14 @@ whole project, not because it's flattering:
 
 | | |
 |---|---|
-| Pipeline runs correctly end-to-end | **Measured** — 263 automated tests + manual full-stack verification through `docker compose` and the live Render/Vercel deployment |
-| Rule-based baseline accuracy (120-doc synthetic corpus) | **Measured** — 56.0% normalized field accuracy, 90.1% critical-field accuracy, 5.8% document success. [EVALUATION.md](EVALUATION.md) |
+| Pipeline runs correctly end-to-end | **Measured** — 297 automated tests (195 unit + 102 integration) + manual full-stack verification through `docker compose` and the live Render/Vercel deployment |
+| Rule-based baseline accuracy (120-doc synthetic corpus) | **Measured** — 52.1% normalized field accuracy, 5.8% document success (revised from an original 56.0% — see the corpus ground-truth fix noted below; the baseline never extracted address/unit and is now honestly graded as missing them rather than "matching" an equally-empty ground truth). [EVALUATION.md](EVALUATION.md) |
 | Confidence-scoring machinery is internally consistent | **Measured** — and it found two real bugs, not one. A non-breaking-space thousands separator was silently truncating money values. A `currency` field scored artificially low regardless of correctness — and because currency is a required field, this silently inflated the review rate on roughly a third of documents (50.8% → 17.5% once fixed). Both weakened production confidence scoring, not just eval numbers; both found by the calibration tool flagging a suspicious pattern and investigating instead of adjusting a threshold to hide it. Fixed; see [EVALUATION.md](EVALUATION.md#confidence-calibration) |
-| **Real LLM extraction accuracy** | **Measured, full corpus.** 120/120 documents, openai/gpt-4.1-mini, zero hard failures: 80.0% field accuracy, 100% required-field accuracy, 100% doc success. A second provider (Gemini) corroborates on a smaller, quota-limited slice (83.5% field accuracy, 11 of 20 documents). [EVALUATION.md](EVALUATION.md) |
-| **Real LLM cost per document** | **Measured.** $0.0018/document (gpt-4.1-mini, 120-doc run); $0.0049/document (Gemini, 20-doc run). |
-| **Real LLM latency** | **Measured.** Mean 8.2s/document (gpt-4.1-mini); mean 36.5s/document (Gemini) — neither investigated or optimized. |
+| **Real LLM extraction accuracy** | **Measured, full corpus.** 120/120 documents, openai/gpt-4.1-mini, zero hard failures: **89.8%** field accuracy, 100% required-field accuracy, 100% doc success. A second OpenAI model, gpt-5.6-luna, was measured on the same full corpus: **88.3%** field accuracy (a statistical tie — CIs still overlap), 100% required-field accuracy, 100% doc success — cheaper, not more accurate (see cost/latency below). **Both numbers were originally 80.0%/80.8% until a real bug in the evaluation corpus's own ground truth was found and fixed on 2026-08-18 — see [EVALUATION.md's headline finding](EVALUATION.md#the-headline-finding-in-full-a-corpus-bug-not-a-model-weakness).** gpt-4.1-mini was re-measured again on 2026-08-19 (88.9%→89.8%) after a second, smaller ground-truth fix to `purchase_order_number` — same model, same code, only the grading changed; see [EVALUATION.md, "Finding 4 resolved"](EVALUATION.md#finding-4-resolved-purchase_order_number--a-third-ground-truth-gap). gpt-5.6-luna's 88.3% predates that second fix and was not re-measured (no new API call made for it). A third provider (Gemini) corroborates on a smaller, quota-limited slice (83.5% field accuracy, 11 of 20 documents), measured before either fix and not directly comparable. [EVALUATION.md](EVALUATION.md) |
+| **Real LLM cost per document** | **Measured.** $0.0020/document (gpt-4.1-mini, 120-doc run); $0.0010/document (gpt-5.6-luna, 120-doc run — ~49% cheaper); $0.0049/document (Gemini, 20-doc run). Cost is a function of token usage, not ground truth — unaffected by either fix above. |
+| **Real LLM latency** | **Measured.** Mean 7.8s/document (gpt-4.1-mini, most recent run); mean 7.0s/document (gpt-5.6-luna); mean 36.5s/document (Gemini) — none investigated or optimized. gpt-4.1-mini's own mean has ranged 7.8-8.9s across separate sessions — normal API timing variance, not a trend, and not affected by either ground-truth fix (latency is fixed the moment the API responds, before grading happens). |
 | Accuracy on real (non-synthetic) documents | **Not measured** — no real-document ground-truth set exists for this project. |
-| OCR accuracy on scanned/low-DPI documents | **Not measured** — the corpus is synthetic text rendered to PDF, not photographed paper. |
+| OCR accuracy on scanned/low-DPI documents | **Measured, via a real scan simulation** — `docflow-eval --scan` renders the corpus to PDF, degrades it to look scanned, and runs it through the real OCR pipeline (previously never exercised at any corpus size). Field accuracy 88.5%→85.7% (−2.8 pt); document success 100%→89.2%; review rate 18.3%→**82.5%**. **Still not measured:** a genuinely photographed or scanned real document — this simulates degradation of synthetic text, it isn't one. [EVALUATION.md](EVALUATION.md) |
 
 Nothing in this report estimates or extrapolates a number in place of these.
 Where a number is quota-limited rather than final, it says so explicitly
@@ -125,7 +125,7 @@ discussion: [DEPLOYMENT.md](DEPLOYMENT.md#scaling-notes).
   real number — with either provider — was a config change, not a rebuild.
   That paid off directly: when Gemini's quota didn't cooperate, pointing the
   same harness at OpenAI cost one environment variable, not new code, and
-  produced the real, full-corpus number (80.0% field accuracy, 100% doc
+  produced the real, full-corpus number (89.8% field accuracy, 100% doc
   success, zero hard failures) this report leads with.
 - **Chose Render + Compose over Kubernetes.** Right-sized for the actual
   workload today (two process kinds); would need revisiting if the product
@@ -135,16 +135,25 @@ discussion: [DEPLOYMENT.md](DEPLOYMENT.md#scaling-notes).
 ## What I'd build next
 
 In priority order, and why that order: (1) a real-document pilot with one
-design partner — the synthetic-corpus number (80.0% field accuracy, full
-120-doc run, two providers) is now solid enough to trust as an upper bound,
-which makes "how much does real-document noise cost" the next open
+design partner — the synthetic-corpus number (89.8% field accuracy,
+gpt-4.1-mini, full 120-doc run) is now solid enough to trust as an upper
+bound, which makes "how much does real-document noise cost" the next open
 question, not "do we have a real number at all"; (2) close the
 correction-feedback loop — the data (`field_corrections`, indexed by prompt
-version) is already there, unconsumed; (3) investigate why multi-line
-addresses extract at 0% (see Evaluation) before calling this production-ready
-for any workflow that needs one; (4) DNS-rebinding-safe webhook delivery;
-(5) autoscaling policy for the worker once there's real traffic to tune it
-against, not before.
+version) is already there, unconsumed; (3) resolve the four newly-found
+ground-truth gaps from Finding 5 (`supplier.country`,
+`receipt.expense_category`/`purchase_time`, `purchase_order.delivery_address`
+— see [EVALUATION_ERROR_ANALYSIS.md](EVALUATION_ERROR_ANALYSIS.md)) and the
+`bank_details` recall problem (model declines to answer 80% of the time, 0%
+wrong when it does), the two concrete remaining evaluation follow-ups, before
+calling this production-ready for any workflow that needs those fields; (4)
+DNS-rebinding-safe webhook delivery; (5) autoscaling policy for the worker
+once there's real traffic to tune it against, not before.
+
+(This list's item 3 used to name multi-line addresses extracting at 0% — that
+was resolved 2026-08-18 as a ground-truth bug, not an extraction weakness;
+see EVALUATION.md's headline finding. Replaced here with the follow-ups that
+are actually still open, rather than left pointing at a solved problem.)
 
 ---
 
@@ -333,14 +342,25 @@ this step specifically. See [AI.md#classification-cheap-first](AI.md#classificat
 ### Evaluation
 
 **What's your model's actual accuracy?**
-80.0% normalized field accuracy against OpenAI's gpt-4.1-mini, the full
+89.8% normalized field accuracy against OpenAI's gpt-4.1-mini, the full
 120-document corpus, zero hard failures — 100% required-field accuracy, 100%
-document success. A second provider (Gemini) corroborates on a smaller,
-quota-limited slice (83.5%, 11 of 20 documents). The rule-based baseline for
-comparison: 56.0% normalized field accuracy and 5.8% document success on the
-same 120-document corpus, failing completely (0%) on line items and nested
-customer fields — exactly what a keyword/regex extractor should fail at,
-which is the point of having it as a floor. See [EVALUATION.md](EVALUATION.md).
+document success. A second OpenAI model, gpt-5.6-luna, lands within noise of
+that same number on the same corpus (88.3% — confidence intervals
+still overlap) while being cheaper — a cost win, not an
+accuracy one; see [EVALUATION.md](EVALUATION.md) for why that distinction
+matters and isn't assumed, and why both numbers moved up from an original
+80.0%/80.8% after a real evaluation-corpus bug was found and fixed
+(2026-08-18), and why gpt-4.1-mini moved again, 88.9%→89.8%, after a second,
+narrower ground-truth fix (2026-08-19) that gpt-5.6-luna hasn't been
+re-measured against yet. Neither fix changed the model, prompt, or
+extraction code — only what the output was graded against. A second
+provider (Gemini) corroborates on a smaller, quota-limited slice (83.5%, 11
+of 20 documents, measured before either fix). The rule-based baseline for
+comparison: 52.1% normalized field accuracy and 5.8% document success on the
+same 120-document corpus, failing
+completely (0%) on line items and nested customer fields — exactly what a
+keyword/regex extractor should fail at, which is the point of having it as a
+floor. See [EVALUATION.md](EVALUATION.md).
 
 **Why did you end up with two different real-LLM providers instead of one clean number?**
 Gemini was the first key available, and its free tier turned out to be
@@ -392,7 +412,7 @@ first-class implementation of the interface, not a mock — see
 
 **Walk me through your test isolation strategy.**
 Real Postgres, not SQLite or a mocked session — each test runs inside a
-transaction rolled back at teardown (SAVEPOINT-based), so 154 unit and 73
+transaction rolled back at teardown (SAVEPOINT-based), so 195 unit and 102
 integration tests share one database without per-test cleanup or races. See
 [DATABASE.md#test-isolation](DATABASE.md#test-isolation).
 
@@ -488,10 +508,11 @@ close immediately and more expensive to rediscover later.
 
 **If you had one more week, what would you build?**
 A real-document pilot with one design partner. The synthetic-corpus number
-is now solid (80.0% field accuracy, full 120-doc run, two independent
-providers) — solid enough that the next genuinely open question is how much
+is now solid (89.8% field accuracy, gpt-4.1-mini, full 120-doc run) —
+solid enough that the next genuinely open question is how much
 real-world noise (actual vendor layouts, real scan quality, unpredictable
 phrasing) costs against that number, which synthetic data structurally can't
-answer. That, and the multi-line-address gap above — both are "go get more
-real signal" problems now, not "go get any real signal at all" problems,
-which is a different and better place to be starting a next sprint from.
+answer. That, and the Finding-5/`bank_details` gaps above — both are "go get
+more real signal" problems now, not "go get any real signal at all"
+problems, which is a different and better place to be starting a next
+sprint from.
