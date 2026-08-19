@@ -179,8 +179,10 @@ than prompt cleverness. See [docs/AI.md](AI.md) for that argument in full.
 - [x] Prometheus metrics, bounded label cardinality
 - [x] Rate limiting (Redis-backed fixed window, fails open)
 - [x] Security headers, CORS allowlist, SSRF-checked webhook registration
-      (known gap: DNS rebinding — stated in
-      [SECURITY.md](SECURITY.md#known-gaps))
+      *and* delivery (fixed 2026-08-19: delivery now re-validates and pins
+      the resolved address, closing the DNS-rebinding gap a
+      registration-only check left open — see
+      [SECURITY.md](SECURITY.md#ssrf-protection-webhooks))
 - [x] Tenant isolation covered by dedicated tests, including a regression
       test for a real cross-tenant queue-collision bug found during manual
       testing (see [SECURITY.md](SECURITY.md#tenant-isolation))
@@ -306,9 +308,6 @@ discussion.
 - **The correction feedback loop is data-ready, not built.**
   `field_corrections` is indexed for "which fields does prompt version X get
   wrong most," but nothing automated consumes it yet.
-- **DNS rebinding on webhook URLs is an accepted, documented gap** — SSRF
-  protection checks at registration time, not at delivery time. See
-  [SECURITY.md](SECURITY.md#known-gaps).
 - Billing is architected (plans, quotas, usage records) but not wired to a
   payment processor — no real money moves through this system.
 - **OCR quality is now measured against a real render→degrade→OCR

@@ -131,13 +131,41 @@ and a blocked-port list are rejected outright. Delivery never follows
 redirects, which would otherwise let a `302` to an internal address defeat
 the check that already ran.
 
-**Known limitation, stated plainly rather than glossed over:** this check
-runs at registration time. A hostname that resolves publicly at
-registration and privately at delivery time (DNS rebinding) is not caught by
-the current implementation. The complete fix — resolving and pinning the
-address at delivery time, or routing webhook traffic through an egress proxy
-with an allowlist — is not built. This is recorded as a known gap in the
-code itself (`webhook_service.py`), not just here.
+**DNS rebinding — fixed 2026-08-19, not just documented as a gap anymore.**
+A registration-time-only check is vulnerable by construction: a hostname can
+resolve publicly at registration and privately by the time a delivery (or a
+retry, possibly hours later) actually runs, and nothing above would have
+caught that. The fix, in `webhook_service.py`'s `deliver()`: resolve and
+validate the hostname *again, immediately before every delivery attempt*
+(same check as registration, shared via `_resolve_and_validate` so the two
+cannot drift apart), then connect **directly to that validated IP address**
+rather than to the hostname — using httpx's documented `sni_hostname`
+extension and an explicit `Host` header so TLS certificate verification and
+virtual-hosting still see the real hostname, not the IP. No second, unpinned
+DNS lookup happens between validating an address and connecting to it, which
+is exactly the step a rebinding attack depends on. A delivery blocked this
+way is exhausted immediately with no retry (an attacker running a genuine
+rebinding attempt wants exactly the retries an ordinary failure would get)
+and the endpoint is disabled outright, logged as `webhook.delivery_blocked_ssrf`
+— treated as a stronger signal than routine unreachability, not folded into
+the same retry/backoff path.
+
+Verified, not just implemented: `tests/integration/test_webhook_delivery.py`
+proves the actual outbound call is pinned to the resolved IP with the
+correct `Host`/SNI (mocking DNS resolution and the HTTP call, never a real
+network request), and — checked directly, not assumed — both new tests fail
+against the pre-fix code for the right reason: the blocked-delivery test
+gets `retry` instead of `blocked_ssrf` (no delivery-time check exists at
+all), and the pinning test shows the pre-fix call going to the raw hostname
+`https://good.example.com/hook` instead of the validated IP.
+
+**What this still doesn't cover:** no automated penetration test or live
+DNS-rebinding harness has exercised this against a real resolver race
+outside the test suite's mocks. An egress proxy with an IP allowlist remains
+a valid defense-in-depth addition some deployments may still want on top of
+this — a network-layer control, not a gap in this fix — but is not required
+to close the DNS-rebinding class of attack this section is about, which this
+fix does close at the application layer.
 
 ## Secrets
 
@@ -189,7 +217,6 @@ a document, not a second copy of *what's in* it. See
 Stated plainly, matching this project's rule against inventing numbers or
 overclaiming coverage:
 
-- **DNS rebinding on webhook delivery** — see above.
 - **No automated penetration test or third-party security review** has been
   run against this codebase. Tenant-isolation and auth behavior are covered
   by targeted tests, which is not the same claim.

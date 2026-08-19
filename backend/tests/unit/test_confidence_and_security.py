@@ -458,6 +458,59 @@ class TestWebhookSecurity:
             is False
         )
 
+    def test_resolve_and_validate_rejects_a_rebound_private_address(self, monkeypatch):
+        """Regression test for the DNS-rebinding gap: `_resolve_and_validate` is
+        what `deliver()` calls immediately before every attempt, so this is the
+        exact check that must catch a hostname that now resolves privately,
+        independent of whatever it resolved to at registration time."""
+        from docflow.services.webhook_service import _resolve_and_validate
+
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda *a, **k: [(2, 1, 6, "", ("169.254.169.254", 0))],
+        )
+        with pytest.raises(Exception, match="public address"):
+            _resolve_and_validate("rebind-target.example.com")
+
+    def test_resolve_and_validate_rejects_if_any_resolved_address_is_private(self, monkeypatch):
+        """A hostname with one public and one private A record must be rejected
+        outright, not accepted because a public one happened to resolve too —
+        `socket.getaddrinfo` result order is not guaranteed stable."""
+        from docflow.services.webhook_service import _resolve_and_validate
+
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda *a, **k: [
+                (2, 1, 6, "", ("93.184.216.34", 0)),
+                (2, 1, 6, "", ("10.0.0.5", 0)),
+            ],
+        )
+        with pytest.raises(Exception, match="public address"):
+            _resolve_and_validate("multi-homed.example.com")
+
+    def test_resolve_and_validate_returns_public_addresses(self, monkeypatch):
+        from docflow.services.webhook_service import _resolve_and_validate
+
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))],
+        )
+        assert _resolve_and_validate("example.com") == ["93.184.216.34"]
+
+    def test_pin_url_to_address_preserves_scheme_port_path_query(self):
+        from docflow.services.webhook_service import _pin_url_to_address
+
+        pinned = _pin_url_to_address("https://example.com:8443/hook?x=1", "93.184.216.34")
+        assert pinned == "https://93.184.216.34:8443/hook?x=1"
+
+    def test_pin_url_to_address_brackets_ipv6(self):
+        from docflow.services.webhook_service import _pin_url_to_address
+
+        pinned = _pin_url_to_address(
+            "https://example.com/hook", "2606:2800:220:1:248:1893:25c8:1946"
+        )
+        assert pinned == "https://[2606:2800:220:1:248:1893:25c8:1946]/hook"
+
 
 class TestQueueJobIdTenantIsolation:
     """Regression test for a real bug found by manual browser testing.

@@ -51,7 +51,7 @@ stated scope limit — e.g. measured on a small or synthetic sample) ·
 | 7 | Tenant isolation (org A cannot read/modify org B's data) | Verified | `TestTenantIsolation`, plus cross-tenant cases in `TestApiKeys`/`TestWebhookRegistration` (`tests/integration/test_api.py`); enforced structurally via `OrgScopedRepository`, not per-route checks — see [SECURITY.md](SECURITY.md#tenant-isolation) |
 | 8 | Role-based authorization (viewer cannot upload/delete/manage keys) | Verified | `TestRoleEnforcement` (`tests/integration/test_api.py`), 6 cases across the admin- and member-gated endpoints |
 | 9 | Prompt injection cannot cause a side effect, only a wrong field value | Verified | Structural, not pattern-matched — no tool access, no free-text output channel, constrained JSON schema; `TestPromptInjection` (`tests/integration/test_pipeline.py`); full reasoning in [SECURITY.md](SECURITY.md#prompt-injection-defense) |
-| 10 | Webhook SSRF protection (can't register an internal URL) | Verified | Resolves and checks every A/AAAA record at registration time; **known limitation, stated in the code and in SECURITY.md**: does not protect against DNS rebinding (a hostname that resolves differently at delivery time) — this is a real, unfixed gap, not a false claim |
+| 10 | Webhook SSRF protection (can't register an internal URL, and can't rebind past delivery-time) | Verified | Resolves and checks every A/AAAA record at registration time, and — fixed 2026-08-19, was a stated gap before this — **again, pinned, immediately before every delivery attempt**: `deliver()` resolves and validates the hostname, then connects directly to that validated IP (not the hostname) using httpx's `sni_hostname`/`Host`-header extensions, so no second unpinned DNS lookup ever happens between validating an address and using it. A delivery blocked this way is exhausted immediately (no retry) and the endpoint disabled. Verified against the actual pre-fix code, not just logically: both new regression tests (`tests/integration/test_webhook_delivery.py`) fail for the expected reason when run against it — the block-detection test gets `retry` instead of `blocked_ssrf`, and the pinning test shows the real outbound call going to the bare hostname instead of the resolved IP. See [SECURITY.md](SECURITY.md#ssrf-protection-webhooks) |
 | 11 | Prometheus metrics reflect real pipeline/LLM/job activity | Verified | Before `71fbd47`, `record_document`, `record_llm_call`, `record_llm_error`, `record_stage`, `record_validation_issue`, `job_retries`, and `jobs_dead_lettered` were defined with tests for none of them and callers for none of them — `/metrics` would report zero forever regardless of load. Now wired at one choke point per concern (see `docs/ARCHITECTURE.md#observability`) and covered by `TestMetricsEmission`, which runs the real worker task unstubbed and reads back actual Prometheus samples |
 | 12 | Structured logs support tracing one document's path end to end | Verified | `request_id`/`organization_id`/`document_id`/`job_id` bound throughout; manually traced during Docker verification |
 | 13 | Health/readiness endpoints reflect real dependency state | Verified | `/health` and `/readiness` check DB and Redis for real, not a hardcoded 200; see `tests/integration/test_api.py::TestPreviouslyUncoveredEndpoints` |
@@ -74,7 +74,7 @@ stated scope limit — e.g. measured on a small or synthetic sample) ·
 | 29a | Evaluation corpus ground truth was silently incomplete | Verified | `supplier.address`/`customer.address` (170 field-instances) and invoice `line_items[].unit` were declared, real, scored schema fields that the corpus generator's ground truth never populated — even though the address was present in the document text and the unit was a real, populated value the invoice table just never rendered. Both models were being marked wrong for producing values ground truth had nothing to check against. Fixed in `eval/dataset.py` (3 lines); measured effect: field accuracy +8.4 pt (gpt-4.1-mini, 80.0%→88.9%) and +7.4 pt (gpt-5.6-luna, 80.8%→88.3%), **zero** effect on required/critical/doc-success/review-rate (neither field is required or critical, so this never touched the numbers that drive review routing). A second instance of the same bug class (`supplier.country`, `receipt.expense_category`/`purchase_time`, `purchase_order.delivery_address`) was found once the first two stopped dominating the worst-fields view — documented, not fixed this pass. Full writeup: [EVALUATION_ERROR_ANALYSIS.md](EVALUATION_ERROR_ANALYSIS.md) |
 | 29b | The same ground-truth bug class, a third field: `purchase_order_number` | Verified | Left "unresolved" when first found (52.0% accuracy, identical 36/75-document failure set across both models, mechanism unidentified) — see EVALUATION_ERROR_ANALYSIS.md's original Finding 4. A follow-up investigation, using a new opt-in harness capability (`RunnerConfig(persist_predictions=True)`, `eval/runner.py`/`eval/metrics.py`, built specifically to close this gap) to run a live, deterministic gpt-4.1-mini pass and join its per-document output against the corpus text directly, found: 36 of 75 invoices carry a labelled, decoy purchase-order reference in their text (`extra_numbers` difficulty tag); ground truth never recorded a value for `Invoice.purchase_order_number` on any of the 75, decoy or not. 100% overlap between "decoy present" and "scored wrong" (both directions); 100% of the 36 wrong predictions exactly matched the decoy text character-for-character; 0% confusion with a co-located decoy phone number, checked explicitly rather than assumed absent. Fixed conservatively in `eval/dataset.py`: ground truth now holds the exact value the generator already writes into the text, on only the 36 documents where it's actually written (derived from the same `rng.randint()` draw, never from a model's prediction); the other 39 stay `None`. Regression test re-derives the invariant directly from the generator across a 600-call sweep: `tests/unit/test_purchase_order_number_ground_truth.py`. Measured effect (gpt-4.1-mini): `purchase_order_number` 52.0%→**100.0%**, overall field accuracy 88.96%→89.77% (+0.81 pt), **zero** effect on required/critical/doc-success/review-rate. gpt-5.6-luna not re-measured — no prior run had persisted per-document data to re-score offline, and no new API call was made this pass. **Not a model improvement** — gpt-4.1-mini's behavior is unchanged between the before/after runs; only what it was graded against changed. Full writeup: [EVALUATION_ERROR_ANALYSIS.md, Finding 4](EVALUATION_ERROR_ANALYSIS.md#finding-4--purchase_order_number-resolved-a-ground-truth-issue-not-a-model-weakness) |
 
-## Eight real problems, for context on how seriously to take "Verified" above
+## Nine real problems, for context on how seriously to take "Verified" above
 
 Read in full in their respective docs; summarized here because they're the
 best evidence that "Verified" in this document means something:
@@ -213,6 +213,21 @@ best evidence that "Verified" in this document means something:
    See row 29b and
    [EVALUATION_ERROR_ANALYSIS.md](EVALUATION_ERROR_ANALYSIS.md#finding-4--purchase_order_number-resolved-a-ground-truth-issue-not-a-model-weakness).
 
+9. **Webhook delivery was vulnerable to DNS rebinding** (row 10). A
+   registration-time-only SSRF check — the URL is validated once, when a
+   tenant registers it — cannot catch a hostname that resolves publicly at
+   registration and privately by the time a delivery, or a retry possibly
+   hours later, actually happens. Previously recorded as a stated, unfixed
+   limitation in both this document and SECURITY.md, not a false claim, but
+   still a real gap. Fixed by re-validating the hostname immediately before
+   every delivery attempt and connecting directly to that validated address
+   (not the hostname) using httpx's `sni_hostname`/`Host`-header extensions,
+   closing the window a rebind needs. **Verified against the actual pre-fix
+   code**, the same standard as every other row in this section: both new
+   regression tests fail for the specific, expected reason when run against
+   the code as it stood before this fix (see row 10) — not just "the new
+   code looks right," the old code was confirmed not to catch it.
+
 ## Open items
 
 Tracked, not hidden. In rough priority order:
@@ -222,9 +237,6 @@ Tracked, not hidden. In rough priority order:
   (sustained load, not a 10-25 request burst against localhost).
 - Re-verify `docker compose up` from a clean clone; re-check OpenAPI docs
   against the actual schemas.
-- Decide whether the DNS-rebinding gap in webhook SSRF protection is worth
-  closing (delivery-time re-resolution or an egress proxy) or stays a stated
-  limitation.
 
 **Resolved, not just deferred:** a larger real-LLM evaluation run was
 initially declined (Gemini's 20-request/day free tier would need a paid

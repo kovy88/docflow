@@ -89,9 +89,11 @@ for this shape of product: **tenant isolation** (every query scoped by
 not `403`, covered by dedicated tests) and **prompt injection containment**
 (the extraction call has no tool access and no free-text output channel —
 structured output only — so a malicious document's worst case is a wrong
-field value, not an action). Known, stated gaps: webhook SSRF protection
-checks at registration time, not delivery time (DNS-rebinding is not
-closed); no third-party security review has been run.
+field value, not an action). Webhook SSRF protection checks both at
+registration time and again, pinned, immediately before every delivery
+attempt (fixed 2026-08-19 — previously registration-only, which left a
+DNS-rebinding gap; see SECURITY.md). Known, stated gap: no third-party
+security review has been run.
 
 ## Scalability
 
@@ -147,13 +149,17 @@ ground-truth gaps from Finding 5 (`supplier.country`,
 `bank_details` recall problem (model declines to answer 80% of the time, 0%
 wrong when it does), the two concrete remaining evaluation follow-ups, before
 calling this production-ready for any workflow that needs those fields; (4)
-DNS-rebinding-safe webhook delivery; (5) autoscaling policy for the worker
-once there's real traffic to tune it against, not before.
+a third-party security review — no automated penetration test has run
+against this codebase, which is a different and weaker claim than "reviewed
+and clean"; (5) autoscaling policy for the worker once there's real traffic
+to tune it against, not before.
 
 (This list's item 3 used to name multi-line addresses extracting at 0% — that
 was resolved 2026-08-18 as a ground-truth bug, not an extraction weakness;
-see EVALUATION.md's headline finding. Replaced here with the follow-ups that
-are actually still open, rather than left pointing at a solved problem.)
+see EVALUATION.md's headline finding. Item 4 used to name DNS-rebinding-safe
+webhook delivery — fixed 2026-08-19, see SECURITY.md. Both replaced here with
+whatever is actually still open, rather than left pointing at solved
+problems.)
 
 ---
 
@@ -448,11 +454,21 @@ whose entire premise is tenant isolation. Indistinguishable-from-"doesn't
 exist" is the more conservative, correct answer.
 
 **What's the biggest unmitigated security risk right now?**
-DNS rebinding on webhook URLs — SSRF protection resolves and checks the
-hostname at registration time, not at delivery time, so a hostname that
-resolves publicly at registration and privately later isn't caught. Recorded
-as a known gap in the code itself, not glossed over. See
-[SECURITY.md#known-gaps](SECURITY.md#known-gaps).
+Until 2026-08-19, it was DNS rebinding on webhook URLs: SSRF protection
+resolved and checked the hostname at registration time only, so a hostname
+that resolved publicly at registration and privately later — at delivery, or
+at a retry possibly hours after — wasn't caught. Fixed by re-resolving and
+re-validating immediately before every delivery attempt, then connecting
+directly to that validated IP address rather than the hostname, using
+httpx's `sni_hostname` extension and an explicit `Host` header so TLS
+verification and virtual-hosting still see the real hostname — closing the
+gap a rebind needs, without breaking anything the receiver depends on. See
+[SECURITY.md#ssrf-protection-webhooks](SECURITY.md#ssrf-protection-webhooks).
+With that closed, the honest answer is that no single unmitigated risk
+stands out the way that one did — the closest remaining gap is that no
+third-party security review or penetration test has been run against this
+codebase at all, which is a different, weaker claim than "reviewed and
+found clean."
 
 **How are secrets handled?**
 Never in git (`.env` gitignored except `.env.example`, excluded from Docker

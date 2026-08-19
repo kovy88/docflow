@@ -22,6 +22,22 @@ Webhook URLs are user-supplied and cause the server to make outbound requests: a
 textbook SSRF vector. URLs resolving to private, loopback or link-local addresses
 are rejected — including cloud metadata endpoints (169.254.169.254), which is how
 an attacker turns a webhook feature into cloud credential theft.
+
+The same check runs twice: once at registration (`validate_webhook_url`, so an
+obviously-bad URL never reaches the queue) and once again, pinned, immediately
+before every delivery attempt (`deliver`). The second check is what closes the
+DNS-rebinding gap a registration-only check would leave open — a hostname that
+resolves publicly at registration and privately by the time a delivery (or a
+retry, possibly hours later) actually runs. `deliver` resolves the hostname,
+validates the result, and connects directly to that exact validated IP address
+— not to the hostname — using httpx's `sni_hostname`/`Host`-header extensions so
+TLS verification and virtual-hosting still see the real hostname. No second,
+unpinned DNS lookup happens between validating an address and connecting to it,
+which is what a TOCTOU rebind needs in order to work. A delivery blocked this way
+is not treated as an ordinary transient failure: it is exhausted immediately (no
+retries — an attacker doing real rebinding wants exactly the retries a routine
+failure would get) and the endpoint is disabled, since this is materially
+stronger evidence of an attack than a slow or unreachable receiver.
 """
 
 from __future__ import annotations
@@ -35,7 +51,7 @@ import secrets
 import socket
 import uuid
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 import structlog
@@ -138,18 +154,50 @@ class WebhookService:
         timestamp = str(int(dt.datetime.now(dt.UTC).timestamp()))
         signature = sign_payload(endpoint.secret, timestamp, body)
 
+        parsed_url = urlparse(endpoint.url)
+        hostname = parsed_url.hostname
+        try:
+            if hostname is None:
+                # Can't happen for a URL that passed `validate_webhook_url` at
+                # registration — guarded anyway so this is a typed impossibility,
+                # not an assumed one.
+                raise ValidationRequestError("Webhook URL is missing a hostname")
+            # Re-validate and pin *now*, not at registration time — see the
+            # module docstring's "SSRF protection" section for why this closes
+            # the DNS-rebinding gap a registration-only check leaves open.
+            pinned_address = _resolve_and_validate(hostname)[0]
+        except ValidationRequestError as exc:
+            logger.warning(
+                "webhook.delivery_blocked_ssrf",
+                delivery_id=str(delivery.id),
+                endpoint_id=str(endpoint.id),
+                hostname=hostname,
+                reason=str(exc),
+            )
+            delivery.status = DeliveryStatus.EXHAUSTED.value
+            delivery.response_body = (
+                "blocked: endpoint resolved to a disallowed address at delivery time"
+            )
+            endpoint.is_active = False
+            endpoint.last_failure_at = dt.datetime.now(dt.UTC)
+            return {"status": "blocked_ssrf"}
+
         delivery.attempts = attempt
         try:
             async with httpx.AsyncClient(
                 timeout=TIMEOUT_SECONDS,
                 # Never follow redirects: a 302 to an internal address would defeat
-                # the URL validation done at registration time.
+                # both the registration-time check and the pinned address below.
                 follow_redirects=False,
             ) as client:
                 response = await client.post(
-                    endpoint.url,
+                    _pin_url_to_address(endpoint.url, pinned_address),
                     content=body,
                     headers={
+                        # Explicit, not derived from the (now IP-literal) request
+                        # URL — the receiver, and any virtual-hosting in front of
+                        # it, still needs the real hostname.
+                        "Host": hostname,
                         "Content-Type": "application/json",
                         "User-Agent": "Docflow-Webhooks/1.0",
                         "X-Docflow-Event": delivery.event,
@@ -157,6 +205,10 @@ class WebhookService:
                         "X-Docflow-Timestamp": timestamp,
                         "X-Docflow-Signature": f"sha256={signature}",
                     },
+                    # TLS verification is checked against this, not the literal IP
+                    # in the URL — same idea as the Host header above, for the
+                    # certificate instead of the application-layer routing.
+                    extensions={"sni_hostname": hostname},
                 )
         except Exception as exc:
             return self._record_failure(delivery, endpoint, attempt, str(type(exc).__name__))
@@ -234,24 +286,28 @@ def verify_signature(
 _BLOCKED_PORTS = frozenset({22, 23, 25, 3306, 5432, 6379, 9200, 11211, 27017})
 
 
-def validate_webhook_url(url: str) -> None:
-    """Reject URLs that would let a tenant point our server at private infrastructure."""
-    parsed = urlparse(url)
+def _resolve_and_validate(hostname: str) -> list[str]:
+    """Resolve every address a hostname points to; reject the lot if any one of
+    them is private, loopback, link-local, reserved, multicast or unspecified.
 
-    if parsed.scheme not in ("https", "http"):
-        raise ValidationRequestError("Webhook URLs must use http or https")
-    if not parsed.hostname:
-        raise ValidationRequestError("Webhook URL is missing a hostname")
-    if parsed.port and parsed.port in _BLOCKED_PORTS:
-        raise ValidationRequestError(f"Port {parsed.port} is not allowed for webhooks")
+    Shared by registration-time validation (`validate_webhook_url`) and
+    delivery-time re-validation (`WebhookService.deliver`) so the two checks
+    cannot drift apart. All-or-nothing rather than "just check the address
+    we'll actually connect to": `socket.getaddrinfo` result order is not
+    guaranteed stable across calls, and a hostname with one public and one
+    private record is itself a signal worth rejecting outright, not routing
+    around by getting lucky on which address comes back first.
 
+    Returns every validated address as a string (IPv4 or IPv6). Registration
+    only cares that the call didn't raise; delivery uses the first entry as
+    the address to pin the connection to.
+    """
     try:
-        # Resolve *all* addresses: a hostname with one public and one private A
-        # record would otherwise pass a check that only looked at the first.
-        infos = socket.getaddrinfo(parsed.hostname, None)
+        infos = socket.getaddrinfo(hostname, None)
     except socket.gaierror:
         raise ValidationRequestError("Webhook hostname could not be resolved") from None
 
+    addresses: list[str] = []
     for info in infos:
         address = ipaddress.ip_address(info[4][0])
         if (
@@ -266,9 +322,45 @@ def validate_webhook_url(url: str) -> None:
                 "Webhook URLs must point to a public address. Private, loopback and "
                 "link-local addresses are not allowed."
             )
+        addresses.append(str(address))
+    return addresses
 
-    # NOTE: this is a check at registration time, so it is vulnerable to DNS
-    # rebinding — a hostname that resolves publicly now and privately at delivery
-    # time. The complete fix is to resolve and pin the address at delivery, or to
-    # route webhook traffic through an egress proxy with an allowlist. Recorded as
-    # a known limitation in docs/SECURITY.md.
+
+def _pin_url_to_address(url: str, address: str) -> str:
+    """Rewrite a URL's host to a literal IP address, preserving scheme, port,
+    path, query, fragment and any userinfo unchanged.
+
+    Used to connect to an address that has already been validated, without a
+    second, unpinned DNS lookup happening in between — see the module
+    docstring's "SSRF protection" section.
+    """
+    parsed = urlparse(url)
+    netloc = f"[{address}]" if ":" in address else address
+    if parsed.port:
+        netloc = f"{netloc}:{parsed.port}"
+    if parsed.username:
+        userinfo = (
+            parsed.username if not parsed.password else f"{parsed.username}:{parsed.password}"
+        )
+        netloc = f"{userinfo}@{netloc}"
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
+def validate_webhook_url(url: str) -> None:
+    """Reject URLs that would let a tenant point our server at private infrastructure.
+
+    Registration-time only — see `_resolve_and_validate`'s docstring and the
+    module docstring for why delivery re-checks this, pinned, instead of
+    trusting this one call to still be true whenever a delivery eventually
+    happens.
+    """
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("https", "http"):
+        raise ValidationRequestError("Webhook URLs must use http or https")
+    if not parsed.hostname:
+        raise ValidationRequestError("Webhook URL is missing a hostname")
+    if parsed.port and parsed.port in _BLOCKED_PORTS:
+        raise ValidationRequestError(f"Port {parsed.port} is not allowed for webhooks")
+
+    _resolve_and_validate(parsed.hostname)
