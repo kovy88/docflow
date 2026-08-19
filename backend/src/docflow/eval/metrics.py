@@ -176,6 +176,14 @@ class DocumentOutcome:
     failed: bool = False
     error_code: str | None = None
     difficulty: list[str] = field(default_factory=list)
+    # Per-document raw diagnostics — only populated when a run opts in via
+    # `RunnerConfig(persist_predictions=True)`. Aggregate FieldOutcomes above can
+    # tell you *that* a field was wrong on 36 documents but not *which* 36 or what
+    # the model actually returned for them; these three are what closes that gap
+    # for a root-cause investigation, without growing every routine run's report.
+    expected_fields: dict[str, Any] | None = None
+    raw_model_output: dict[str, Any] | None = None
+    parsed_fields: dict[str, Any] | None = None
 
     @property
     def type_correct(self) -> bool:
@@ -367,6 +375,73 @@ class EvaluationReport:
         ranked.sort(key=lambda s: (-s["errors"], s["field_path"]))
         return ranked[:limit]
 
+    def field_accuracy_table(self) -> list[dict[str, Any]]:
+        """Every scored field, not just the worst ones (see `worst_fields`).
+
+        Distinguishes the two ways a field can be wrong, per field: a
+        *missing prediction* (ground truth had a value, the extractor didn't) vs.
+        a *false prediction* (the extractor produced a value ground truth doesn't
+        have) — the same distinction `precision_recall()` makes in aggregate,
+        broken out per field instead of summed across all of them.
+        """
+        stats: dict[str, dict[str, Any]] = {}
+        for document in self.documents:
+            for outcome in document.fields:
+                entry = stats.setdefault(
+                    outcome.field_path,
+                    {
+                        "field_path": outcome.field_path,
+                        "kind": outcome.kind,
+                        "total": 0,
+                        "correct": 0,
+                        "missing_prediction": 0,
+                        "false_prediction": 0,
+                        "required": outcome.is_required,
+                        "critical": outcome.is_critical,
+                    },
+                )
+                entry["total"] += 1
+                if outcome.correct_normalised:
+                    entry["correct"] += 1
+                elif outcome.expected_present and not outcome.actual_present:
+                    entry["missing_prediction"] += 1
+                elif not outcome.expected_present and outcome.actual_present:
+                    entry["false_prediction"] += 1
+
+        rows = list(stats.values())
+        for entry in rows:
+            entry["accuracy"] = entry["correct"] / entry["total"] if entry["total"] else None
+        return sorted(rows, key=lambda r: r["field_path"])
+
+    def by_document_type(self) -> list[dict[str, Any]]:
+        """Field accuracy and document success broken down by document type.
+
+        Small-n types (see docs/EVALUATION_DATASET.md — contract is 4 documents
+        in the current corpus) report `documents` alongside the rate specifically
+        so a reader isn't handed a percentage with no way to judge how much
+        weight it can bear.
+        """
+        buckets: dict[str, list[DocumentOutcome]] = {}
+        for document in self.documents:
+            if document.failed:
+                continue
+            buckets.setdefault(document.document_type, []).append(document)
+
+        rows = []
+        for doc_type, docs in sorted(buckets.items()):
+            fields = [f for d in docs for f in d.fields]
+            correct = sum(1 for f in fields if f.correct_normalised)
+            successes = sum(1 for d in docs if d.all_required_correct())
+            rows.append(
+                {
+                    "document_type": doc_type,
+                    "documents": len(docs),
+                    "field_accuracy": correct / len(fields) if fields else None,
+                    "document_success_rate": successes / len(docs) if docs else None,
+                }
+            )
+        return rows
+
     def by_difficulty(self) -> list[dict[str, Any]]:
         """Accuracy per injected hazard — which difficulty actually costs accuracy."""
         buckets: dict[str, list[FieldOutcome]] = {}
@@ -384,8 +459,30 @@ class EvaluationReport:
             )
         return sorted(rows, key=lambda r: r["accuracy"])
 
+    def predictions(self) -> list[dict[str, Any]]:
+        """Per-document ground truth / raw model output / parsed value.
+
+        Empty unless the run was started with `RunnerConfig(persist_predictions=True)`
+        — omitted from `to_dict()` entirely otherwise, so a routine run's report is
+        byte-for-byte unchanged in shape. Exists to answer questions aggregate
+        FieldOutcomes cannot: *which* documents a field failed on, and what the model
+        actually returned for them, rather than only a pass/fail count.
+        """
+        return [
+            {
+                "document_id": d.document_id,
+                "document_type": d.document_type,
+                "difficulty": d.difficulty,
+                "expected": d.expected_fields,
+                "raw_model_output": d.raw_model_output,
+                "parsed": d.parsed_fields,
+            }
+            for d in self.documents
+            if d.expected_fields is not None
+        ]
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "label": self.label,
             "extractor": self.extractor,
             "provider": self.provider,
@@ -413,8 +510,14 @@ class EvaluationReport:
             "cost": self.cost(),
             "calibration": self.calibration(),
             "worst_fields": self.worst_fields(),
+            "field_accuracy_table": self.field_accuracy_table(),
+            "by_document_type": self.by_document_type(),
             "by_difficulty": self.by_difficulty(),
         }
+        predictions = self.predictions()
+        if predictions:
+            result["predictions"] = predictions
+        return result
 
 
 def build_field_outcomes(
@@ -486,6 +589,38 @@ def _rate(items: list[Any], predicate: Any) -> float | None:
 
 def _safe_div(numerator: int, denominator: int) -> float | None:
     return round(numerator / denominator, 4) if denominator else None
+
+
+# Z-scores for the confidence levels this project actually reports. A lookup
+# table rather than `scipy.stats.norm.ppf` — one more dependency to avoid
+# pulling in for two numbers used nowhere else in this codebase.
+_Z_SCORES = {0.90: 1.645, 0.95: 1.960, 0.99: 2.576}
+
+
+def wilson_score_interval(
+    successes: int, total: int, *, confidence: float = 0.95
+) -> tuple[float, float] | None:
+    """Wilson score interval for a binomial proportion.
+
+    Chosen over the naive `p ± z*sqrt(p(1-p)/n)` normal approximation because
+    the naive form produces nonsensical bounds outside [0, 1] exactly where
+    this project's numbers tend to land — near 100% (document success,
+    required-field accuracy) or over a small n (contract-only breakdowns, see
+    docs/EVALUATION_DATASET.md). Wilson stays inside [0, 1] by construction
+    and is the standard "keep it simple but not naive" choice for this
+    situation, not a research-grade method chosen for its own sake.
+    """
+    if total == 0:
+        return None
+    z = _Z_SCORES.get(round(confidence, 2))
+    if z is None:
+        raise ValueError(f"No z-score tabulated for confidence={confidence}; add one to _Z_SCORES")
+
+    p = successes / total
+    denom = 1 + z**2 / total
+    center = (p + z**2 / (2 * total)) / denom
+    margin = (z * ((p * (1 - p) / total + z**2 / (4 * total**2)) ** 0.5)) / denom
+    return (max(0.0, center - margin), min(1.0, center + margin))
 
 
 def _percentile(sorted_values: list[int], fraction: float) -> float:

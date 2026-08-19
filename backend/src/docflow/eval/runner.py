@@ -46,6 +46,12 @@ class RunnerConfig:
     concurrency: int = 4
     classify: bool = True
     score_confidence: bool = True
+    # Opt-in: record each document's ground truth, raw model output, and parsed
+    # value on its DocumentOutcome (see `EvaluationReport.predictions()`). Off by
+    # default: measured to grow a single-run 120-document report ~17x (three full
+    # per-document payloads instead of none) — data a root-cause dig into a
+    # specific field's failures needs, but a routine run doesn't.
+    persist_predictions: bool = False
 
 
 class BaselineRunner:
@@ -223,6 +229,9 @@ class ExtractorRunner:
             needs_review=needs_review,
             validation_errors=sum(1 for i in issues if i.severity.value == "error"),
             difficulty=item.difficulty,
+            expected_fields=item.fields if config.persist_predictions else None,
+            raw_model_output=outcome.raw_model_output if config.persist_predictions else None,
+            parsed_fields=outcome.data if config.persist_predictions else None,
         )
 
     def _score(self, data, spec, text, issues, *, used_ocr: bool = False):

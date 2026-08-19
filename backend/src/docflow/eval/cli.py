@@ -234,8 +234,15 @@ def _render_detail(report: EvaluationReport) -> list[str]:
     return lines
 
 
-async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0915 — linear CLI script, not logic to decompose
+async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0912, PLR0915 — linear CLI script, not logic to decompose
     settings = get_settings()
+    if args.model:
+        # A scoped override, not a mutation of the cached singleton — other code
+        # calling get_settings() during this process must not see this run's
+        # model choice.
+        settings = settings.model_copy(
+            update={"llm": settings.llm.model_copy(update={"model": args.model})}
+        )
     configure_logging(settings.observability)
 
     corpus_path = Path(args.corpus) if args.corpus else DEFAULT_CORPUS_PATH
@@ -278,7 +285,14 @@ async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0915 — linear CLI
             print(f"\nRunning {label}...")
             runner = ExtractorRunner(provider, settings=settings)
             reports.append(
-                await runner.run(corpus, config=RunnerConfig(label, concurrency=args.concurrency))
+                await runner.run(
+                    corpus,
+                    config=RunnerConfig(
+                        label,
+                        concurrency=args.concurrency,
+                        persist_predictions=args.persist_predictions,
+                    ),
+                )
             )
             print(f"  done in {reports[-1].wall_clock_seconds:.1f}s")
 
@@ -317,9 +331,14 @@ async def _run(args: argparse.Namespace) -> int:  # noqa: PLR0915 — linear CLI
         "corpus_mix": by_type,
         "runs": [r.to_dict() for r in reports],
     }
-    (RESULTS_DIR / "latest.json").write_text(
-        json.dumps(payload, indent=2, default=str), encoding="utf-8"
-    )
+    payload_json = json.dumps(payload, indent=2, default=str)
+    (RESULTS_DIR / "latest.json").write_text(payload_json, encoding="utf-8")
+    # A timestamped copy alongside latest.json (matching the .md pattern above) so
+    # `docflow-eval-compare` has something other than the ephemeral "latest" to
+    # diff against — otherwise every run overwrites the only machine-readable
+    # record of the previous one, and regression detection has nothing to
+    # regress against.
+    (RESULTS_DIR / f"report-{stamp}.json").write_text(payload_json, encoding="utf-8")
 
     print("\n" + "=" * 78)
     print(markdown.split("## Baseline vs model")[0].split("## " + reports[0].label)[0].strip())
@@ -390,7 +409,22 @@ def main() -> int:
     parser.add_argument(
         "--provider", choices=["anthropic", "openai", "google", "fixture"], default=None
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="override the model for this run only (e.g. gpt-4.1-mini, gpt-5.6-luna); "
+        "defaults to DOCFLOW_LLM_MODEL. Does not persist beyond this process",
+    )
     parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument(
+        "--persist-predictions",
+        action="store_true",
+        help="record each document's ground truth, raw model output, and parsed "
+        "value in the JSON report under predictions[] — off by default (measured "
+        "to grow a single-run report ~17x); turn on for root-causing a specific "
+        "field's failures, not for routine runs",
+    )
     parser.add_argument(
         "--scan",
         action="store_true",
