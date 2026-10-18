@@ -14,13 +14,44 @@ modelem.
 | Model si hodnotu vymyslí | U každého pole musí vrátit stranu a doslovnou citaci; kód ověří, že citace v PDF opravdu je a hodnotu obsahuje. Neověřená pole UI označí. |
 | Model nepočítá spolehlivě | Model nic nepočítá. Součty, kontrolní součet IČO a pořadí dat ověřuje deterministický kód podle pravidel šablony. |
 | Čísla a data v různých formátech | Normalizace v kódu: `12 100,00 Kč`, `1.234,56`, `185 000,- Kč`, `3. 9. 2026`, `1. října 2026`, ISO. |
-| Lokální model nepodporuje strukturovaný výstup | Vynucené volání nástroje, při selhání parseru Ollamy přechod na JSON v textu, validace Pydanticem a opakování pokusu s chybou jako zpětnou vazbou. |
-| Nevíme, jak dobře to funguje | Evaluační sada 26 fiktivních dokumentů se známými hodnotami a vloženými chybami, měření přesnosti po polích, záchytu chyb i užitečnosti signálů v UI. |
+| Lokální model nepodporuje strukturovaný výstup | Vynucené volání nástroje; když parser Ollamy selže, záložní raw dokončení mimo parser; validace Pydanticem a opakování s chybou jako zpětnou vazbou. |
+| Nevíme, jak dobře to funguje | Evaluační sada 33 fiktivních dokumentů včetně těžkých případů a vložených chyb; přesnost po polích, záchyt chyb, užitečnost signálů v UI, verze promptu. |
 | Člověk musí mít poslední slovo | Ruční kontrola v UI: opravy se uloží, pravidla se přepočítají; schválené extrakce lze použít jako další trénovací/evaluační data. |
 
 ## Výsledky evaluace
 
-RESULTS_PLACEHOLDER
+33 fiktivních dokumentů (12 + 4 faktury, 10 smluv, 7 pojistek; 7 z nich jsou „těžké
+případy“), 339 polí, 11 vložených chyb. Mac s 32 GB RAM, Ollama.
+
+| Model | Prompt | Přesnost polí | Standardní / těžké | Dokumenty bez chyby | Vložené chyby zachyceny | Medián času |
+|---|---|---|---|---|---|---|
+| qwen3.8:27b | v1 | 99,1 % | 100 % / 95,9 % | 31 / 33 | 11 / 11 | 102 s |
+| qwen3.6:35b-a3b (MoE) | v1 | 99,1 % | 99,6 % / 97,3 % | 30 / 33 | 11 / 11 | 24 s |
+| qwen3.8:27b | **v2** | 99,7 % | 100 % / 98,6 % | 32 / 33 | 11 / 11 | 69 s |
+| qwen3.6:35b-a3b (MoE) | **v2** | **99,7 %** | 99,6 % / **100 %** | 32 / 33 | 11 / 11 | **23 s** |
+
+Co z evaluace vzešlo:
+
+- **Parser Ollamy selhal u 2 z 26 dokumentů** (model vygeneroval rozbité XML volání
+  nástroje, HTTP 500). Oprava: záložní raw dokončení přes `/api/generate`, které parser
+  obchází. Ověřeno vynuceným selháním.
+- **Těžké případy odhalily dva typy chyb:** model doplnil datum splatnosti u „splatné
+  ihned“ (vzal datum vystavení) a dopočítal konec smlouvy z „12 měsíců“. Prompt v2
+  zakazuje přebírat hodnotu jiného pole i odvozovat chybějící hodnoty. U qwen3.6 to chyby
+  odstranilo, qwen3.8 dál doplňuje splatnost.
+- **Chyba normalizace, ne modelu:** u pojistky model správně opsal „1. 10. 2026, 0:00 hod.“,
+  ale parser data čas nezvládl. Opraveno v kódu.
+- **Pravidla hlídají i model:** jediná zbývající chyba qwen3.6 (základ daně zaměněný za
+  celkovou částku) má platnou citaci, takže ji ověření citací nezachytí. Zachytí ji ale
+  pravidlo součtu a dokument jde ke kontrole.
+- **Jistota modelu sama nestačí:** ze tří chyb qwen3.6 (v1) měla nízkou jistotu jen jedna
+  (dopočítaný konec smlouvy, který zároveň neprošel ověřením citace); další dvě měly jistotu
+  0,9 a 1,0. Proto Docflow kombinuje tři nezávislé kontroly: citaci, jistotu a pravidla.
+- **Menší MoE model je pro tuto úlohu lepší volba:** stejná přesnost, 3× rychlejší.
+
+Omezení: dokumenty jsou generované s čistou textovou vrstvou, takže výsledky neříkají nic
+o skenech (OCR zatím chybí) ani o skutečně neuspořádaných PDF. Další krok je sada reálných
+anonymizovaných dokumentů.
 
 Celý report včetně chybně vytěžených polí je v [backend/evals/](backend/evals/) a na
 stránce **Evaluace** v aplikaci.

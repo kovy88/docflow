@@ -32,7 +32,10 @@ export function highlight(str: string, quote: string | null): string {
   const q = canon(quote);
   const item = canon(str);
   if (item.length < 2 || !q) return safe;
-  if (q.includes(item)) return `<mark>${safe}</mark>`;
+  // A whole item is marked when it is a substantial part of a (multi-line) quote; short
+  // fragments such as a lone "Celkem" table cell would otherwise light up everywhere.
+  if (q.includes(item) && item.length >= Math.min(12, q.length * 0.5))
+    return `<mark>${safe}</mark>`;
   const at = str.toLowerCase().indexOf(quote.toLowerCase().trim());
   if (at === -1) return safe;
   const end = at + quote.trim().length;

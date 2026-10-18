@@ -240,8 +240,8 @@ export function ExtractionPanel({
           </p>
           <p className="text-sm text-muted">
             Model {extraction.model} běží lokálně, jeden dokument trvá zhruba
-            2–3 minuty. Extrakce běží na serveru, stránku můžeš zavřít a vrátit
-            se později.
+            jednu až dvě minuty. Extrakce běží na serveru, stránku můžeš zavřít
+            a vrátit se později.
           </p>
         </div>
       ) : extraction ? (

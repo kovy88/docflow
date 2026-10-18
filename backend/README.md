@@ -23,19 +23,23 @@ uv run uvicorn app.main:app --reload
 `LLM_PROVIDER=openai` + `OPENAI_API_KEY` switches to OpenAI structured outputs. Ollama
 cannot grammar-constrain this model, so the local path uses a forced tool call, falls back
 to plain JSON when Ollama's tool parser fails, and validates/retries with Pydantic.
-Measured on the samples (M-series Mac, 32 GB): all 4 docs correct, ~130–170 s per document.
+Measured on the 33-document evaluation set (Mac, 32 GB): 99.7 % field accuracy with prompt
+v2; median 69 s/document for qwen3.8:27b, 23 s for qwen3.6:35b-a3b (`OLLAMA_MODEL`).
 
 API docs at http://localhost:8000/docs. Sample PDFs (fictional) are in `samples/`;
 regenerate with `uv run python scripts/make_samples.py`.
 
 ## Evaluation dataset
 
-`dataset/` holds 26 realistic but fictional PDFs (12 invoices in 3 layouts incl. a bilingual
-EUR one and a 2-page one, 8 contracts of 4 types, 6 insurance policies) with ground truth in
-`dataset/labels.json`. 10 documents contain planted errors (bad IČO checksum, totals that
-don't add up, dates in the wrong order). Regenerate deterministically with
+`dataset/` holds 33 realistic but fictional PDFs (16 invoices in 3 layouts incl. a bilingual
+EUR one, a 2-page one and a credit note, 10 contracts of 4 types, 7 insurance policies) with
+ground truth in `dataset/labels.json`. 11 documents contain planted errors (bad IČO checksum,
+totals that don't add up, dates in the wrong order) and 7 are hard cases (swapped party
+boxes, "splatné ihned", spaced IČO, a duration instead of an end date, dates with times). Regenerate deterministically with
 `uv run python scripts/make_dataset.py`; `tests/test_dataset.py` checks every label against
-the PDF text and the rule engine.
+the PDF text and the rule engine. Evaluate with `uv run python scripts/evaluate.py`
+(`--model`, `--limit`, `--only invoice`, `--resume evals/<run>.json`); reports land in
+`evals/` and on the Evaluace page.
 
 ## Test
 

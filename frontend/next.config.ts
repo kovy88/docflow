@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  devIndicators: false, // keeps screenshots and demos clean; errors still show
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

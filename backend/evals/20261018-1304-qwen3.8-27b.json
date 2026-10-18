@@ -606,6 +606,3285 @@
     "mode": "tool"
    },
    "latency_s": 60.8
+  },
+  {
+   "file": "invoice_06.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Kancelářské Potřeby Plus s.r.o.",
+     "predicted": "Kancelářské Potřeby Plus s.r.o.",
+     "raw": "Kancelářské Potřeby Plus s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "69969582",
+     "predicted": "69969582",
+     "raw": "69969582",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Čisté Prostory CZ s.r.o.",
+     "predicted": "Čisté Prostory CZ s.r.o.",
+     "raw": "Čisté Prostory CZ s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260006",
+     "predicted": "260006",
+     "raw": "260006",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-02-09",
+     "predicted": "2026-02-09",
+     "raw": "9. 2. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-02-23",
+     "predicted": "2026-02-23",
+     "raw": "23. 2. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 558988.01,
+     "predicted": 558988.01,
+     "raw": "558 988,01",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 105623.37,
+     "predicted": 105623.37,
+     "raw": "105 623,37",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 664611.38,
+     "predicted": 664611.38,
+     "raw": "664 611,38",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "19-1940632170/2010",
+     "predicted": "19-1940632170/2010",
+     "raw": "19-1940632170/2010",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3881,
+    "output_tokens": 761,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 94.7
+  },
+  {
+   "file": "invoice_07.pdf",
+   "template_id": "invoice",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Klimatech Morava s.r.o.",
+     "predicted": "Klimatech Morava s.r.o.",
+     "raw": "Klimatech Morava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "64108962",
+     "predicted": "64108962",
+     "raw": "64108962",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Pekárna U Mlýna a.s.",
+     "predicted": "Pekárna U Mlýna a.s.",
+     "raw": "Pekárna U Mlýna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "FV20260007",
+     "predicted": "FV20260007",
+     "raw": "FV20260007",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-05-26",
+     "predicted": "2026-05-26",
+     "raw": "26.05.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-06-10",
+     "predicted": "2026-06-10",
+     "raw": "10.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 9515.7,
+     "predicted": 9515.7,
+     "raw": "9 515,70",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 1384.61,
+     "predicted": 1384.61,
+     "raw": "1 384,61",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 10900.31,
+     "predicted": 10900.31,
+     "raw": "10 900,31",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "35-9486102218/0600",
+     "predicted": "35-9486102218/0600",
+     "raw": "35-9486102218/0600",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "ico_checksum"
+    ],
+    "predicted": [
+     "ico_checksum"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2605,
+    "output_tokens": 672,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 58.8
+  },
+  {
+   "file": "invoice_08.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Pekárna U Mlýna a.s.",
+     "predicted": "Pekárna U Mlýna a.s.",
+     "raw": "Pekárna U Mlýna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "97359386",
+     "predicted": "97359386",
+     "raw": "97359386",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Fyzio Centrum Rovnováha s.r.o.",
+     "predicted": "Fyzio Centrum Rovnováha s.r.o.",
+     "raw": "Fyzio Centrum Rovnováha s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "2026-0008",
+     "predicted": "2026-0008",
+     "raw": "2026-0008",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-02-22",
+     "predicted": "2026-02-22",
+     "raw": "2026-02-22",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-03-08",
+     "predicted": "2026-03-08",
+     "raw": "2026-03-08",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 7730.89,
+     "predicted": 7730.89,
+     "raw": "7,730.89",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 1618.01,
+     "predicted": 1618.01,
+     "raw": "1,618.01",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 9348.9,
+     "predicted": 9348.9,
+     "raw": "9,348.90",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "EUR",
+     "predicted": "EUR",
+     "raw": "EUR",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "6355169071/0800",
+     "predicted": "6355169071/0800",
+     "raw": "6355169071/0800",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2590,
+    "output_tokens": 705,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 60.0
+  },
+  {
+   "file": "invoice_09.pdf",
+   "template_id": "invoice",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Hotel Pod Vyhlídkou s.r.o.",
+     "predicted": "Hotel Pod Vyhlídkou s.r.o.",
+     "raw": "Hotel Pod Vyhlídkou s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "33769559",
+     "predicted": "33769559",
+     "raw": "33769559",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Dřevodílna Šumava s.r.o.",
+     "predicted": "Dřevodílna Šumava s.r.o.",
+     "raw": "Dřevodílna Šumava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "FV20260009",
+     "predicted": "FV20260009",
+     "raw": "FV20260009",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-02-08",
+     "predicted": "2026-02-08",
+     "raw": "8. 2. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-01-25",
+     "predicted": "2026-01-25",
+     "raw": "25. 1. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 85182.96,
+     "predicted": 85182.96,
+     "raw": "85 182,96",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": 17888.42,
+     "predicted": 17888.42,
+     "raw": "17 888,42",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": 103071.38,
+     "predicted": 103071.38,
+     "raw": "103 071,38",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "35-5944579041/6100",
+     "predicted": "35-5944579041/6100",
+     "raw": "35-5944579041/6100",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "date_order"
+    ],
+    "predicted": [
+     "date_order"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2729,
+    "output_tokens": 756,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 65.6
+  },
+  {
+   "file": "invoice_10.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Zelená Zahrada Bohemia s.r.o.",
+     "predicted": "Zelená Zahrada Bohemia s.r.o.",
+     "raw": "Zelená Zahrada Bohemia s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "38092174",
+     "predicted": "38092174",
+     "raw": "38092174",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Modrá Kancelář s.r.o.",
+     "predicted": "Modrá Kancelář s.r.o.",
+     "raw": "Modrá Kancelář s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260010",
+     "predicted": "260010",
+     "raw": "260010",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-08-01",
+     "predicted": "2026-08-01",
+     "raw": "1. 8. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-08-15",
+     "predicted": "2026-08-15",
+     "raw": "15. 8. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 207793.51,
+     "predicted": 207793.51,
+     "raw": "207.793,51",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 42375.31,
+     "predicted": 42375.31,
+     "raw": "42.375,31",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 250168.82,
+     "predicted": 250168.82,
+     "raw": "250.168,82",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "19-384043865/6100",
+     "predicted": "19-384043865/6100",
+     "raw": "19-384043865/6100",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2821,
+    "output_tokens": 673,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 62.3
+  },
+  {
+   "file": "invoice_11.pdf",
+   "template_id": "invoice",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Strojírna Bystřice Demo a.s.",
+     "predicted": "Strojírna Bystřice Demo a.s.",
+     "raw": "Strojírna Bystřice Demo a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "82854812",
+     "predicted": "82854812",
+     "raw": "82854812",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Fyzio Centrum Rovnováha s.r.o.",
+     "predicted": "Fyzio Centrum Rovnováha s.r.o.",
+     "raw": "Fyzio Centrum Rovnováha s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260011",
+     "predicted": "260011",
+     "raw": "260011",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-10-25",
+     "predicted": "2026-10-25",
+     "raw": "25.10.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-11-09",
+     "predicted": "2026-11-09",
+     "raw": "09.11.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 10974.49,
+     "predicted": 10974.49,
+     "raw": "10 974,49",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": 2304.64,
+     "predicted": 2304.64,
+     "raw": "2 304,64",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": 12379.0,
+     "predicted": 12379.0,
+     "raw": "12 379,00",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "8961019683/0100",
+     "predicted": "8961019683/0100",
+     "raw": "8961019683/0100",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "ico_checksum",
+     "sum_mismatch"
+    ],
+    "predicted": [
+     "ico_checksum",
+     "sum_mismatch"
+    ],
+    "tp": 2,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2723,
+    "output_tokens": 731,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 65.7
+  },
+  {
+   "file": "invoice_12.pdf",
+   "template_id": "invoice",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Klimatech Morava s.r.o.",
+     "predicted": "Klimatech Morava s.r.o.",
+     "raw": "Klimatech Morava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "76872441",
+     "predicted": "76872441",
+     "raw": "76872441",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Atelier Pod Lipou s.r.o.",
+     "predicted": "Atelier Pod Lipou s.r.o.",
+     "raw": "Atelier Pod Lipou s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "2026-0012",
+     "predicted": "2026-0012",
+     "raw": "2026-0012",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-02-14",
+     "predicted": "2026-02-14",
+     "raw": "2026-02-14",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-01-31",
+     "predicted": "2026-01-31",
+     "raw": "2026-01-31",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 478.35,
+     "predicted": 478.35,
+     "raw": "478.35 EUR",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 93.86,
+     "predicted": 93.86,
+     "raw": "93.86 EUR",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 572.21,
+     "predicted": 572.21,
+     "raw": "572.21 EUR",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "EUR",
+     "predicted": "EUR",
+     "raw": "EUR",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "3402394880/2010",
+     "predicted": "3402394880/2010",
+     "raw": "3402394880/2010",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "date_order"
+    ],
+    "predicted": [
+     "date_order"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2535,
+    "output_tokens": 686,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 56.0
+  },
+  {
+   "file": "contract_01.pdf",
+   "template_id": "contract",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Vinařství Na Kopečku s.r.o.",
+     "predicted": "Vinařství Na Kopečku s.r.o.",
+     "raw": "Vinařství Na Kopečku s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "14996341",
+     "predicted": "14996341",
+     "raw": "14996341",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Zelená Zahrada Bohemia s.r.o.",
+     "predicted": "Zelená Zahrada Bohemia s.r.o.",
+     "raw": "Zelená Zahrada Bohemia s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "79701477",
+     "predicted": "79701477",
+     "raw": "79701477",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "predicted": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "raw": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 369400.0,
+     "predicted": 369400.0,
+     "raw": "369 400,- Kč bez DPH",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-07-23",
+     "predicted": "2026-07-23",
+     "raw": "23. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": "2026-10-21",
+     "predicted": "2026-10-21",
+     "raw": "21. října 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "notice_period",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.95
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-07-16",
+     "predicted": "2026-07-16",
+     "raw": "16. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3180,
+    "output_tokens": 666,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 116.2
+  },
+  {
+   "file": "contract_02.pdf",
+   "template_id": "contract",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Kancelářské Potřeby Plus s.r.o.",
+     "predicted": "Kancelářské Potřeby Plus s.r.o.",
+     "raw": "Kancelářské Potřeby Plus s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "74496280",
+     "predicted": "74496280",
+     "raw": "74496280",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Atelier Pod Lipou s.r.o.",
+     "predicted": "Atelier Pod Lipou s.r.o.",
+     "raw": "Atelier Pod Lipou s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "84838043",
+     "predicted": "84838043",
+     "raw": "84838043",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "nájem skladovacích prostor o výměře 240 m²",
+     "predicted": "nájem skladovacích prostor o výměře 240 m²",
+     "raw": "nájem skladovacích prostor o výměře 240 m²",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "price",
+     "expected": 47800.0,
+     "predicted": 47800.0,
+     "raw": "47 800 Kč měsíčně",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-07-19",
+     "predicted": "2026-07-19",
+     "raw": "19. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.95
+    },
+    {
+     "key": "notice_period",
+     "expected": "1 měsíc",
+     "predicted": "1 měsíc",
+     "raw": "1 měsíc",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-07-12",
+     "predicted": "2026-07-12",
+     "raw": "12. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 7025,
+    "output_tokens": 1277,
+    "attempts": 2,
+    "mode": "tool"
+   },
+   "latency_s": 179.2
+  },
+  {
+   "file": "contract_03.pdf",
+   "template_id": "contract",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Hotel Pod Vyhlídkou s.r.o.",
+     "predicted": "Hotel Pod Vyhlídkou s.r.o.",
+     "raw": "Hotel Pod Vyhlídkou s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "82052450",
+     "predicted": "82052450",
+     "raw": "82052450",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Modrá Kancelář s.r.o.",
+     "predicted": "Modrá Kancelář s.r.o.",
+     "raw": "Modrá Kancelář s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "88781356",
+     "predicted": "88781356",
+     "raw": "88781356",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "pravidelný úklid kancelářských prostor",
+     "predicted": "poskytovat objednateli služby, jejichž předmětem je pravidelný úklid kancelářských prostor",
+     "raw": "poskytovat objednateli služby, jejichž předmětem je pravidelný úklid kancelářských prostor",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "price",
+     "expected": 28000.0,
+     "predicted": 28000.0,
+     "raw": "28 000 Kč bez DPH",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-04-18",
+     "predicted": "2026-04-18",
+     "raw": "18. dubna 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.9
+    },
+    {
+     "key": "notice_period",
+     "expected": "1 měsíc",
+     "predicted": "1 měsíc",
+     "raw": "1 měsíc",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-04-17",
+     "predicted": "2026-04-17",
+     "raw": "17. dubna 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 6994,
+    "output_tokens": 1280,
+    "attempts": 2,
+    "mode": "tool"
+   },
+   "latency_s": 138.2
+  },
+  {
+   "file": "contract_04.pdf",
+   "template_id": "contract",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Lumen Data Systems s.r.o.",
+     "predicted": "Lumen Data Systems s.r.o.",
+     "raw": "Lumen Data Systems s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "56871511",
+     "predicted": "56871511",
+     "raw": "56871511",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Účetní Centrum Brno-sever s.r.o.",
+     "predicted": "Účetní Centrum Brno-sever s.r.o.",
+     "raw": "Účetní Centrum Brno-sever s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "93897707",
+     "predicted": "93897707",
+     "raw": "93897707",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "prodej CNC frézky včetně příslušenství a dokumentace",
+     "predicted": "prodaj CNC frézky včetně příslušenství a dokumentace",
+     "raw": "prodaj CNC frézky včetně příslušenství a dokumentace",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 1491500.0,
+     "predicted": 1491500.0,
+     "raw": "1 491 500 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-05-04",
+     "predicted": "2026-05-04",
+     "raw": "4. 5. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "notice_period",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-04-20",
+     "predicted": "2026-04-20",
+     "raw": "20. 4. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 6796,
+    "output_tokens": 1120,
+    "attempts": 2,
+    "mode": "tool"
+   },
+   "latency_s": 168.0
+  },
+  {
+   "file": "contract_07.pdf",
+   "template_id": "contract",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Čisté Prostory CZ s.r.o.",
+     "predicted": "Čisté Prostory CZ s.r.o.",
+     "raw": "Čisté Prostory CZ s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "63168175",
+     "predicted": "63168175",
+     "raw": "63168175",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Realitní Správa Jih a.s.",
+     "predicted": "Realitní Správa Jih a.s.",
+     "raw": "Realitní Správa Jih a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "34249672",
+     "predicted": "34249672",
+     "raw": "34249672",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "nájem nebytových prostor o výměře 86 m² v přízemí budovy",
+     "predicted": "nájem nebytových prostor o výměře 86 m² v přízemí budovy",
+     "raw": "nájem nebytových prostor o výměře 86 m² v přízemí budovy",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "price",
+     "expected": 16800.0,
+     "predicted": 16800.0,
+     "raw": "16 800,- Kč měsíčně",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-06-05",
+     "predicted": "2026-06-05",
+     "raw": "05.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": "neurčitá",
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.9
+    },
+    {
+     "key": "notice_period",
+     "expected": "2 měsíce",
+     "predicted": "2 měsíce",
+     "raw": "2 měsíce",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-06-04",
+     "predicted": "2026-06-04",
+     "raw": "04.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    }
+   ],
+   "rules": {
+    "expected": [
+     "ico_checksum"
+    ],
+    "predicted": [
+     "ico_checksum"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3291,
+    "output_tokens": 718,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 85.3
+  },
+  {
+   "file": "contract_08.pdf",
+   "template_id": "contract",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Pekárna U Mlýna a.s.",
+     "predicted": "Pekárna U Mlýna a.s.",
+     "raw": "Pekárna U Mlýna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "48281263",
+     "predicted": "48281263",
+     "raw": "48281263",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Vinařství Na Kopečku s.r.o.",
+     "predicted": "Vinařství Na Kopečku s.r.o.",
+     "raw": "Vinařství Na Kopečku s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "68732571",
+     "predicted": "68732571",
+     "raw": "68732571",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "prodej CNC frézky včetně příslušenství a dokumentace",
+     "predicted": "prodaj CNC frézky včetně příslušenství a dokumentace",
+     "raw": "prodaj CNC frézky včetně příslušenství a dokumentace",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 1277000.0,
+     "predicted": 1277000.0,
+     "raw": "1 277 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-08-02",
+     "predicted": "2026-08-02",
+     "raw": "02.08.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "notice_period",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-08-02",
+     "predicted": "2026-08-02",
+     "raw": "02.08.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 6793,
+    "output_tokens": 1188,
+    "attempts": 2,
+    "mode": "tool"
+   },
+   "latency_s": 129.0
+  },
+  {
+   "file": "policy_01.pdf",
+   "template_id": "insurance_policy",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Ilustrační pojišťovna a.s.",
+     "predicted": "Ilustrační pojišťovna a.s.",
+     "raw": "Ilustrační pojišťovna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "policyholder",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "85272698",
+     "predicted": "85272698",
+     "raw": "85272698",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "policy_number",
+     "expected": "4188663152",
+     "predicted": "4188663152",
+     "raw": "4188663152",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-01-01",
+     "predicted": "2026-01-01",
+     "raw": "1. 1. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": "neurčitá",
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.9
+    },
+    {
+     "key": "sum_insured",
+     "expected": 25600000.0,
+     "predicted": 25600000.0,
+     "raw": "25 600 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "deductible",
+     "expected": 1000.0,
+     "predicted": 1000.0,
+     "raw": "1 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "annual_premium",
+     "expected": 28550.0,
+     "predicted": 28550.0,
+     "raw": "28 550 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2581,
+    "output_tokens": 590,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 102.1
+  },
+  {
+   "file": "policy_02.pdf",
+   "template_id": "insurance_policy",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Demo Pojištění Morava a.s.",
+     "predicted": "Demo Pojištění Morava a.s.",
+     "raw": "Demo Pojištění Morava a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder",
+     "expected": "Lumen Data Systems s.r.o.",
+     "predicted": "Lumen Data Systems s.r.o.",
+     "raw": "Lumen Data Systems s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "81071566",
+     "predicted": "81071566",
+     "raw": "81071566",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policy_number",
+     "expected": "8890173999",
+     "predicted": "8890173999",
+     "raw": "8890173999",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-04-01",
+     "predicted": "2026-04-01",
+     "raw": "01.04.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "end_date",
+     "expected": "2027-03-31",
+     "predicted": "2027-03-31",
+     "raw": "31.03.2027",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "sum_insured",
+     "expected": 5000000.0,
+     "predicted": 5000000.0,
+     "raw": "5 000 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "deductible",
+     "expected": 10000.0,
+     "predicted": 10000.0,
+     "raw": "10 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "annual_premium",
+     "expected": 6640.0,
+     "predicted": 6640.0,
+     "raw": "6 640 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2627,
+    "output_tokens": 629,
+    "attempts": 2,
+    "mode": "json"
+   },
+   "latency_s": 187.2
+  },
+  {
+   "file": "policy_03.pdf",
+   "template_id": "insurance_policy",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Ilustrační pojišťovna a.s.",
+     "predicted": "Ilustrační pojišťovna a.s.",
+     "raw": "Ilustrační pojišťovna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "72945504",
+     "predicted": "72945504",
+     "raw": "72945504",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policy_number",
+     "expected": "8830612327",
+     "predicted": "8830612327",
+     "raw": "8830612327",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-01-01",
+     "predicted": "2026-01-01",
+     "raw": "1. 1. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 1.0
+    },
+    {
+     "key": "sum_insured",
+     "expected": 30380000.0,
+     "predicted": 30380000.0,
+     "raw": "30 380 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "deductible",
+     "expected": 5000.0,
+     "predicted": 5000.0,
+     "raw": "5 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "annual_premium",
+     "expected": 37290.0,
+     "predicted": 37290.0,
+     "raw": "37 290 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    }
+   ],
+   "rules": {
+    "expected": [
+     "ico_checksum"
+    ],
+    "predicted": [
+     "ico_checksum"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2676,
+    "output_tokens": 627,
+    "attempts": 2,
+    "mode": "json"
+   },
+   "latency_s": 149.0
+  },
+  {
+   "file": "policy_04.pdf",
+   "template_id": "insurance_policy",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Pojišťovna Vzorník a.s.",
+     "predicted": "Pojišťovna Vzorník a.s.",
+     "raw": "Pojišťovna Vzorník a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder",
+     "expected": "Klimatech Morava s.r.o.",
+     "predicted": "Klimatech Morava s.r.o.",
+     "raw": "Klimatech Morava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "54710251",
+     "predicted": "54710251",
+     "raw": "54710251",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policy_number",
+     "expected": "7037496270",
+     "predicted": "7037496270",
+     "raw": "7037496270",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-04-01",
+     "predicted": "2026-04-01",
+     "raw": "1. 4. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 1.0
+    },
+    {
+     "key": "sum_insured",
+     "expected": 5000000.0,
+     "predicted": 5000000.0,
+     "raw": "5 000 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "deductible",
+     "expected": 20000.0,
+     "predicted": 20000.0,
+     "raw": "20 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "annual_premium",
+     "expected": 7090.0,
+     "predicted": 7090.0,
+     "raw": "7 090 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2627,
+    "output_tokens": 626,
+    "attempts": 2,
+    "mode": "json"
+   },
+   "latency_s": 143.2
+  },
+  {
+   "file": "policy_05.pdf",
+   "template_id": "insurance_policy",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Ilustrační pojišťovna a.s.",
+     "predicted": "Ilustrační pojišťovna a.s.",
+     "raw": "Ilustrační pojišťovna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policyholder",
+     "expected": "Čisté Prostory CZ s.r.o.",
+     "predicted": "Čisté Prostory CZ s.r.o.",
+     "raw": "Čisté Prostory CZ s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "27161510",
+     "predicted": "27161510",
+     "raw": "27161510",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policy_number",
+     "expected": "4180455982",
+     "predicted": "4180455982",
+     "raw": "4180455982",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-10-01",
+     "predicted": "2026-10-01",
+     "raw": "01.10.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": "2026-08-31",
+     "predicted": "2026-08-31",
+     "raw": "31.08.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "sum_insured",
+     "expected": 31520000.0,
+     "predicted": 31520000.0,
+     "raw": "31 520 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "deductible",
+     "expected": 1000.0,
+     "predicted": 1000.0,
+     "raw": "1 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "annual_premium",
+     "expected": 42370.0,
+     "predicted": 42370.0,
+     "raw": "42 370 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "date_order"
+    ],
+    "predicted": [
+     "date_order"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2599,
+    "output_tokens": 582,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 61.1
+  },
+  {
+   "file": "policy_06.pdf",
+   "template_id": "insurance_policy",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Ilustrační pojišťovna a.s.",
+     "predicted": "Ilustrační pojišťovna a.s.",
+     "raw": "Ilustrační pojišťovna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policyholder",
+     "expected": "Klimatech Morava s.r.o.",
+     "predicted": "Klimatech Morava s.r.o.",
+     "raw": "Klimatech Morava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "26722852",
+     "predicted": "26722852",
+     "raw": "26722852",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policy_number",
+     "expected": "7050239845",
+     "predicted": "7050239845",
+     "raw": "7050239845",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-01-01",
+     "predicted": "2026-01-01",
+     "raw": "1. 1. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": "2026-12-31",
+     "predicted": "2026-12-31",
+     "raw": "31. 12. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "sum_insured",
+     "expected": 1000000.0,
+     "predicted": 1000000.0,
+     "raw": "1 000 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "deductible",
+     "expected": 10000.0,
+     "predicted": 10000.0,
+     "raw": "10 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "annual_premium",
+     "expected": 970.0,
+     "predicted": 970.0,
+     "raw": "970 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2545,
+    "output_tokens": 568,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 66.3
+  },
+  {
+   "file": "contract_05.pdf",
+   "template_id": "contract",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Klimatech Morava s.r.o.",
+     "predicted": "Klimatech Morava s.r.o.",
+     "raw": "Klimatech Morava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "20722621",
+     "predicted": "20722621",
+     "raw": "20722621",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Čisté Prostory CZ s.r.o.",
+     "predicted": "Čisté Prostory CZ s.r.o.",
+     "raw": "Čisté Prostory CZ s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "38752441",
+     "predicted": "38752441",
+     "raw": "38752441",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "subject",
+     "expected": "dodávka a montáž vzduchotechniky do výrobní haly",
+     "predicted": "dodávka a montáž vzduchotechniky do výrobní haly",
+     "raw": "dodávka a montáž vzduchotechniky do výrobní haly",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 563300.0,
+     "predicted": 563300.0,
+     "raw": "563 300 Kč bez DPH",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-06-18",
+     "predicted": "2026-06-18",
+     "raw": "18. června 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": "2026-04-19",
+     "predicted": "2026-04-19",
+     "raw": "19. dubna 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "notice_period",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-06-11",
+     "predicted": "2026-06-11",
+     "raw": "11. června 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "date_order"
+    ],
+    "predicted": [
+     "date_order"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3157,
+    "output_tokens": 777,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 128.4
+  },
+  {
+   "file": "contract_06.pdf",
+   "template_id": "contract",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Kancelářské Potřeby Plus s.r.o.",
+     "predicted": "Kancelářské Potřeby Plus s.r.o.",
+     "raw": "Kancelářské Potřeby Plus s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "62413813",
+     "predicted": "62413813",
+     "raw": "62413813",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Realitní Správa Jih a.s.",
+     "predicted": "Realitní Správa Jih a.s.",
+     "raw": "Realitní Správa Jih a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "90495306",
+     "predicted": "90495306",
+     "raw": "90495306",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "pravidelný úklid kancelářských prostor",
+     "predicted": "poskytovat objednateli služby, jejichž předmětem je pravidelný úklid kancelářských prostor",
+     "raw": "poskytovat objednateli služby, jejichž předmětem je pravidelný úklid kancelářských prostor",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 16200.0,
+     "predicted": 16200.0,
+     "raw": "16 200 Kč bez DPH",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-02-16",
+     "predicted": "2026-02-16",
+     "raw": "16.02.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.99
+    },
+    {
+     "key": "notice_period",
+     "expected": "3 měsíce",
+     "predicted": "3 měsíce",
+     "raw": "3 měsíce",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-02-16",
+     "predicted": "2026-02-16",
+     "raw": "16.02.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3274,
+    "output_tokens": 818,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 136.2
+  },
+  {
+   "file": "invoice_13.pdf",
+   "template_id": "invoice",
+   "difficulty": "hard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Modrá Kancelář s.r.o.",
+     "predicted": "Modrá Kancelář s.r.o.",
+     "raw": "Modrá Kancelář s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "47048492",
+     "predicted": "47048492",
+     "raw": "47048492",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Kancelářské Potřeby Plus s.r.o.",
+     "predicted": "Kancelářské Potřeby Plus s.r.o.",
+     "raw": "Kancelářské Potřeby Plus s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "2026-0013",
+     "predicted": "2026-0013",
+     "raw": "2026-0013",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-10-08",
+     "predicted": "2026-10-08",
+     "raw": "8. 10. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-10-23",
+     "predicted": "2026-10-23",
+     "raw": "23. 10. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 15852.68,
+     "predicted": 15852.68,
+     "raw": "15 852,68",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": 3321.64,
+     "predicted": 3321.64,
+     "raw": "3 321,64",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": 19174.0,
+     "predicted": 19174.0,
+     "raw": "19 174,00",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "19-5218848460/0300",
+     "predicted": "19-5218848460/0300",
+     "raw": "19-5218848460/0300",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2783,
+    "output_tokens": 742,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 121.8
+  },
+  {
+   "file": "invoice_14.pdf",
+   "template_id": "invoice",
+   "difficulty": "hard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Modrá Kancelář s.r.o.",
+     "predicted": "Modrá Kancelář s.r.o.",
+     "raw": "Modrá Kancelář s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "10471669",
+     "predicted": "10471669",
+     "raw": "10471669",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Lumen Data Systems s.r.o.",
+     "predicted": "Lumen Data Systems s.r.o.",
+     "raw": "Lumen Data Systems s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260014",
+     "predicted": "260014",
+     "raw": "260014",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-01-13",
+     "predicted": "2026-01-13",
+     "raw": "13. 1. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": null,
+     "predicted": "2026-01-13",
+     "raw": "13. 1. 2026",
+     "correct": false,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "net_amount",
+     "expected": 17995.63,
+     "predicted": 17995.63,
+     "raw": "17.995,63",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 3778.05,
+     "predicted": 3778.05,
+     "raw": "3.778,05",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 21773.68,
+     "predicted": 21773.68,
+     "raw": "21.773,68",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "9131499947/0300",
+     "predicted": "9131499947/0300",
+     "raw": "9131499947/0300",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2598,
+    "output_tokens": 655,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 102.1
+  },
+  {
+   "file": "invoice_15.pdf",
+   "template_id": "invoice",
+   "difficulty": "hard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Dřevodílna Šumava s.r.o.",
+     "predicted": "Dřevodílna Šumava s.r.o.",
+     "raw": "Dřevodílna Šumava s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "88271269",
+     "predicted": "88271269",
+     "raw": "88271269",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Fyzio Centrum Rovnováha s.r.o.",
+     "predicted": "Fyzio Centrum Rovnováha s.r.o.",
+     "raw": "Fyzio Centrum Rovnováha s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "2026-0015",
+     "predicted": "2026-0015",
+     "raw": "2026-0015",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-06-02",
+     "predicted": "2026-06-02",
+     "raw": "02.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-06-16",
+     "predicted": "2026-06-16",
+     "raw": "16.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": -135024.2,
+     "predicted": -135024.2,
+     "raw": "-135.024,20",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": -28355.08,
+     "predicted": -28355.08,
+     "raw": "-28.355,08",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": -163379.0,
+     "predicted": -163379.0,
+     "raw": "-163.379,00",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "9843324415/0600",
+     "predicted": "9843324415/0600",
+     "raw": "9843324415/0600",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2751,
+    "output_tokens": 750,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 64.3
+  },
+  {
+   "file": "contract_09.pdf",
+   "template_id": "contract",
+   "difficulty": "hard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Fyzio Centrum Rovnováha s.r.o.",
+     "predicted": "Fyzio Centrum Rovnováha s.r.o.",
+     "raw": "Fyzio Centrum Rovnováha s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "949 32 506",
+     "predicted": "949 32 506",
+     "raw": "949 32 506",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Účetní Centrum Brno-sever s.r.o.",
+     "predicted": "Účetní Centrum Brno-sever s.r.o.",
+     "raw": "Účetní Centrum Brno-sever s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "790 35 311",
+     "predicted": "790 35 311",
+     "raw": "790 35 311",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "vedení účetnictví a zpracování mezd",
+     "predicted": "vedení účetnictví a zpracování mezd",
+     "raw": "vedení účetnictví a zpracování mezd",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 44500.0,
+     "predicted": 44500.0,
+     "raw": "44 500 Kč bez DPH",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-08-07",
+     "predicted": "2026-08-07",
+     "raw": "7. 8. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.95
+    },
+    {
+     "key": "notice_period",
+     "expected": "2 měsíce",
+     "predicted": "2 měsíce",
+     "raw": "2 měsíce",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-08-07",
+     "predicted": "2026-08-07",
+     "raw": "7. 8. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3258,
+    "output_tokens": 797,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 127.9
+  },
+  {
+   "file": "contract_10.pdf",
+   "template_id": "contract",
+   "difficulty": "hard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Pekárna U Mlýna a.s.",
+     "predicted": "Pekárna U Mlýna a.s.",
+     "raw": "Pekárna U Mlýna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "95695508",
+     "predicted": "95695508",
+     "raw": "95695508",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "37401998",
+     "predicted": "37401998",
+     "raw": "37401998",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "subject",
+     "expected": "dodávka a montáž vzduchotechniky do výrobní haly",
+     "predicted": "dodávka a montáž vzduchotechniky do výrobní haly",
+     "raw": "dodávka a montáž vzduchotechniky do výrobní haly",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "price",
+     "expected": 1313600.0,
+     "predicted": 1313600.0,
+     "raw": "1 313 600 Kč bez DPH",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.99
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-07-09",
+     "predicted": "2026-07-09",
+     "raw": "9. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "notice_period",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 0.0
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-07-02",
+     "predicted": "2026-07-02",
+     "raw": "2. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3164,
+    "output_tokens": 692,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 121.5
+  },
+  {
+   "file": "policy_07.pdf",
+   "template_id": "insurance_policy",
+   "difficulty": "hard",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Demo Pojištění Morava a.s.",
+     "predicted": "Demo Pojištění Morava a.s.",
+     "raw": "Demo Pojištění Morava a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policyholder",
+     "expected": "Čisté Prostory CZ s.r.o.",
+     "predicted": "Čisté Prostory CZ s.r.o.",
+     "raw": "Čisté Prostory CZ s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "41110641",
+     "predicted": "41110641",
+     "raw": "41110641",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "policy_number",
+     "expected": "7038181749",
+     "predicted": "7038181749",
+     "raw": "7038181749",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-10-01",
+     "predicted": null,
+     "raw": "1. 10. 2026, 0:00 hod.",
+     "correct": false,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "end_date",
+     "expected": "2027-09-30",
+     "predicted": null,
+     "raw": "30. 9. 2027, 24:00 hod.",
+     "correct": false,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "sum_insured",
+     "expected": 25880000.0,
+     "predicted": 25880000.0,
+     "raw": "25 880 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "deductible",
+     "expected": 5000.0,
+     "predicted": 5000.0,
+     "raw": "5 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "annual_premium",
+     "expected": 33510.0,
+     "predicted": 33510.0,
+     "raw": "33 510 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2601,
+    "output_tokens": 686,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 105.8
+  },
+  {
+   "file": "invoice_16.pdf",
+   "template_id": "invoice",
+   "difficulty": "hard",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Čisté Prostory CZ s.r.o.",
+     "predicted": "Čisté Prostory CZ s.r.o.",
+     "raw": "Čisté Prostory CZ s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "86984055",
+     "predicted": "86984055",
+     "raw": "86984055",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Realitní Správa Jih a.s.",
+     "predicted": "Realitní Správa Jih a.s.",
+     "raw": "Realitní Správa Jih a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260016",
+     "predicted": "260016",
+     "raw": "260016",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-01-24",
+     "predicted": "2026-01-24",
+     "raw": "24.01.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-02-07",
+     "predicted": "2026-02-07",
+     "raw": "07.02.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 6056.15,
+     "predicted": 6056.15,
+     "raw": "6 056,15",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": 1271.79,
+     "predicted": 1271.79,
+     "raw": "1 271,79",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": 7418.0,
+     "predicted": 7418.0,
+     "raw": "7 418,00",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "35-7551631158/0600",
+     "predicted": "35-7551631158/0600",
+     "raw": "35-7551631158/0600",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "sum_mismatch"
+    ],
+    "predicted": [
+     "sum_mismatch"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2735,
+    "output_tokens": 718,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 67.5
   }
- ]
+ ],
+ "summary": {
+  "documents": 33,
+  "failed_documents": 0,
+  "fields": 339,
+  "field_accuracy": 0.9912,
+  "documents_fully_correct": 31,
+  "per_template": {
+   "contract": 1.0,
+   "insurance_policy": 0.9683,
+   "invoice": 0.9943
+  },
+  "per_field": {
+   "annual_premium": 1.0,
+   "bank_account": 1.0,
+   "currency": 1.0,
+   "customer_name": 1.0,
+   "deductible": 1.0,
+   "due_date": 0.9375,
+   "end_date": 0.9412,
+   "insurer": 1.0,
+   "invoice_number": 1.0,
+   "issue_date": 1.0,
+   "net_amount": 1.0,
+   "notice_period": 1.0,
+   "party_a_ico": 1.0,
+   "party_a_name": 1.0,
+   "party_b_ico": 1.0,
+   "party_b_name": 1.0,
+   "policy_number": 1.0,
+   "policyholder": 1.0,
+   "policyholder_ico": 1.0,
+   "price": 1.0,
+   "signing_date": 1.0,
+   "start_date": 0.9412,
+   "subject": 1.0,
+   "sum_insured": 1.0,
+   "supplier_ico": 1.0,
+   "supplier_name": 1.0,
+   "total_amount": 1.0,
+   "vat_amount": 1.0
+  },
+  "per_difficulty": {
+   "hard": 0.9589,
+   "standard": 1.0
+  },
+  "rule_detection": {
+   "tp": 11,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "signals": {
+   "grounded_share": 1.0,
+   "accuracy_grounded": 0.9969,
+   "accuracy_ungrounded": null,
+   "accuracy_high_confidence": 0.9969,
+   "accuracy_low_confidence": null
+  },
+  "latency_s": {
+   "mean": 102.9,
+   "median": 102.1,
+   "max": 187.2
+  },
+  "tokens_per_document": 4074,
+  "errors": [
+   {
+    "file": "invoice_14.pdf",
+    "key": "due_date",
+    "expected": null,
+    "predicted": "2026-01-13",
+    "raw": "13. 1. 2026"
+   },
+   {
+    "file": "policy_07.pdf",
+    "key": "start_date",
+    "expected": "2026-10-01",
+    "predicted": null,
+    "raw": "1. 10. 2026, 0:00 hod."
+   },
+   {
+    "file": "policy_07.pdf",
+    "key": "end_date",
+    "expected": "2027-09-30",
+    "predicted": null,
+    "raw": "30. 9. 2027, 24:00 hod."
+   }
+  ]
+ },
+ "finished": "2026-10-18T14:25:00.841543"
 }
