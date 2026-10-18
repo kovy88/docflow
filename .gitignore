@@ -2,3 +2,6 @@
 # local launch configs with absolute paths
 .claude/
 .playwright-mcp/
+# Market validation and old outreach demo: contain contacts of real companies, never publish
+validation/
+prototype/

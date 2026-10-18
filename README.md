@@ -100,5 +100,4 @@ Testy: `cd backend && uv run pytest` (bez modelu, s falešným extraktorem),
 `cd frontend && npm run lint && npx tsc --noEmit`.
 Evaluace: `cd backend && uv run python scripts/evaluate.py [--model …] [--limit N]`.
 
-Všechny dokumenty v repozitáři jsou fiktivní. Starší podklady k validaci trhu jsou ve
-[validation/](validation/README.md).
+Všechny dokumenty v repozitáři jsou fiktivní.
