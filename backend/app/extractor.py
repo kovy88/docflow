@@ -255,7 +255,9 @@ document, not for this specific instance:
 - fields: 5 to 12 fields a business would most want to extract and check, most important
   first. key is short English snake_case; label is Czech; type is "number" for amounts and
   quantities, "date" for dates, otherwise "string"; description says in Czech how to
-  recognise the value; required is true only if every document of this type has it."""
+  recognise the value; required is true only if every document of this type has it.
+- Include identifiers of the parties when the document shows them (IČO as a separate
+  string field per party, keys ending in _ico), because they can be validated."""
 
 
 class SuggestedField(BaseModel):
