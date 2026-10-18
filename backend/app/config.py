@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 600
     max_upload_mb: int = 20
     low_confidence: float = 0.6
+    # Fuzzy match needed for a quote to count as found; OCR text has misread characters,
+    # so its pages get a looser threshold (measured on the scan set, see README).
+    quote_threshold: float = 0.9
+    ocr_quote_threshold: float = 0.85
 
 
 settings = Settings()

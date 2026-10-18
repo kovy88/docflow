@@ -17,6 +17,8 @@ from app.templates import load_templates
         ("EUR 99", 99.0),
         ("185 000,- Kč", 185000.0),
         ("4,235.00 EUR", 4235.0),
+        ("3.000 000 Kč", 3000000.0),  # OCR read a thousands space as a dot
+        ("12 077.88", 12077.88),
     ],
 )
 def test_parse_number(raw, expected):
@@ -62,6 +64,16 @@ def test_locate_quote_finds_correct_page():
     pages = ["první strana", "Číslo faktury 2026-0142"]
     assert locate_quote("faktury 2026-0142", pages, page=1) == 2
     assert locate_quote("nic takového", pages, page=1) is None
+
+
+def test_locate_quote_is_looser_on_ocr_pages():
+    pages = ["Celkem k úhradě: 3 000 00 Kč"]  # OCR dropped a zero
+    assert locate_quote("3 000 000 Kč", pages, page=1) is None
+    assert locate_quote("3 000 000 Kč", pages, page=1, ocr_pages=[1]) == 1
+    # OCR separates label and value; the model bridges them with an ellipsis
+    pages = ["Net / Základ daně:\nVAT / DPH celkem:\n\nAmount\n698.65 EUR"]
+    assert locate_quote("Net / Základ daně: ... 698.65", pages, 1, ocr_pages=[1]) == 1
+    assert locate_quote("Net / Základ daně: ... 546.32", pages, 1, ocr_pages=[1]) is None
 
 
 def test_invoice_rules():

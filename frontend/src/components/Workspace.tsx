@@ -53,6 +53,14 @@ export function Workspace({ documentId }: { documentId: number }) {
         </Link>
         <span className="text-muted">/</span>
         <span className="font-medium">{doc.filename}</span>
+        {doc.ocr_pages.length > 0 && (
+          <span
+            className="rounded bg-warn-soft px-1.5 py-0.5 text-xs text-warn"
+            title="Text těchto stran byl získán OCR (Tesseract), ne z textové vrstvy PDF."
+          >
+            OCR: str. {doc.ocr_pages.join(", ")}
+          </span>
+        )}
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[60vh_auto] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)] lg:grid-rows-1 lg:overflow-hidden">
         <section

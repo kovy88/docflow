@@ -15,7 +15,7 @@ modelem.
 | Model nepočítá spolehlivě | Model nic nepočítá. Součty, kontrolní součet IČO a pořadí dat ověřuje deterministický kód podle pravidel šablony. |
 | Čísla a data v různých formátech | Normalizace v kódu: `12 100,00 Kč`, `1.234,56`, `185 000,- Kč`, `3. 9. 2026`, `1. října 2026`, ISO. |
 | Lokální model nepodporuje strukturovaný výstup | Vynucené volání nástroje; když parser Ollamy selže, záložní raw dokončení mimo parser; validace Pydanticem a opakování s chybou jako zpětnou vazbou. |
-| Nevíme, jak dobře to funguje | Evaluační sada 33 fiktivních dokumentů včetně těžkých případů a vložených chyb; přesnost po polích, záchyt chyb, užitečnost signálů v UI, verze promptu. |
+| Nevíme, jak dobře to funguje | Evaluační sada 37 fiktivních dokumentů včetně těžkých případů, skenů a vložených chyb; přesnost po polích, záchyt chyb, užitečnost signálů v UI, verze promptu. |
 | Člověk musí mít poslední slovo | Ruční kontrola v UI: opravy se uloží, pravidla se přepočítají; schválené extrakce lze použít jako další trénovací/evaluační data. |
 
 ## Výsledky evaluace
@@ -49,9 +49,25 @@ Co z evaluace vzešlo:
   0,9 a 1,0. Proto Docflow kombinuje tři nezávislé kontroly: citaci, jistotu a pravidla.
 - **Menší MoE model je pro tuto úlohu lepší volba:** stejná přesnost, 3× rychlejší.
 
-Omezení: dokumenty jsou generované s čistou textovou vrstvou, takže výsledky neříkají nic
-o skenech (OCR zatím chybí) ani o skutečně neuspořádaných PDF. Další krok je sada reálných
-anonymizovaných dokumentů.
+**Skeny (OCR).** Strany bez textové vrstvy čte lokálně Tesseract (`ces`). Sada má navíc
+4 „skenované“ dokumenty (obrazové PDF, mírné natočení, šum; 41 polí, 1 vložená chyba).
+qwen3.6:35b-a3b na nich má **95,1 %** přesnost polí (39 / 41), 3 / 4 dokumenty bez chyby
+a vloženou chybu zachytil. Obě chybná pole (prohozený základ a celková částka u faktury,
+kde OCR oddělí popisky od hodnot) zůstala označená jako neověřená, ověřená pole byla
+správně všechna. Co k tomu bylo potřeba:
+
+- **Mediánový filtr před OCR:** tečky šumu Tesseract čte jako interpunkci v číslech;
+  filtr 3×3 zvedl doslovně přečtené hodnoty z 19 na 36 ze 39.
+- **Volnější ověření citací jen na OCR stranách:** nejlepší okno textu s podobností
+  ≥ 0,85 místo nejdelšího společného úseku ≥ 0,9 a citace s „…“ po částech. Práh je
+  změřený: správné hodnoty mají podobnost ≥ 0,88, hodnoty z jiných dokumentů projdou
+  v 3,7 % případů (při 0,8 v 10,6 %).
+- **Normalizace:** OCR přečte „3 000 000 Kč“ jako „3.000 000 Kč“; parser to teď bere jako
+  oddělovače tisíců.
+
+Omezení: výsledky na skenech stojí na 4 generovaných dokumentech; skutečné skeny (horší
+kvalita, razítka, rukopis) budou horší. Sada také nemá skutečně neuspořádaná PDF. Další
+krok je sada reálných anonymizovaných dokumentů.
 
 Celý report včetně chybně vytěžených polí je v [backend/evals/](backend/evals/) a na
 stránce **Evaluace** v aplikaci.
@@ -59,7 +75,7 @@ stránce **Evaluace** v aplikaci.
 ## Architektura
 
 ```
-PDF ─► text po stranách (pypdf)
+PDF ─► text po stranách (pypdf; skeny lokální OCR Tesseract)
     ─► LLM: pro každé pole šablony {hodnota, strana, citace, jistota}
          Ollama (qwen3.8:27b, lokálně) nebo OpenAI (strukturovaný výstup)
     ─► ověření citací v PDF ─► normalizace CZ čísel a dat ─► pravidla šablony

@@ -10,6 +10,7 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, model_validator
@@ -19,7 +20,7 @@ from app.checks import issue
 from app.config import settings
 from app.db import CustomTemplate, Document, Extraction, engine, get_session, init_db, utcnow
 from app.extractor import Extractor, OpenAIExtractor, ToolCallExtractor, suggest_template
-from app.pdf import InvalidPdf, extract_pages
+from app.pdf import InvalidPdf, read_pdf
 from app.pipeline import apply_review, run_extraction
 from app.templates import Template, load_templates
 
@@ -72,6 +73,7 @@ class DocumentOut(BaseModel):
     filename: str
     page_count: int
     has_text: bool
+    ocr_pages: list[int]
 
 
 class ReviewRequest(BaseModel):
@@ -91,7 +93,11 @@ class ExtractionRequest(BaseModel):
 
 def to_out(doc: Document) -> DocumentOut:
     return DocumentOut(
-        id=doc.id, filename=doc.filename, page_count=doc.page_count, has_text=any(doc.pages)
+        id=doc.id,
+        filename=doc.filename,
+        page_count=doc.page_count,
+        has_text=any(doc.pages),
+        ocr_pages=doc.ocr_pages or [],
     )
 
 
@@ -203,13 +209,19 @@ def store_pdf(session: Session, data: bytes, filename: str) -> Document:
     if not data.startswith(b"%PDF"):
         raise HTTPException(415, "Only PDF files are supported")
     try:
-        pages = extract_pages(data)
+        pdf = read_pdf(data)
     except InvalidPdf as exc:
         raise HTTPException(422, f"Cannot read PDF: {exc}") from exc
 
     path = settings.storage_dir / f"{uuid4().hex}.pdf"
     path.write_bytes(data)
-    doc = Document(filename=filename, path=str(path), page_count=len(pages), pages=pages)
+    doc = Document(
+        filename=filename,
+        path=str(path),
+        page_count=len(pdf.pages),
+        pages=pdf.pages,
+        ocr_pages=pdf.ocr_pages,
+    )
     session.add(doc)
     session.commit()
     session.refresh(doc)
@@ -219,7 +231,9 @@ def store_pdf(session: Session, data: bytes, filename: str) -> Document:
 @app.post("/documents", status_code=201)
 async def upload_document(file: UploadFile, session: SessionDep) -> DocumentOut:
     data = await file.read()
-    return to_out(store_pdf(session, data, file.filename or "document.pdf"))
+    # OCR of a scan takes seconds per page; keep it off the event loop.
+    doc = await run_in_threadpool(store_pdf, session, data, file.filename or "document.pdf")
+    return to_out(doc)
 
 
 @app.get("/demo")
@@ -288,16 +302,22 @@ def create_extraction(
     session.add(extraction)
     session.commit()
     session.refresh(extraction)
-    background.add_task(process_extraction, extraction.id, doc.pages, template, extractor)
+    background.add_task(
+        process_extraction, extraction.id, doc.pages, doc.ocr_pages or [], template, extractor
+    )
     return extraction
 
 
 def process_extraction(
-    extraction_id: int, pages: list[str], template: Template, extractor: Extractor
+    extraction_id: int,
+    pages: list[str],
+    ocr_pages: list[int],
+    template: Template,
+    extractor: Extractor,
 ) -> None:
     started = time.perf_counter()
     try:
-        result = run_extraction(pages, template, extractor)
+        result = run_extraction(pages, template, extractor, ocr_pages)
     except Exception as exc:  # stored on the row so the UI can show it
         logger.exception("Extraction %s failed", extraction_id)
         result = {

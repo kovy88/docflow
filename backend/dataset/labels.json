@@ -1062,5 +1062,133 @@
     "expected_issues": [
       "sum_mismatch"
     ]
+  },
+  {
+    "file": "invoice_17.pdf",
+    "template_id": "invoice",
+    "description": "layout A, 3 pol., sazby DPH [21], čísla cz, data cz0, sken bez textové vrstvy",
+    "difficulty": "scan",
+    "raw": {
+      "supplier_name": "Realitní Správa Jih a.s.",
+      "supplier_ico": "48805491",
+      "customer_name": "Tiskárna Nová Linie s.r.o.",
+      "invoice_number": "FV20260017",
+      "issue_date": "19.08.2026",
+      "due_date": "18.09.2026",
+      "net_amount": "57 513,70",
+      "vat_amount": "12 077,88",
+      "total_amount": "69 592,00",
+      "currency": "CZK",
+      "bank_account": "6680820977/0600"
+    },
+    "expected": {
+      "supplier_name": "Realitní Správa Jih a.s.",
+      "supplier_ico": "48805491",
+      "customer_name": "Tiskárna Nová Linie s.r.o.",
+      "invoice_number": "FV20260017",
+      "issue_date": "2026-08-19",
+      "due_date": "2026-09-18",
+      "net_amount": 57513.7,
+      "vat_amount": 12077.88,
+      "total_amount": 69592.0,
+      "currency": "CZK",
+      "bank_account": "6680820977/0600"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_18.pdf",
+    "template_id": "invoice",
+    "description": "layout C, 2 pol., sazby DPH [21], čísla en, data iso, vložené chyby: sum, sken bez textové vrstvy",
+    "difficulty": "scan",
+    "raw": {
+      "supplier_name": "Pekárna U Mlýna a.s.",
+      "supplier_ico": "22666532",
+      "customer_name": "Realitní Správa Jih a.s.",
+      "invoice_number": "FV20260018",
+      "issue_date": "2026-08-05",
+      "due_date": "2026-08-19",
+      "net_amount": "698.65",
+      "vat_amount": "146.72",
+      "total_amount": "-54.63",
+      "currency": "EUR",
+      "bank_account": "19-3818335598/0800"
+    },
+    "expected": {
+      "supplier_name": "Pekárna U Mlýna a.s.",
+      "supplier_ico": "22666532",
+      "customer_name": "Realitní Správa Jih a.s.",
+      "invoice_number": "FV20260018",
+      "issue_date": "2026-08-05",
+      "due_date": "2026-08-19",
+      "net_amount": 698.65,
+      "vat_amount": 146.72,
+      "total_amount": -54.63,
+      "currency": "EUR",
+      "bank_account": "19-3818335598/0800"
+    },
+    "expected_issues": [
+      "sum_mismatch"
+    ]
+  },
+  {
+    "file": "contract_11.pdf",
+    "template_id": "contract",
+    "description": "smlouva o nájmu prostor sloužících k podnikání, 2 str., data cz0, doba indefinite, sken bez textové vrstvy",
+    "difficulty": "scan",
+    "raw": {
+      "party_a_name": "Realitní Správa Jih a.s.",
+      "party_a_ico": "18359434",
+      "party_b_name": "Dřevodílna Šumava s.r.o.",
+      "party_b_ico": "60897104",
+      "subject": "nájem skladovacích prostor o výměře 240 m²",
+      "price": "22 400,- Kč",
+      "start_date": "26.08.2026",
+      "end_date": null,
+      "notice_period": "1 měsíc",
+      "signing_date": "26.08.2026"
+    },
+    "expected": {
+      "party_a_name": "Realitní Správa Jih a.s.",
+      "party_a_ico": "18359434",
+      "party_b_name": "Dřevodílna Šumava s.r.o.",
+      "party_b_ico": "60897104",
+      "subject": "nájem skladovacích prostor o výměře 240 m²",
+      "price": 22400.0,
+      "start_date": "2026-08-26",
+      "end_date": null,
+      "notice_period": "1 měsíc",
+      "signing_date": "2026-08-26"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "policy_08.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění odpovědnosti podnikatele, doba neurčitá, splátky pololetně, sken bez textové vrstvy",
+    "difficulty": "scan",
+    "raw": {
+      "insurer": "Pojišťovna Vzorník a.s.",
+      "policyholder": "Klimatech Morava s.r.o.",
+      "policyholder_ico": "96112310",
+      "policy_number": "7087931986",
+      "start_date": "1. 1. 2026",
+      "end_date": null,
+      "sum_insured": "3 000 000 Kč",
+      "deductible": "10 000 Kč",
+      "annual_premium": "5 470 Kč"
+    },
+    "expected": {
+      "insurer": "Pojišťovna Vzorník a.s.",
+      "policyholder": "Klimatech Morava s.r.o.",
+      "policyholder_ico": "96112310",
+      "policy_number": "7087931986",
+      "start_date": "2026-01-01",
+      "end_date": null,
+      "sum_insured": 3000000.0,
+      "deductible": 10000.0,
+      "annual_premium": 5470.0
+    },
+    "expected_issues": []
   }
 ]

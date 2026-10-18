@@ -49,6 +49,7 @@ def score_document(label: dict, result: dict) -> dict:
                 "expected": expected,
                 "predicted": predicted,
                 "raw": f.get("raw"),
+                "quote": f.get("quote"),
                 "correct": values_match(f.get("type", "string"), expected, predicted),
                 "grounded": f.get("grounded", False),
                 "confidence": f.get("confidence", 0.0),

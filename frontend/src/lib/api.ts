@@ -6,6 +6,8 @@ export type DocumentInfo = {
   filename: string;
   page_count: number;
   has_text: boolean;
+  /** 1-based pages whose text was read by OCR (scans). */
+  ocr_pages: number[];
 };
 
 export type TemplateField = {

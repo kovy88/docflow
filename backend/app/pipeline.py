@@ -33,7 +33,9 @@ def check_value(
     return True
 
 
-def run_extraction(pages: list[str], template: Template, extractor: Extractor) -> dict[str, Any]:
+def run_extraction(
+    pages: list[str], template: Template, extractor: Extractor, ocr_pages: list[int] | None = None
+) -> dict[str, Any]:
     if not any(pages):
         return {
             "status": "failed",
@@ -42,7 +44,7 @@ def run_extraction(pages: list[str], template: Template, extractor: Extractor) -
                 issue(
                     "error",
                     "no_text",
-                    "PDF nemá textovou vrstvu (sken). OCR zatím není podporováno.",
+                    "PDF nemá textovou vrstvu a OCR v něm nenašlo text (je nainstalován Tesseract?).",
                 )
             ],
             "usage": {},
@@ -74,7 +76,14 @@ def run_extraction(pages: list[str], template: Template, extractor: Extractor) -
         # Grounding: the quote must exist in the PDF text and contain the value,
         # otherwise the value may be hallucinated or taken from the wrong place.
         quote = answer.quote or answer.value
-        found = locate_quote(quote, pages, answer.page)
+        found = locate_quote(
+            quote,
+            pages,
+            answer.page,
+            ocr_pages or (),
+            settings.quote_threshold,
+            settings.ocr_quote_threshold,
+        )
         field["grounded"] = found is not None and quote_in(answer.value, quote)
         if not field["grounded"]:
             issues.append(

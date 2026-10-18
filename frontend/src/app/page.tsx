@@ -100,6 +100,7 @@ export default function Home() {
               <span className="text-sm text-muted">
                 {doc.page_count} {doc.page_count === 1 ? "strana" : "stran"}
                 {!doc.has_text && " · bez textu"}
+                {doc.ocr_pages.length > 0 && " · sken (OCR)"}
               </span>
             </Link>
           </li>

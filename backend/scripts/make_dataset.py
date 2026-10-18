@@ -16,8 +16,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import pypdfium2 as pdfium
 from fpdf import FPDF
 from fpdf.fonts import FontFace
+from PIL import Image, ImageChops, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -970,10 +972,41 @@ PLAN = [
     ],
     *[("contract", "sluzby", {"spaced_ico"}, 0), ("contract", "dilo", {"duration"}, 0)],
     *[("policy", "majetek", {"times"}, 0), ("invoice", "A", {"swap", "sum"}, 3)],
+    # Scans (image-only PDFs, read by OCR), appended for the same reason.
+    *[("invoice", "A", {"scan"}, 3), ("invoice", "C", {"scan", "sum"}, 2)],
+    *[("contract", "najem", {"scan"}, 0), ("policy", "odpovednost", {"scan"}, 0)],
 ]
 
+SCAN_DPI = 200
 
-def label(sample: Sample) -> dict:
+
+def scan(path: Path, rng: random.Random) -> None:
+    """Replace a generated PDF by a deterministic imitation of an office scan: an image
+    per page, slightly rotated and blurred, with paper grain and speckles; no text layer."""
+    pdf = pdfium.PdfDocument(path)
+    images = []
+    for page in pdf:
+        img = page.render(scale=SCAN_DPI / 72, grayscale=True).to_pil().convert("L")
+        img = img.rotate(rng.uniform(-1.2, 1.2), Image.Resampling.BICUBIC, fillcolor=255)
+        img = img.filter(ImageFilter.GaussianBlur(0.6))
+        noise = Image.frombytes("L", img.size, rng.randbytes(img.width * img.height))
+        img = ImageChops.subtract(img, noise.point(lambda v: v // 14))  # grain, up to -18
+        img = ImageChops.darker(img, noise.point(lambda v: 60 if v < 2 else 255))  # speckles
+        images.append(img)
+    pdf.close()
+    images[0].save(
+        path,
+        "PDF",
+        save_all=True,
+        append_images=images[1:],
+        resolution=SCAN_DPI,
+        quality=60,
+        creationDate=datetime(YEAR, 1, 1).timetuple(),  # reproducible bytes
+        modDate=datetime(YEAR, 1, 1).timetuple(),
+    )
+
+
+def label(sample: Sample, scanned: bool = False) -> dict:
     template = load_templates()[sample.template_id]
     expected: dict = {}
     issues: list[str] = []
@@ -988,7 +1021,11 @@ def label(sample: Sample) -> dict:
         "file": sample.file,
         "template_id": sample.template_id,
         "description": sample.description,
-        "difficulty": "hard" if "těžký případ" in sample.description else "standard",
+        "difficulty": "scan"
+        if scanned
+        else "hard"
+        if "těžký případ" in sample.description
+        else "standard",
         "raw": sample.raw,
         "expected": expected,
         "expected_issues": sorted(issues),
@@ -1005,13 +1042,18 @@ def main() -> None:
         rng = random.Random(1000 + i)
         counters[kind] += 1
         n = counters[kind]
+        scanned = "scan" in errors
+        errors = errors - {"scan"}
         if kind == "invoice":
             sample = invoice(rng, n, variant, errors, extra)
         elif kind == "contract":
             sample = contract(rng, n, variant, errors)
         else:
             sample = policy(rng, n, variant, errors)
-        labels.append(label(sample))
+        if scanned:
+            scan(OUT / sample.file, rng)
+            sample.description += ", sken bez textové vrstvy"
+        labels.append(label(sample, scanned))
     (OUT / "labels.json").write_text(json.dumps(labels, ensure_ascii=False, indent=2) + "\n")
     print(f"{len(labels)} documents written to {OUT}")
 

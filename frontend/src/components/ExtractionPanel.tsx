@@ -195,7 +195,14 @@ export function ExtractionPanel({
         </p>
         {!document.has_text && (
           <p className="text-sm text-err">
-            PDF nemá textovou vrstvu, OCR zatím není podporováno.
+            PDF nemá textovou vrstvu a OCR v něm nenašlo text (chybí Tesseract?).
+          </p>
+        )}
+        {document.ocr_pages.length > 0 && (
+          <p className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">
+            Sken: text {document.ocr_pages.length === 1 ? "strany" : "stran"}{" "}
+            {document.ocr_pages.join(", ")} byl přečten OCR a může obsahovat
+            chyby. Citace se u nich ověřují volněji a v náhledu se nezvýrazní.
           </p>
         )}
         {error && (
@@ -250,6 +257,7 @@ export function ExtractionPanel({
           extraction={extraction}
           onSaved={replace}
           onFocusField={onFocusField}
+          ocrPages={document.ocr_pages}
         />
       ) : (
         !busy && (
@@ -277,10 +285,12 @@ function ReviewForm({
   extraction,
   onSaved,
   onFocusField,
+  ocrPages,
 }: {
   extraction: Extraction;
   onSaved: (extraction: Extraction) => void;
   onFocusField: (field: ExtractedField | null) => void;
+  ocrPages: number[];
 }) {
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(extraction.fields.map((f) => [f.key, f.raw ?? ""])),
@@ -379,7 +389,12 @@ function ReviewForm({
                       {Math.round(field.confidence * 100)} %
                     </span>
                   )}
-                  {field.page && <span>str. {field.page}</span>}
+                  {field.page && (
+                    <span>
+                      str. {field.page}
+                      {ocrPages.includes(field.page) && " (OCR)"}
+                    </span>
+                  )}
                 </span>
               </div>
               <input

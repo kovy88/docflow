@@ -3,6 +3,7 @@ PDF text and template rules. Nothing here trusts the model."""
 
 import re
 import unicodedata
+from collections.abc import Collection
 from datetime import date, datetime
 from difflib import SequenceMatcher
 from typing import Any
@@ -35,6 +36,12 @@ CZ_MONTHS = {
 
 
 def parse_number(raw: str) -> float:
+    # OCR reads a thousands space as a dot: "3.000 000 Kč". Digit groups of three mixing
+    # dots and spaces can only be thousands separators.
+    if re.fullmatch(r"\s*-?\d{1,3}(?:[ \u00a0.]\d{3})+(?:,\d+)?\D*", raw) and re.search(
+        r"\d \d", raw
+    ):
+        raw = raw.replace(".", " ")
     s = re.sub(r"[^\d,.\-]", "", raw.replace("−", "-"))
     s = re.sub(r"[,.]-+$", "", s)  # "185 000,- Kč"
     if "," in s and "." in s:
@@ -78,24 +85,62 @@ def _canon(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def quote_in(quote: str, page_text: str, threshold: float = 0.9) -> bool:
+def quote_in(quote: str, page_text: str, threshold: float = 0.9, ocr: bool = False) -> bool:
     q, t = _canon(quote), _canon(page_text)
     if not q:
         return False
     if q in t:
         return True
+    if ocr:
+        # OCR splits labels and values into separate blocks, so the model bridges them
+        # with an ellipsis ("Celkem: ... 12 077,88"); every part must be on the page.
+        parts = [p.strip() for p in re.split(r"\.{3}|…", q) if p.strip()]
+        return bool(parts) and all(p in t or _window_ratio(p, t, threshold) for p in parts)
     # PDF text layers often differ from the rendered text (hyphenation, spacing).
     m = SequenceMatcher(None, t, q, autojunk=False).find_longest_match(0, len(t), 0, len(q))
     return m.size / len(q) >= threshold
 
 
-def locate_quote(quote: str, pages: list[str], page: int | None) -> int | None:
-    """Return the 1-based page that really contains the quote, preferring the cited one."""
+def _window_ratio(q: str, t: str, threshold: float) -> bool:
+    """True if some quote-sized window of the text is similar enough to the quote. OCR
+    misreads single characters anywhere ("3 000 00O Kč"), which breaks the longest common
+    substring but costs only a character or two of similarity."""
+    sm = SequenceMatcher(None, autojunk=False)
+    sm.set_seq2(q)  # the quote is analysed once; windows are cheap to swap in
+    for i in range(max(1, len(t) - len(q) + 1)):
+        sm.set_seq1(t[i : i + len(q)])
+        if sm.real_quick_ratio() >= threshold and sm.ratio() >= threshold:
+            return True
+    return False
+
+
+def locate_quote(
+    quote: str,
+    pages: list[str],
+    page: int | None,
+    ocr_pages: Collection[int] = (),
+    threshold: float = 0.9,
+    ocr_threshold: float = 0.85,
+) -> int | None:
+    """Return the 1-based page that really contains the quote, preferring the cited one.
+    OCR pages are matched more loosely: the model may copy a misread character or fix it."""
     order = list(range(1, len(pages) + 1))
     if page in order:
         order.remove(page)
         order.insert(0, page)
-    return next((p for p in order if quote_in(quote, pages[p - 1])), None)
+    return next(
+        (
+            p
+            for p in order
+            if quote_in(
+                quote,
+                pages[p - 1],
+                ocr_threshold if p in ocr_pages else threshold,
+                ocr=p in ocr_pages,
+            )
+        ),
+        None,
+    )
 
 
 def ico_valid(raw: str) -> bool:

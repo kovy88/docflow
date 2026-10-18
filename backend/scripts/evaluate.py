@@ -27,7 +27,7 @@ from app.extractor import (  # noqa: E402
     OpenAIExtractor,
     ToolCallExtractor,
 )
-from app.pdf import extract_pages  # noqa: E402
+from app.pdf import read_pdf  # noqa: E402
 from app.pipeline import run_extraction  # noqa: E402
 from app.templates import load_templates  # noqa: E402
 
@@ -55,6 +55,7 @@ def main() -> None:
     parser.add_argument("--model")
     parser.add_argument("--limit", type=int, help="only the first N documents")
     parser.add_argument("--only", help="substring filter on file names, e.g. 'invoice'")
+    parser.add_argument("--difficulty", choices=["standard", "hard", "scan"])
     parser.add_argument(
         "--resume", type=Path, help="continue evals/<run>.json; failed documents are retried"
     )
@@ -64,6 +65,8 @@ def main() -> None:
     labels = json.loads((DATASET / "labels.json").read_text())
     if args.only:
         labels = [x for x in labels if args.only in x["file"]]
+    if args.difficulty:
+        labels = [x for x in labels if x.get("difficulty", "standard") == args.difficulty]
     labels = labels[: args.limit]
 
     EVALS.mkdir(exist_ok=True)
@@ -90,10 +93,10 @@ def main() -> None:
         if label["file"] in done:
             continue
         template = load_templates()[label["template_id"]]
-        pages = extract_pages((DATASET / label["file"]).read_bytes())
-        started = time.perf_counter()
+        started = time.perf_counter()  # includes OCR of scanned documents
+        pdf = read_pdf((DATASET / label["file"]).read_bytes())
         try:
-            result = run_extraction(pages, template, extractor)
+            result = run_extraction(pdf.pages, template, extractor, pdf.ocr_pages)
             doc = score_document(label, result) | {"usage": result.get("usage", {})}
         except Exception as exc:  # keep going; a failed document is a result too
             doc = {"file": label["file"], "template_id": label["template_id"], "error": repr(exc)}
