@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { DemoPicker } from "@/components/DemoPicker";
 import { api, type DocumentInfo } from "@/lib/api";
 
 export default function Home() {
@@ -104,6 +105,8 @@ export default function Home() {
           </li>
         ))}
       </ul>
+
+      <DemoPicker />
     </div>
   );
 }

@@ -1,14 +1,17 @@
 """Templates describe *what* to extract and *how* to check it. They are the only
 domain-specific part of Docflow: an invoice, a contract or an insurance policy is
-just a different JSON file in app/templates/."""
+just a different JSON file in app/templates/ (built-in) or a template saved from the UI."""
 
 from functools import cache
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+
+TYPE_NAMES = {"string": "text", "number": "číslo", "date": "datum"}
 
 
 class TemplateField(BaseModel):
@@ -46,6 +49,28 @@ class Template(BaseModel):
     description: str = ""
     fields: list[TemplateField] = Field(min_length=1)
     rules: list[Rule] = []
+
+    @model_validator(mode="after")
+    def check_consistency(self):
+        """User-made templates must be internally consistent before they reach the LLM."""
+        types = {f.key: f.type for f in self.fields}
+        if len(types) != len(self.fields):
+            raise ValueError("klíče polí musí být unikátní")
+        for rule in self.rules:
+            if isinstance(rule, IcoRule):
+                needed = {rule.field: "string"}
+            elif isinstance(rule, SumRule):
+                needed = dict.fromkeys([*rule.fields, rule.equals], "number")
+            else:
+                needed = {rule.earlier: "date", rule.later: "date"}
+            for key, kind in needed.items():
+                if key not in types:
+                    raise ValueError(f"pravidlo {rule.type} odkazuje na neexistující pole {key!r}")
+                if types[key] != kind:
+                    raise ValueError(
+                        f"pravidlo {rule.type} vyžaduje, aby pole {key!r} bylo typu {TYPE_NAMES[kind]}"
+                    )
+        return self
 
 
 @cache

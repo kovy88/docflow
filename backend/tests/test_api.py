@@ -46,6 +46,15 @@ def client():
     app.dependency_overrides.clear()
 
 
+def extract(client, document_id, body):
+    """Queue an extraction and read the finished row (TestClient runs background tasks
+    before returning the response)."""
+    r = client.post(f"/documents/{document_id}/extractions", json=body)
+    assert r.status_code == 202, r.text
+    assert r.json()["status"] == "running"
+    return client.get(f"/extractions/{r.json()['id']}").json()
+
+
 def upload(client, path):
     with path.open("rb") as f:
         return client.post("/documents", files={"file": (path.name, f, "application/pdf")})
@@ -66,9 +75,7 @@ def test_extraction_flags_planted_errors(client, samples):
     assert doc["has_text"] and doc["page_count"] == 1
 
     app.dependency_overrides[get_extractor] = lambda: FakeExtractor(BAD_INVOICE)
-    r = client.post(f"/documents/{doc['id']}/extractions", json={"template_id": "invoice"})
-    assert r.status_code == 201, r.text
-    result = r.json()
+    result = extract(client, doc["id"], {"template_id": "invoice"})
 
     assert result["status"] == "needs_review"
     fields = {f["key"]: f for f in result["fields"]}
@@ -119,7 +126,123 @@ def test_inline_template(client, samples):
     app.dependency_overrides[get_extractor] = lambda: FakeExtractor(
         {"premium": ("48 600", 1, "Roční pojistné: 48 600 Kč", 0.9)}
     )
-    r = client.post(f"/documents/{doc['id']}/extractions", json={"template": template})
-    assert r.status_code == 201, r.text
-    assert r.json()["status"] == "ok"
-    assert r.json()["fields"][0]["value"] == 48600.0
+    result = extract(client, doc["id"], {"template": template})
+    assert result["status"] == "ok"
+    assert result["fields"][0]["value"] == 48600.0
+
+
+def test_demo_documents(client):
+    demo = client.get("/demo").json()
+    assert len(demo) == 26 and demo[0]["file"] == "invoice_01.pdf"
+    r = client.post("/demo/invoice_01.pdf")
+    assert r.status_code == 201 and r.json()["has_text"]
+    assert client.post("/demo/..%2Fpyproject.toml").status_code == 404
+
+
+def test_export(client, samples):
+    doc = upload(client, samples / "pojistka.pdf").json()
+    app.dependency_overrides[get_extractor] = lambda: FakeExtractor(
+        {"annual_premium": ("48 600 Kč", 1, "Roční pojistné: 48 600 Kč", 0.9)}
+    )
+    extraction = extract(client, doc["id"], {"template_id": "insurance_policy"})
+    data = client.get(f"/extractions/{extraction['id']}/export").json()
+    assert data["values"]["annual_premium"] == 48600.0
+    csv_text = client.get(f"/extractions/{extraction['id']}/export?format=csv").text
+    assert csv_text.startswith("\ufeffkey,label") and "Roční pojistné" in csv_text
+    assert client.get(f"/extractions/{extraction['id']}/export?format=xml").status_code == 422
+
+
+class BrokenExtractor:
+    model = "broken"
+
+    def extract(self, pages, template):
+        raise RuntimeError("model went away")
+
+
+def test_failed_extraction_is_stored(client, samples):
+    doc = upload(client, samples / "faktura_ok.pdf").json()
+    app.dependency_overrides[get_extractor] = lambda: BrokenExtractor()
+    result = extract(client, doc["id"], {"template_id": "invoice"})
+    assert result["status"] == "failed"
+    assert result["issues"][0]["code"] == "extraction_failed"
+    assert "model went away" in result["issues"][0]["message"]
+    assert client.patch(f"/extractions/{result['id']}", json={"values": {}}).status_code == 409
+
+
+DELIVERY_NOTE = {
+    "id": "delivery_note",
+    "name": "Dodací list",
+    "fields": [
+        {"key": "number", "label": "Číslo"},
+        {"key": "supplier_ico", "label": "IČO dodavatele"},
+        {"key": "shipped", "label": "Odesláno", "type": "date"},
+        {"key": "delivered", "label": "Doručeno", "type": "date"},
+    ],
+    "rules": [
+        {"type": "ico", "field": "supplier_ico"},
+        {"type": "date_order", "earlier": "shipped", "later": "delivered"},
+    ],
+}
+
+
+def test_custom_template_crud(client, samples):
+    assert client.post("/templates", json=DELIVERY_NOTE).status_code == 201
+    assert client.post("/templates", json=DELIVERY_NOTE).status_code == 409
+    templates = {t["id"]: t for t in client.get("/templates").json()}
+    assert templates["delivery_note"]["builtin"] is False
+    assert templates["invoice"]["builtin"] is True
+
+    changed = DELIVERY_NOTE | {"name": "Dodací list v2"}
+    assert client.put("/templates/delivery_note", json=changed).json()["name"] == "Dodací list v2"
+    assert client.put("/templates/invoice", json=changed).status_code == 409
+
+    # Saved templates can be used for extraction by id.
+    doc = upload(client, samples / "faktura_ok.pdf").json()
+    app.dependency_overrides[get_extractor] = lambda: FakeExtractor(
+        {"number": ("2026-0142", 1, "daňový doklad č. 2026-0142", 0.9)}
+    )
+    result = extract(client, doc["id"], {"template_id": "delivery_note"})
+    assert result["template_id"] == "delivery_note"
+    assert [i["code"] for i in result["issues"]] == ["missing"] * 3
+
+    assert client.delete("/templates/delivery_note").status_code == 204
+    assert client.get("/templates/delivery_note").status_code == 404
+    assert client.delete("/templates/invoice").status_code == 409
+
+
+def test_template_validation(client):
+    bad_rule = DELIVERY_NOTE | {"id": "x", "rules": [{"type": "ico", "field": "nope"}]}
+    assert client.post("/templates", json=bad_rule).status_code == 422
+    wrong_type = DELIVERY_NOTE | {
+        "id": "y",
+        "rules": [{"type": "sum", "fields": ["number"], "equals": "number"}],
+    }
+    assert client.post("/templates", json=wrong_type).status_code == 422
+    dup = DELIVERY_NOTE | {"id": "z", "fields": DELIVERY_NOTE["fields"] * 2, "rules": []}
+    assert client.post("/templates", json=dup).status_code == 422
+
+
+class SuggestingExtractor(FakeExtractor):
+    def structured(self, system, user, schema_model):
+        draft = {
+            "name": "Faktura",
+            "description": "Doklad.",
+            "fields": [
+                {
+                    "key": "total",
+                    "label": "Celkem",
+                    "type": "number",
+                    "description": "",
+                    "required": True,
+                }
+            ],
+        }
+        return schema_model.model_validate(draft), {}
+
+
+def test_template_suggestion_gets_unique_id(client, samples):
+    doc = upload(client, samples / "faktura_ok.pdf").json()
+    app.dependency_overrides[get_extractor] = lambda: SuggestingExtractor({})
+    r = client.post(f"/documents/{doc['id']}/template-suggestion")
+    assert r.status_code == 200, r.text
+    assert r.json()["id"] == "faktura" and r.json()["fields"][0]["key"] == "total"

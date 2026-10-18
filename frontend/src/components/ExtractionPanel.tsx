@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   api,
   parseTimestamp,
@@ -15,7 +16,7 @@ type Props = {
   document: DocumentInfo;
   templates: Template[];
   extractions: Extraction[];
-  onExtractionsChange: (extractions: Extraction[]) => void;
+  onExtractionsChange: Dispatch<SetStateAction<Extraction[]>>;
   onFocusField: (field: ExtractedField | null) => void;
 };
 
@@ -27,18 +28,41 @@ const STATUS: Record<
   needs_review: { label: "Ke kontrole", className: "bg-warn-soft text-warn" },
   approved: { label: "Schváleno", className: "bg-accent-soft text-accent" },
   failed: { label: "Selhalo", className: "bg-err-soft text-err" },
+  running: { label: "Běží", className: "bg-accent-soft text-accent" },
 };
 
-/** Mounted only while an extraction runs, so it always starts from 0:00. */
-function Elapsed() {
-  const [seconds, setSeconds] = useState(0);
+/** Time since the extraction was queued (survives page reloads). */
+function Elapsed({ since }: { since: string }) {
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(timer);
+    const tick = () => setNow(Date.now());
+    const timer = setInterval(tick, 1000);
+    const first = setTimeout(tick, 0);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(first);
+    };
   }, []);
+  const seconds = now
+    ? Math.max(0, Math.floor((now - parseTimestamp(since).getTime()) / 1000))
+    : 0;
   return (
     <span className="tabular-nums">{`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`}</span>
   );
+}
+
+/** Preselect a template from the file name ("faktura_…", "contract_03.pdf"). */
+function guessTemplate(filename: string, templates: Template[]): string {
+  const name = filename.toLowerCase();
+  const hints: Record<string, string[]> = {
+    invoice: ["invoice", "faktur"],
+    contract: ["contract", "smlouv"],
+    insurance_policy: ["policy", "pojist"],
+  };
+  const hit = Object.entries(hints).find(([, words]) =>
+    words.some((w) => name.includes(w)),
+  );
+  return hit?.[0] ?? templates[0]?.id ?? "invoice";
 }
 
 export function ExtractionPanel({
@@ -49,15 +73,38 @@ export function ExtractionPanel({
   onFocusField,
 }: Props) {
   const [templateId, setTemplateId] = useState(
-    extractions[0]?.template_id ?? "invoice",
+    extractions[0]?.template_id ?? guessTemplate(document.filename, templates),
   );
   const [selectedId, setSelectedId] = useState<number | null>(
     extractions[0]?.id ?? null,
   );
-  const [running, setRunning] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [suggestingSince, setSuggestingSince] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const extraction = extractions.find((e) => e.id === selectedId) ?? null;
+  const runningIds = extractions
+    .filter((e) => e.status === "running")
+    .map((e) => e.id)
+    .join(",");
+  const busy = starting || runningIds !== "" || suggestingSince !== null;
+  const router = useRouter();
+
+  // Extractions run in the background on the server; poll until they finish.
+  useEffect(() => {
+    if (!runningIds) return;
+    const timer = setInterval(async () => {
+      for (const id of runningIds.split(",").map(Number)) {
+        const fresh = await api.extraction(id).catch(() => null);
+        if (fresh && fresh.status !== "running") {
+          onExtractionsChange((prev) =>
+            prev.map((e) => (e.id === fresh.id ? fresh : e)),
+          );
+        }
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [runningIds, onExtractionsChange]);
 
   function select(id: number) {
     setSelectedId(id);
@@ -65,20 +112,39 @@ export function ExtractionPanel({
   }
 
   function replace(updated: Extraction) {
-    const rest = extractions.filter((e) => e.id !== updated.id);
-    onExtractionsChange([updated, ...rest].sort((a, b) => b.id - a.id));
+    onExtractionsChange((prev) =>
+      [updated, ...prev.filter((e) => e.id !== updated.id)].sort(
+        (a, b) => b.id - a.id,
+      ),
+    );
     select(updated.id);
   }
 
+  async function suggest() {
+    setSuggestingSince(new Date().toISOString());
+    setError(null);
+    try {
+      const draft = await api.suggestTemplate(document.id);
+      sessionStorage.setItem(
+        "docflow:template-draft",
+        JSON.stringify({ ...draft, fromAi: true }),
+      );
+      router.push("/templates/new");
+    } catch (e) {
+      setError((e as Error).message);
+      setSuggestingSince(null);
+    }
+  }
+
   async function run() {
-    setRunning(true);
+    setStarting(true);
     setError(null);
     try {
       replace(await api.extract(document.id, templateId));
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setRunning(false);
+      setStarting(false);
     }
   }
 
@@ -89,7 +155,7 @@ export function ExtractionPanel({
           <select
             value={templateId}
             onChange={(e) => setTemplateId(e.target.value)}
-            disabled={running}
+            disabled={busy}
             className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2 py-1.5"
             aria-label="Šablona"
           >
@@ -102,23 +168,31 @@ export function ExtractionPanel({
           <button
             type="button"
             onClick={run}
-            disabled={running || !document.has_text}
+            disabled={busy || !document.has_text}
             className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
-            {running ? (
-              <>
-                Extrahuji… <Elapsed />
-              </>
-            ) : (
-              "Extrahovat"
-            )}
+            {busy ? "Extrahuji…" : "Extrahovat"}
           </button>
         </div>
-        {running && (
-          <p className="text-sm text-muted">
-            Model běží lokálně, jeden dokument trvá zhruba 2–3 minuty.
-          </p>
-        )}
+        <p className="text-xs text-muted">
+          {suggestingSince ? (
+            <>
+              Model navrhuje šablonu… <Elapsed since={suggestingSince} />
+            </>
+          ) : (
+            <>
+              Jiný typ dokumentu?{" "}
+              <button
+                type="button"
+                onClick={suggest}
+                disabled={busy || !document.has_text}
+                className="font-medium text-accent hover:underline disabled:opacity-50"
+              >
+                Navrhnout šablonu pomocí AI
+              </button>
+            </>
+          )}
+        </p>
         {!document.has_text && (
           <p className="text-sm text-err">
             PDF nemá textovou vrstvu, OCR zatím není podporováno.
@@ -158,7 +232,19 @@ export function ExtractionPanel({
         )}
       </div>
 
-      {extraction ? (
+      {extraction?.status === "running" ? (
+        <div className="space-y-2 p-4">
+          <p className="flex items-center gap-2 font-medium">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+            Extrahuji… <Elapsed since={extraction.created_at} />
+          </p>
+          <p className="text-sm text-muted">
+            Model {extraction.model} běží lokálně, jeden dokument trvá zhruba
+            2–3 minuty. Extrakce běží na serveru, stránku můžeš zavřít a vrátit
+            se později.
+          </p>
+        </div>
+      ) : extraction ? (
         <ReviewForm
           key={`${extraction.id}-${extraction.reviewed_at}`}
           extraction={extraction}
@@ -166,7 +252,7 @@ export function ExtractionPanel({
           onFocusField={onFocusField}
         />
       ) : (
-        !running && (
+        !busy && (
           <p className="p-4 text-muted">
             Vyber šablonu a spusť extrakci. Výsledek se uloží a najdeš ho tu i
             později.
@@ -247,6 +333,8 @@ function ReviewForm({
               : "chyb"}{" "}
           · {warnings} upozornění · {extraction.model}
           {tokens > 0 && ` · ${tokens.toLocaleString("cs-CZ")} tokenů`}
+          {extraction.usage.latency_s != null &&
+            ` · ${Math.round(extraction.usage.latency_s)} s`}
         </p>
         {docIssues.map((issue, i) => (
           <IssueLine key={i} issue={issue} />
@@ -333,6 +421,20 @@ function ReviewForm({
               ? `Uložit opravy (${changed.length}) a schválit`
               : "Schválit"}
         </button>
+        <span className="ml-auto flex gap-2 text-sm">
+          <a
+            className="text-accent hover:underline"
+            href={api.exportUrl(extraction.id, "csv")}
+          >
+            CSV
+          </a>
+          <a
+            className="text-accent hover:underline"
+            href={api.exportUrl(extraction.id, "json")}
+          >
+            JSON
+          </a>
+        </span>
         {extraction.reviewed_at && (
           <span className="text-sm text-muted">
             Zkontrolováno{" "}

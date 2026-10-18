@@ -37,6 +37,13 @@ class Extraction(SQLModel, table=True):
     reviewed_at: datetime | None = None
 
 
+class CustomTemplate(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    data: dict[str, Any] = Field(sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
 

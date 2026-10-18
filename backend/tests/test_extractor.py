@@ -38,7 +38,7 @@ def test_tool_call_is_parsed():
     out = extractor.extract(["č. 42"], TEMPLATE)
     assert out.answers["number"].value == "42"
     assert out.usage == {"input_tokens": 10, "output_tokens": 5, "attempts": 1, "mode": "tool"}
-    assert calls[0]["tool_choice"]["function"]["name"] == "submit_extraction"
+    assert calls[0]["tool_choice"]["function"]["name"] == "submit"
 
 
 def test_invalid_output_is_retried_with_error_feedback():
@@ -94,3 +94,60 @@ def test_tool_parse_error_falls_back_to_json_mode():
     assert out.usage["attempts"] == 2 and out.usage["mode"] == "json"
     assert "tools" not in calls[-1]
     assert "JSON object matching this schema" in calls[-1]["messages"][-1]["content"]
+
+
+def test_suggest_template_is_made_valid():
+    from app.extractor import suggest_template
+
+    draft = {
+        "name": "Dodací list",
+        "description": "Doklad o předání zboží.",
+        "fields": [
+            {
+                "key": "Číslo dodacího listu",
+                "label": "Číslo",
+                "type": "string",
+                "description": "",
+                "required": True,
+            },
+            {
+                "key": "supplier_ico",
+                "label": "IČO dodavatele",
+                "type": "string",
+                "description": "",
+                "required": True,
+            },
+            {
+                "key": "supplier ico",
+                "label": "IČO 2",
+                "type": "string",
+                "description": "",
+                "required": False,
+            },
+            {
+                "key": "2nd_date",
+                "label": "Datum",
+                "type": "date",
+                "description": "",
+                "required": True,
+            },
+        ],
+    }
+    extractor, _ = extractor_with([json.dumps(draft)])
+    template, usage = suggest_template(extractor, ["Dodací list č. 7"])
+    assert template.id == "dodaci_list"
+    assert [f.key for f in template.fields] == [
+        "cislo_dodaciho_listu",
+        "supplier_ico",
+        "supplier_ico_2",
+        "field_2nd_date",
+    ]
+    assert [r.field for r in template.rules] == ["supplier_ico", "supplier_ico_2"]
+    assert usage["attempts"] == 1
+
+
+def test_nested_list_items_encoded_as_strings():
+    from app.extractor import loads_lenient
+
+    raw = json.dumps({"fields": [json.dumps({"key": "a"})], "name": "x"})
+    assert loads_lenient(raw) == {"fields": [{"key": "a"}], "name": "x"}

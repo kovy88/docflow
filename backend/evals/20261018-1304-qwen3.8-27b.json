@@ -1,0 +1,611 @@
+{
+ "model": "qwen3.8:27b",
+ "provider": "ollama",
+ "started": "2026-10-18T13:04:08.167335",
+ "documents": [
+  {
+   "file": "invoice_01.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "88501892",
+     "predicted": "88501892",
+     "raw": "88501892",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Strojírna Bystřice Demo a.s.",
+     "predicted": "Strojírna Bystřice Demo a.s.",
+     "raw": "Strojírna Bystřice Demo a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "FV20260001",
+     "predicted": "FV20260001",
+     "raw": "FV20260001",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-01-22",
+     "predicted": "2026-01-22",
+     "raw": "22.01.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-02-21",
+     "predicted": "2026-02-21",
+     "raw": "21.02.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 15914.1,
+     "predicted": 15914.1,
+     "raw": "15 914,10",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": 3126.21,
+     "predicted": 3126.21,
+     "raw": "3 126,21",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": 19040.0,
+     "predicted": 19040.0,
+     "raw": "19 040,00",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "19-3596840071/0600",
+     "predicted": "19-3596840071/0600",
+     "raw": "19-3596840071/0600",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2788,
+    "output_tokens": 740,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 135.7
+  },
+  {
+   "file": "invoice_02.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Pekárna U Mlýna a.s.",
+     "predicted": "Pekárna U Mlýna a.s.",
+     "raw": "Pekárna U Mlýna a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "78229529",
+     "predicted": "78229529",
+     "raw": "78229529",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Tiskárna Nová Linie s.r.o.",
+     "predicted": "Tiskárna Nová Linie s.r.o.",
+     "raw": "Tiskárna Nová Linie s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "FV20260002",
+     "predicted": "FV20260002",
+     "raw": "FV20260002",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-02-21",
+     "predicted": "2026-02-21",
+     "raw": "21.02.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-03-23",
+     "predicted": "2026-03-23",
+     "raw": "23.03.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 13510.05,
+     "predicted": 13510.05,
+     "raw": "13 510,05",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 1768.7,
+     "predicted": 1768.7,
+     "raw": "1 768,70",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 15278.75,
+     "predicted": 15278.75,
+     "raw": "15 278,75",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "4419286821/5500",
+     "predicted": "4419286821/5500",
+     "raw": "4419286821/5500",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2628,
+    "output_tokens": 670,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 109.2
+  },
+  {
+   "file": "invoice_03.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Hotel Pod Vyhlídkou s.r.o.",
+     "predicted": "Hotel Pod Vyhlídkou s.r.o.",
+     "raw": "Hotel Pod Vyhlídkou s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "56547641",
+     "predicted": "56547641",
+     "raw": "56547641",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Fyzio Centrum Rovnováha s.r.o.",
+     "predicted": "Fyzio Centrum Rovnováha s.r.o.",
+     "raw": "Fyzio Centrum Rovnováha s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260003",
+     "predicted": "260003",
+     "raw": "260003",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-08-25",
+     "predicted": "2026-08-25",
+     "raw": "2026-08-25",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-09-09",
+     "predicted": "2026-09-09",
+     "raw": "2026-09-09",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 2392.3,
+     "predicted": 2392.3,
+     "raw": "2,392.30",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 287.08,
+     "predicted": 287.08,
+     "raw": "287.08",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 2679.38,
+     "predicted": 2679.38,
+     "raw": "2,679.38",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "EUR",
+     "predicted": "EUR",
+     "raw": "EUR",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "2870066414/2010",
+     "predicted": "2870066414/2010",
+     "raw": "2870066414/2010",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2523,
+    "output_tokens": 695,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 57.4
+  },
+  {
+   "file": "invoice_04.pdf",
+   "template_id": "invoice",
+   "status": "needs_review",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Kancelářské Potřeby Plus s.r.o.",
+     "predicted": "Kancelářské Potřeby Plus s.r.o.",
+     "raw": "Kancelářské Potřeby Plus s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "86061127",
+     "predicted": "86061127",
+     "raw": "86061127",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Autoservis Vltava Sever s.r.o.",
+     "predicted": "Autoservis Vltava Sever s.r.o.",
+     "raw": "Autoservis Vltava Sever s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "2026-0004",
+     "predicted": "2026-0004",
+     "raw": "2026-0004",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-09-18",
+     "predicted": "2026-09-18",
+     "raw": "18. 9. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-10-02",
+     "predicted": "2026-10-02",
+     "raw": "2. 10. 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 47706.54,
+     "predicted": 47706.54,
+     "raw": "47 706,54",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "vat_amount",
+     "expected": 10018.37,
+     "predicted": 10018.37,
+     "raw": "10 018,37",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "total_amount",
+     "expected": 57624.91,
+     "predicted": 57624.91,
+     "raw": "57 624,91",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.9
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "35-3008383374/6100",
+     "predicted": "35-3008383374/6100",
+     "raw": "35-3008383374/6100",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [
+     "sum_mismatch"
+    ],
+    "predicted": [
+     "sum_mismatch"
+    ],
+    "tp": 1,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2805,
+    "output_tokens": 747,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 70.4
+  },
+  {
+   "file": "invoice_05.pdf",
+   "template_id": "invoice",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "35316250",
+     "predicted": "35316250",
+     "raw": "35316250",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "customer_name",
+     "expected": "Lumen Data Systems s.r.o.",
+     "predicted": "Lumen Data Systems s.r.o.",
+     "raw": "Lumen Data Systems s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "invoice_number",
+     "expected": "260005",
+     "predicted": "260005",
+     "raw": "260005",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-06-14",
+     "predicted": "2026-06-14",
+     "raw": "14.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-06-29",
+     "predicted": "2026-06-29",
+     "raw": "29.06.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "net_amount",
+     "expected": 126435.69,
+     "predicted": 126435.69,
+     "raw": "126 435,69",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "vat_amount",
+     "expected": 24538.86,
+     "predicted": 24538.86,
+     "raw": "24 538,86",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "total_amount",
+     "expected": 150974.55,
+     "predicted": 150974.55,
+     "raw": "150 974,55",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    },
+    {
+     "key": "bank_account",
+     "expected": "35-1990220850/0300",
+     "predicted": "35-1990220850/0300",
+     "raw": "35-1990220850/0300",
+     "correct": true,
+     "grounded": true,
+     "confidence": 0.95
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2742,
+    "output_tokens": 667,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 60.8
+  }
+ ]
+}

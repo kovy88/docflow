@@ -39,6 +39,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <span className="hidden text-sm text-muted sm:inline">
             extrakce dokumentů s ověřenými citacemi
           </span>
+          <nav className="ml-auto flex gap-4 text-sm">
+            <Link href="/" className="text-muted hover:text-foreground">
+              Dokumenty
+            </Link>
+            <Link
+              href="/templates"
+              className="text-muted hover:text-foreground"
+            >
+              Šablony
+            </Link>
+            <Link href="/evals" className="text-muted hover:text-foreground">
+              Evaluace
+            </Link>
+          </nav>
         </header>
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       </body>
