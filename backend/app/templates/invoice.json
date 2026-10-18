@@ -1,0 +1,23 @@
+{
+  "id": "invoice",
+  "name": "Faktura",
+  "description": "Daňový doklad / faktura od dodavatele.",
+  "fields": [
+    {"key": "supplier_name", "label": "Dodavatel", "description": "Obchodní název dodavatele (vystavitele faktury)."},
+    {"key": "supplier_ico", "label": "IČO dodavatele", "description": "Identifikační číslo dodavatele, 8 číslic."},
+    {"key": "customer_name", "label": "Odběratel", "description": "Obchodní název odběratele."},
+    {"key": "invoice_number", "label": "Číslo faktury"},
+    {"key": "issue_date", "label": "Datum vystavení", "type": "date"},
+    {"key": "due_date", "label": "Datum splatnosti", "type": "date"},
+    {"key": "net_amount", "label": "Základ daně", "type": "number", "description": "Celková částka bez DPH."},
+    {"key": "vat_amount", "label": "DPH", "type": "number", "description": "Celková částka DPH."},
+    {"key": "total_amount", "label": "Celkem k úhradě", "type": "number", "description": "Celková částka včetně DPH."},
+    {"key": "currency", "label": "Měna", "description": "Kód měny, např. CZK nebo EUR."},
+    {"key": "bank_account", "label": "Bankovní účet", "required": false}
+  ],
+  "rules": [
+    {"type": "ico", "field": "supplier_ico"},
+    {"type": "sum", "fields": ["net_amount", "vat_amount"], "equals": "total_amount", "tolerance": 0.5},
+    {"type": "date_order", "earlier": "issue_date", "later": "due_date"}
+  ]
+}

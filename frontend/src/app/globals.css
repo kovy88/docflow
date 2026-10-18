@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --foreground: #16181d;
+  --muted: #646b78;
+  --line: #e2e5ea;
+  --accent: #2f5bea;
+  --accent-soft: #e8eefe;
+  --ok: #18794e;
+  --ok-soft: #e6f4ec;
+  --warn: #a35200;
+  --warn-soft: #fdf1e3;
+  --err: #c4262e;
+  --err-soft: #fdeaea;
+  --highlight: rgba(255, 196, 0, 0.45);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-err: var(--err);
+  --color-err-soft: var(--err-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Quote highlight inside the react-pdf text layer. */
+.textLayer mark {
+  background: var(--highlight);
+  color: transparent;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--highlight);
+}

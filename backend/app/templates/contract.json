@@ -1,0 +1,22 @@
+{
+  "id": "contract",
+  "name": "Smlouva",
+  "description": "Obchodní smlouva mezi dvěma stranami (dílo, služby, nájem).",
+  "fields": [
+    {"key": "party_a_name", "label": "Smluvní strana A", "description": "První smluvní strana (objednatel / pronajímatel)."},
+    {"key": "party_a_ico", "label": "IČO strany A", "required": false},
+    {"key": "party_b_name", "label": "Smluvní strana B", "description": "Druhá smluvní strana (zhotovitel / nájemce)."},
+    {"key": "party_b_ico", "label": "IČO strany B", "required": false},
+    {"key": "subject", "label": "Předmět smlouvy", "description": "Stručně, co je předmětem plnění."},
+    {"key": "price", "label": "Cena", "type": "number", "required": false, "description": "Sjednaná cena nebo měsíční platba."},
+    {"key": "start_date", "label": "Účinnost od", "type": "date"},
+    {"key": "end_date", "label": "Platnost do", "type": "date", "required": false, "description": "Null, pokud je smlouva na dobu neurčitou."},
+    {"key": "notice_period", "label": "Výpovědní lhůta", "required": false},
+    {"key": "signing_date", "label": "Datum podpisu", "type": "date", "required": false}
+  ],
+  "rules": [
+    {"type": "ico", "field": "party_a_ico"},
+    {"type": "ico", "field": "party_b_ico"},
+    {"type": "date_order", "earlier": "start_date", "later": "end_date"}
+  ]
+}

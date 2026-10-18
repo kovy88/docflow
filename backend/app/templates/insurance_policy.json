@@ -1,0 +1,20 @@
+{
+  "id": "insurance_policy",
+  "name": "Pojistná smlouva",
+  "description": "Pojistná smlouva nebo pojistka firemního majetku či odpovědnosti.",
+  "fields": [
+    {"key": "insurer", "label": "Pojistitel"},
+    {"key": "policyholder", "label": "Pojistník"},
+    {"key": "policyholder_ico", "label": "IČO pojistníka"},
+    {"key": "policy_number", "label": "Číslo pojistné smlouvy"},
+    {"key": "start_date", "label": "Počátek pojištění", "type": "date"},
+    {"key": "end_date", "label": "Konec pojištění", "type": "date", "required": false},
+    {"key": "sum_insured", "label": "Pojistná částka / limit plnění", "type": "number"},
+    {"key": "deductible", "label": "Spoluúčast", "type": "number", "required": false},
+    {"key": "annual_premium", "label": "Roční pojistné", "type": "number"}
+  ],
+  "rules": [
+    {"type": "ico", "field": "policyholder_ico"},
+    {"type": "date_order", "earlier": "start_date", "later": "end_date"}
+  ]
+}
