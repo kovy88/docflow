@@ -29,7 +29,17 @@ def test_parse_number_rejects_text():
 
 
 @pytest.mark.parametrize(
-    "raw", ["3. 9. 2026", "03.09.2026", "2026-09-03", "3/9/2026", "3. září 2026", "3. Září 2026"]
+    "raw",
+    [
+        "3. 9. 2026",
+        "03.09.2026",
+        "2026-09-03",
+        "3/9/2026",
+        "3. září 2026",
+        "3. Září 2026",
+        "3. 9. 2026, 0:00 hod.",
+        "3. 9. 2026 24:00",
+    ],
 )
 def test_parse_date(raw):
     assert parse_date(raw).isoformat() == "2026-09-03"

@@ -400,5 +400,6 @@ def list_evals() -> list[dict]:
         run = json.loads(path.read_text())
         if "summary" in run:
             keep = ("model", "provider", "started", "finished", "summary")
-            runs.append({"id": path.stem} | {k: run.get(k) for k in keep})
+            meta = {"id": path.stem, "prompt_version": run.get("prompt_version", 1)}
+            runs.append(meta | {k: run.get(k) for k in keep})
     return runs

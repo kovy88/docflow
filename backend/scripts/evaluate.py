@@ -21,7 +21,12 @@ sys.path.insert(0, str(ROOT))
 
 from app.config import settings  # noqa: E402
 from app.evaluation import markdown, score_document, summarize  # noqa: E402
-from app.extractor import Extractor, OpenAIExtractor, ToolCallExtractor  # noqa: E402
+from app.extractor import (  # noqa: E402
+    PROMPT_VERSION,
+    Extractor,
+    OpenAIExtractor,
+    ToolCallExtractor,
+)
 from app.pdf import extract_pages  # noqa: E402
 from app.pipeline import run_extraction  # noqa: E402
 from app.templates import load_templates  # noqa: E402
@@ -50,7 +55,9 @@ def main() -> None:
     parser.add_argument("--model")
     parser.add_argument("--limit", type=int, help="only the first N documents")
     parser.add_argument("--only", help="substring filter on file names, e.g. 'invoice'")
-    parser.add_argument("--resume", type=Path, help="continue a previous evals/<run>.json")
+    parser.add_argument(
+        "--resume", type=Path, help="continue evals/<run>.json; failed documents are retried"
+    )
     args = parser.parse_args()
 
     extractor = make_extractor(args.provider, args.model)
@@ -63,15 +70,20 @@ def main() -> None:
     if args.resume:
         path = args.resume
         run = json.loads(path.read_text())
+        if run.get("prompt_version", 1) != PROMPT_VERSION:
+            sys.exit("Run used a different prompt version; start a new run instead of resuming.")
     else:
         slug = re.sub(r"[^a-z0-9.]+", "-", extractor.model.lower()).strip("-")
-        path = EVALS / f"{datetime.now():%Y%m%d-%H%M}-{slug}.json"
+        path = EVALS / f"{datetime.now():%Y%m%d-%H%M}-{slug}-p{PROMPT_VERSION}.json"
         run = {
             "model": extractor.model,
             "provider": args.provider,
+            "prompt_version": PROMPT_VERSION,
             "started": datetime.now().isoformat(),
             "documents": [],
         }
+    # On resume, failed documents are run again.
+    run["documents"] = [d for d in run["documents"] if not d.get("error")]
     done = {d["file"] for d in run["documents"]}
 
     for i, label in enumerate(labels, 1):
@@ -98,7 +110,8 @@ def main() -> None:
     run["summary"] = summarize(run["documents"])
     run["finished"] = datetime.now().isoformat()
     path.write_text(json.dumps(run, ensure_ascii=False, indent=1, default=str))
-    report = markdown(run["summary"], f"{run['model']} ({run['provider']})")
+    title = f"{run['model']} ({run['provider']}, prompt v{run.get('prompt_version', 1)})"
+    report = markdown(run["summary"], title)
     path.with_suffix(".md").write_text(report)
     print("\n" + report)
 

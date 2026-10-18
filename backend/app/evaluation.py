@@ -59,6 +59,7 @@ def score_document(label: dict, result: dict) -> dict:
     return {
         "file": label["file"],
         "template_id": label["template_id"],
+        "difficulty": label.get("difficulty", "standard"),
         "status": result.get("status"),
         "fields": rows,
         "rules": {
@@ -78,7 +79,11 @@ def _rate(rows: list[dict]) -> float | None:
 def summarize(docs: list[dict]) -> dict:
     """Aggregate scored documents (output of score_document plus latency/usage/error)."""
     ok_docs = [d for d in docs if not d.get("error")]
-    rows = [r | {"template_id": d["template_id"]} for d in ok_docs for r in d["fields"]]
+    rows = [
+        r | {"template_id": d["template_id"], "difficulty": d.get("difficulty", "standard")}
+        for d in ok_docs
+        for r in d["fields"]
+    ]
     present = [r for r in rows if r["predicted"] is not None]
     tp = sum(d["rules"]["tp"] for d in ok_docs)
     fp = sum(d["rules"]["fp"] for d in ok_docs)
@@ -100,6 +105,9 @@ def summarize(docs: list[dict]) -> dict:
             t: _rate([r for r in rows if r["template_id"] == t]) for t in by("template_id")
         },
         "per_field": {k: _rate([r for r in rows if r["key"] == k]) for k in by("key")},
+        "per_difficulty": {
+            k: _rate([r for r in rows if r["difficulty"] == k]) for k in by("difficulty")
+        },
         "rule_detection": {
             "tp": tp,
             "fp": fp,
@@ -150,13 +158,16 @@ def markdown(summary: dict, title: str) -> str:
         f"| Přesnost polí | {pct(s['field_accuracy'])} ({s['fields']} polí) |",
         f"| Dokumenty bez chyby | {s['documents_fully_correct']} / {s['documents'] - s['failed_documents']} |",
         f"| Vložené chyby zachyceny (recall) | {pct(rd['recall'])} ({rd['tp']}/{rd['tp'] + rd['fn']}) |",
-        f"| Falešné poplachy pravidel | {rd['fp']} |",
+        f"| Nálezy pravidel navíc (chyba dokumentu nebo modelu) | {rd['fp']} |",
         f"| Přesnost ověřených / neověřených polí | {pct(s['signals']['accuracy_grounded'])} / {pct(s['signals']['accuracy_ungrounded'])} |",
         f"| Přesnost při jistotě ≥ 90 % / < 90 % | {pct(s['signals']['accuracy_high_confidence'])} / {pct(s['signals']['accuracy_low_confidence'])} |",
         f"| Čas na dokument (medián / max) | {s['latency_s']['median']} s / {s['latency_s']['max']} s |",
         f"| Tokeny na dokument | {s['tokens_per_document']} |",
         "",
         "Podle šablony: " + ", ".join(f"{k} {pct(v)}" for k, v in s["per_template"].items()),
+        "",
+        "Podle obtížnosti: "
+        + ", ".join(f"{k} {pct(v)}" for k, v in s.get("per_difficulty", {}).items()),
     ]
     if s["errors"]:
         lines += ["", "| Dokument | Pole | Očekáváno | Model |", "|---|---|---|---|"]

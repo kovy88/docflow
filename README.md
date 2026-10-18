@@ -1,37 +1,57 @@
-# DocFlow
+# Docflow
 
-**Aplikace (portfolio):** obecná extrakce dat z dokumentů podle šablon, s citací zdroje u každé hodnoty, kontrolou pravidel a ruční kontrolou. Backend [backend/](backend/README.md) (FastAPI, lokální Qwen přes Ollamu), UI [frontend/](frontend/README.md) (Next.js). Níže je původní validace trhu pro makléře.
+Vytěžování dat z firemních dokumentů lokálním LLM, s ověřením každé hodnoty proti PDF
+a deterministickou kontrolou pravidel. Faktury, smlouvy, pojistky nebo jakýkoli jiný typ
+dokumentu: obor určuje jen **šablona**, kterou lze vytvořit v UI nebo nechat navrhnout
+modelem.
 
-## Validace Document QA
+![Detail dokumentu: PDF se zvýrazněnou citací vlevo, vytěžená pole a nálezy vpravo](docs/workspace.png)
 
-První experiment: **kontrola kompletnosti a konzistence podkladů před obnovou firemního majetkového a odpovědnostního pojištění** u českých makléřů. Český trh uživatel potvrdil 17. 10. 2026. Konkrétní workflow a druh pojištění zůstávají pracovními hypotézami pro rozhovory.
+## Proč to není „chat s PDF“
 
-Stav k 17. 10. 2026: uživatel chce nejdřív prohlédnout přesné zprávy a podobu produktu. Požadovaný odesílatel je **[e-mail odstraněn]**; účet je připojený jako **Freelance** a obsahuje 20 nových neodeslaných konceptů, ověřených zpětným načtením. Původních 20 konceptů ve starém účtu zůstává neodeslaných a nemá se použít. 17. 10. 2026 byly koncepty přepsány na verzi 2: místo hovoru žádají o krátkou odpověď e-mailem a nabízejí vyzkoušení BrokerScribe (stejný segment, už funkční nástroj). **Žádné uskutečněné rozhovory, získané zákaznické případy ani potvrzené platby.** Veřejné profily dokládají zaměření firem, nikoli potřebu produktu nebo ochotu platit.
-
-## Klikací ukázka k prohlédnutí
-
-[Otevřít lokální ukázku](http://127.0.0.1:8765/) — vysvětlení služby, report se smyšlenými dokumenty a přesné texty všech 20 zpráv. Zdroj a spuštění jsou v [prototype/README.md](prototype/README.md). Ukázka provádí tři deterministické kontroly nad připravenými hodnotami; nemá OCR, LLM ani zpracování skutečných PDF/XLSX.
-
-## Začni zde
-
-Aktuální provádění plánu: [stav a další krok](validation/execution.md). První vlna má [20 konkrétních personalizovaných zpráv](validation/outreach/review.md); 20 aktuálních neodeslaných konceptů je v účtu Freelance a jejich identifikátory v [evidenci](validation/outreach/gmail-drafts-freelance.json).
-
-1. Vyber prvních pět firem z [prioritizovaného seznamu](validation/prospects.md). Upřednostni vlastní doporučení a osobní vazby, pokud existují.
-2. Použij připravené [zprávy a scénář rozhovoru](validation/discovery.md). Zprávy jsou pouze návrhy; nic nebylo odesláno.
-3. Každý rozhovor zaznamenej pomocí [šablony](validation/templates/interview.md). Kontaktované firmy aktualizuj v [CSV](validation/prospects.csv).
-4. Rozhoduj podle [hypotéz a kritérií](validation/plan.md), ne podle počtu pozitivních reakcí.
-5. Po doložení problému nabídni [konkrétní placený pilot](validation/pilot-offer.md). Výsledky měř podle [evaluačního protokolu](validation/evaluation.md).
-
-## Připravené výstupy
-
-| Soubor | Použití |
+| Problém LLM extrakce | Co s tím dělá Docflow |
 |---|---|
-| [Plán na 30 dní](validation/plan.md) | Hypotézy, termíny, evidence a rozhodnutí pokračovat / změnit segment / skončit |
-| [40 kandidátů](validation/prospects.md) | Dvě vlny po 20, veřejné kontakty, zdroje, známé vazby a neověřené předpoklady |
-| [Discovery](validation/discovery.md) | Pět konkrétních úvodů, zprávy, nenavádějící rozhovor a žádost o data |
-| [Nabídka pilotu](validation/pilot-offer.md) | Jeden workflow, 20 kontrol, 50 případů, návrh ceny 30 000 Kč |
-| [Kontroly a ukázkový report](validation/checks-and-report.md) | Návrh pravidel a výslovně syntetická ukázka s důkazy a stavem „nelze vyhodnotit“ |
-| [Vyhodnocení](validation/evaluation.md) | Recall, falešné nálezy, čas, náklady a ROI bez vymyšlených vstupů |
-| [Kontext a zdroje](validation/research/context.md) | Co jsme ověřili, co ne, alternativy a omezení veřejného průzkumu |
+| Model si hodnotu vymyslí | U každého pole musí vrátit stranu a doslovnou citaci; kód ověří, že citace v PDF opravdu je a hodnotu obsahuje. Neověřená pole UI označí. |
+| Model nepočítá spolehlivě | Model nic nepočítá. Součty, kontrolní součet IČO a pořadí dat ověřuje deterministický kód podle pravidel šablony. |
+| Čísla a data v různých formátech | Normalizace v kódu: `12 100,00 Kč`, `1.234,56`, `185 000,- Kč`, `3. 9. 2026`, `1. října 2026`, ISO. |
+| Lokální model nepodporuje strukturovaný výstup | Vynucené volání nástroje, při selhání parseru Ollamy přechod na JSON v textu, validace Pydanticem a opakování pokusu s chybou jako zpětnou vazbou. |
+| Nevíme, jak dobře to funguje | Evaluační sada 26 fiktivních dokumentů se známými hodnotami a vloženými chybami, měření přesnosti po polích, záchytu chyb i užitečnosti signálů v UI. |
+| Člověk musí mít poslední slovo | Ruční kontrola v UI: opravy se uloží, pravidla se přepočítají; schválené extrakce lze použít jako další trénovací/evaluační data. |
 
-Pracovní složka byla při zahájení prázdná a neobsahovala Git ani existující extraction pipeline. Lokální prototyp vznikl na následný požadavek prohlédnout podobu produktu; nejde o implementaci SaaS. Technické možnosti dřívějšího DocFlow je nutné ověřit na skutečných souborech.
+## Výsledky evaluace
+
+RESULTS_PLACEHOLDER
+
+Celý report včetně chybně vytěžených polí je v [backend/evals/](backend/evals/) a na
+stránce **Evaluace** v aplikaci.
+
+## Architektura
+
+```
+PDF ─► text po stranách (pypdf)
+    ─► LLM: pro každé pole šablony {hodnota, strana, citace, jistota}
+         Ollama (qwen3.8:27b, lokálně) nebo OpenAI (strukturovaný výstup)
+    ─► ověření citací v PDF ─► normalizace CZ čísel a dat ─► pravidla šablony
+    ─► výsledek ke kontrole (needs_review / ok) ─► ruční oprava a schválení
+```
+
+- **backend/**: FastAPI, SQLModel (SQLite lokálně, Postgres/Supabase přes `DATABASE_URL`),
+  extrakce běží na pozadí. [Podrobnosti](backend/README.md)
+- **frontend/**: Next.js 16, react-pdf; PDF a pole vedle sebe, editor šablon, stránka
+  evaluací. [Podrobnosti](frontend/README.md)
+- **backend/dataset/**: generátor realistických fiktivních dokumentů s ground truth.
+
+## Spuštění
+
+```bash
+ollama pull qwen3.8:27b
+cd backend && uv sync && cp .env.example .env && uv run uvicorn app.main:app --reload
+cd frontend && npm install && npm run dev      # http://localhost:3000
+```
+
+Testy: `cd backend && uv run pytest` (bez modelu, s falešným extraktorem),
+`cd frontend && npm run lint && npx tsc --noEmit`.
+Evaluace: `cd backend && uv run python scripts/evaluate.py [--model …] [--limit N]`.
+
+Všechny dokumenty v repozitáři jsou fiktivní. Starší podklady k validaci trhu jsou ve
+[validation/](validation/README.md).

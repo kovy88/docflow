@@ -72,28 +72,52 @@ def test_fenced_json_in_content_is_accepted():
     assert extractor.extract(["č. 42"], TEMPLATE).answers["number"].value == "42"
 
 
-def test_tool_parse_error_falls_back_to_json_mode():
+def test_tool_parse_error_falls_back_to_raw_completion():
     import httpx
     from openai import InternalServerError
 
-    extractor, calls = extractor_with([json.dumps(VALID)])
-    real_create = extractor.client.chat.completions.create
-    failures = []
+    extractor, calls = extractor_with([])
 
-    def flaky(**kwargs):
-        if not failures:
-            failures.append(1)
-            request = httpx.Request("POST", "http://unused")
-            raise InternalServerError(
-                "XML syntax error", response=httpx.Response(500, request=request), body=None
-            )
-        return real_create(**kwargs)
+    def broken_parser(**kwargs):
+        calls.append(kwargs)
+        request = httpx.Request("POST", "http://unused")
+        raise InternalServerError(
+            "XML syntax error", response=httpx.Response(500, request=request), body=None
+        )
 
-    extractor.client.chat.completions.create = flaky
+    prompts = []
+
+    def raw(messages, schema):
+        prompts.append(messages)
+        return json.dumps(VALID), (100, 20)
+
+    extractor.client.chat.completions.create = broken_parser
+    extractor._raw_completion = raw
     out = extractor.extract(["č. 42"], TEMPLATE)
-    assert out.usage["attempts"] == 2 and out.usage["mode"] == "json"
-    assert "tools" not in calls[-1]
-    assert "JSON object matching this schema" in calls[-1]["messages"][-1]["content"]
+    assert out.answers["number"].value == "42"
+    assert out.usage == {"input_tokens": 100, "output_tokens": 20, "attempts": 2, "mode": "raw"}
+    assert len(calls) == 1 and len(prompts) == 1
+
+
+def test_raw_completion_builds_chatml(monkeypatch):
+    import io
+
+    extractor = ToolCallExtractor("http://ollama:11434/v1", "qwen", timeout=1)
+    seen = {}
+
+    def fake_urlopen(request, timeout):
+        seen["url"], seen["body"] = request.full_url, json.loads(request.data)
+        return io.BytesIO(
+            json.dumps({"response": "{}", "prompt_eval_count": 5, "eval_count": 1}).encode()
+        )
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    text, used = extractor._raw_completion([{"role": "user", "content": "hi"}], {"type": "object"})
+    assert seen["url"] == "http://ollama:11434/api/generate"
+    assert seen["body"]["raw"] is True
+    assert seen["body"]["prompt"].startswith("<|im_start|>user\nhi<|im_end|>")
+    assert seen["body"]["prompt"].endswith("<think>\n\n</think>\n\n")
+    assert (text, used) == ("{}", (5, 1))
 
 
 def test_suggest_template_is_made_valid():

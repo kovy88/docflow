@@ -51,6 +51,8 @@ def parse_number(raw: str) -> float:
 
 
 def parse_date(raw: str) -> date:
+    # Insurance documents add a time of day: "1. 10. 2026, 0:00 hod.", "30. 9. 2027 24:00".
+    raw = re.sub(r"[,\s]+(od\s+|do\s+)?\d{1,2}:\d{2}(\s*hod\.?)?\s*$", "", raw.strip())
     worded = re.fullmatch(r"\s*(\d{1,2})\.\s*([^\W\d_]+)\s+(\d{4})\s*", raw.casefold())
     if worded and worded[2] in CZ_MONTHS:
         return date(int(worded[3]), CZ_MONTHS[worded[2]], int(worded[1]))

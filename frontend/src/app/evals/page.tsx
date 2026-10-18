@@ -32,9 +32,10 @@ export default function EvalsPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Evaluace</h1>
       <p className="mt-1 max-w-3xl text-muted">
-        Přesnost měřená na 26 fiktivních dokumentech se známými správnými
-        hodnotami. Deset z nich obsahuje schválně vložené chyby (neplatné IČO,
-        nesedící součet, prohozená data). Spuštění:{" "}
+        Přesnost měřená na fiktivních dokumentech se známými správnými
+        hodnotami: standardní sada a těžké případy (prohozené boxy, dobropis,
+        chybějící splatnost, data s časem…). Část dokumentů obsahuje schválně
+        vložené chyby, které musí pravidla zachytit. Spuštění:{" "}
         <code className="font-mono text-sm">
           uv run python scripts/evaluate.py
         </code>
@@ -58,7 +59,7 @@ export default function EvalsPage() {
                   "Přesnost polí",
                   "Bez chyby",
                   "Chyby zachyceny",
-                  "Falešné poplachy",
+                  "Nálezy navíc",
                   "Medián času",
                   "Datum",
                 ].map((h) => (
@@ -79,7 +80,9 @@ export default function EvalsPage() {
                   >
                     <td className="px-3 py-2 font-medium">
                       {r.model}{" "}
-                      <span className="text-muted">({r.provider})</span>
+                      <span className="text-muted">
+                        ({r.provider}, prompt v{r.prompt_version})
+                      </span>
                     </td>
                     <td className="px-3 py-2 tabular-nums">
                       {pct(s.field_accuracy)}
@@ -107,6 +110,14 @@ export default function EvalsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {runs && runs.length > 0 && (
+        <p className="mt-2 text-xs text-muted">
+          „Nálezy navíc“ = pravidlo se spustilo, i když dokument chybu
+          neobsahoval. Typicky jde o chybu modelu (např. záměna základu daně a
+          celkové částky), kterou pravidlo zachytilo.
+        </p>
       )}
 
       {run && (
@@ -149,6 +160,20 @@ export default function EvalsPage() {
                   </div>
                 ))}
               </dl>
+              {run.summary.per_difficulty && (
+                <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                  {Object.entries(run.summary.per_difficulty).map(([k, v]) => (
+                    <div key={k} className="rounded-md bg-background p-2">
+                      <dt className="text-muted">
+                        {k === "hard" ? "Těžké případy" : "Standardní"}
+                      </dt>
+                      <dd className="text-lg font-semibold tabular-nums">
+                        {pct(v)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
             </div>
             <div className="rounded-lg border border-line bg-surface p-4">
               <h2 className="font-semibold">Fungují signály v UI?</h2>

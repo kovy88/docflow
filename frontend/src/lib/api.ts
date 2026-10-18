@@ -83,6 +83,7 @@ export type EvalSummary = {
   documents_fully_correct: number;
   per_template: Record<string, number | null>;
   per_field: Record<string, number | null>;
+  per_difficulty?: Record<string, number | null>;
   rule_detection: {
     tp: number;
     fp: number;
@@ -112,6 +113,7 @@ export type EvalSummary = {
 export type EvalRun = {
   id: string;
   model: string;
+  prompt_version: number;
   provider: string;
   started: string;
   finished: string;

@@ -4,6 +4,8 @@ page and a verbatim quote it came from, so every answer can be checked against t
 import json
 import re
 import unicodedata
+import urllib.error
+import urllib.request
 from typing import Any, Literal, Protocol, TypeVar
 
 from openai import InternalServerError, OpenAI
@@ -19,7 +21,13 @@ Rules:
 - If a value is not present in the document, return null for value, page and quote.
 - page is the number from the <page number=...> tag where the value appears.
 - quote is a short verbatim snippet (max ~150 characters) from that page containing the value.
-- confidence is your probability (0-1) that the value is correct and correctly assigned."""
+- confidence is your probability (0-1) that the value is correct and correctly assigned.
+- Never fill a field with a value that belongs to a different field: the issue date is not
+  the due date, the total is not the tax base.
+- If the document gives no explicit value for a field (e.g. "splatné ihned", or a duration
+  such as "12 měsíců" instead of an end date), return null instead of inferring one."""
+# Bump when INSTRUCTIONS change, so evaluation runs stay comparable.
+PROMPT_VERSION = 2
 
 
 class FieldAnswer(BaseModel):
@@ -98,17 +106,23 @@ def _unstring(node: Any, depth: int) -> Any:
 
 
 class ToolCallExtractor:
-    """For local models served by Ollama. Grammar-constrained output is not available for
-    every model/quantisation, so the schema is passed as a forced tool call and the
-    arguments are validated with Pydantic. If Ollama cannot parse the tool-call markup,
-    the next attempt asks for plain JSON in the message instead; invalid output is retried
-    with the validation error as feedback."""
+    """For local models served by Ollama.
+
+    Grammar-constrained output is not available for every model/quantisation, so the
+    schema is passed as a forced tool call and the arguments are validated with Pydantic.
+    Ollama runs the model's own output parser on every reply; when the model emits
+    malformed tool-call markup that parser fails with HTTP 500 (8 % of documents in our
+    evaluation). The fallback is a raw completion via /api/generate, which bypasses the
+    renderer and parser: the ChatML prompt is built here and plain JSON is parsed by us.
+    Output that fails validation is retried with the error as feedback."""
 
     tool_name = "submit"
 
     def __init__(self, base_url: str, model: str, timeout: float, retries: int = 1):
         self.client = OpenAI(base_url=base_url, api_key="ollama", timeout=timeout)
+        self.native_url = base_url.removesuffix("/").removesuffix("/v1")
         self.model = model
+        self.timeout = timeout
         self.retries = retries
 
     def structured(self, system: str, user: str, schema_model: type[T]) -> tuple[T, dict[str, Any]]:
@@ -117,57 +131,85 @@ class ToolCallExtractor:
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
-        tool = {
-            "type": "function",
-            "function": {
-                "name": self.tool_name,
-                "description": "Submit the result.",
-                "parameters": schema,
-            },
-        }
-        json_only = {
-            "role": "user",
-            "content": "Answer with a single JSON object matching this schema, no other text:\n"
-            + json.dumps(schema, ensure_ascii=False),
-        }
         usage = {"input_tokens": 0, "output_tokens": 0, "attempts": 0, "mode": "tool"}
-        for attempt in range(self.retries + 1):
-            usage["attempts"] = attempt + 1
-            kwargs: dict[str, Any] = {}
-            if usage["mode"] == "tool":
-                kwargs = {
-                    "tools": [tool],
-                    "tool_choice": {"type": "function", "function": {"name": self.tool_name}},
-                }
+        invalid = 0  # validation retries; the switch to raw mode does not count
+        while True:
+            usage["attempts"] += 1
             try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages + ([json_only] if usage["mode"] == "json" else []),
-                    temperature=0,
-                    reasoning_effort="none",
-                    **kwargs,
-                )
+                if usage["mode"] == "tool":
+                    raw, used = self._tool_call(messages, schema)
+                else:
+                    raw, used = self._raw_completion(messages, schema)
             except InternalServerError:
-                # Ollama returns 500 when it cannot parse the model's tool-call markup.
-                if attempt == self.retries or usage["mode"] == "json":
+                if usage["mode"] == "raw":
                     raise
-                usage["mode"] = "json"
+                usage["mode"] = "raw"
                 continue
-            if response.usage:
-                usage["input_tokens"] += response.usage.prompt_tokens
-                usage["output_tokens"] += response.usage.completion_tokens
-            message = response.choices[0].message
-            raw = (
-                message.tool_calls[0].function.arguments if message.tool_calls else message.content
-            ) or ""
+            usage["input_tokens"] += used[0]
+            usage["output_tokens"] += used[1]
             try:
                 return schema_model.model_validate(loads_lenient(raw)), usage
             except (ValueError, ValidationError) as exc:
-                if attempt == self.retries:
+                invalid += 1
+                if invalid > self.retries:
                     raise RuntimeError(f"Model output does not match the schema: {exc}") from exc
                 messages.append({"role": "assistant", "content": raw})
                 messages.append({"role": "user", "content": f"Invalid output, fix it:\n{exc}"})
-        raise AssertionError("unreachable")
+
+    def _tool_call(self, messages: list[dict], schema: dict) -> tuple[str, tuple[int, int]]:
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=0,
+            reasoning_effort="none",
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": self.tool_name,
+                        "description": "Submit the result.",
+                        "parameters": schema,
+                    },
+                }
+            ],
+            tool_choice={"type": "function", "function": {"name": self.tool_name}},
+        )
+        message = response.choices[0].message
+        raw = (
+            message.tool_calls[0].function.arguments if message.tool_calls else message.content
+        ) or ""
+        u = response.usage
+        return raw, (u.prompt_tokens, u.completion_tokens) if u else (0, 0)
+
+    def _raw_completion(self, messages: list[dict], schema: dict) -> tuple[str, tuple[int, int]]:
+        instruction = "Answer with a single JSON object matching this schema, no other text:\n"
+        turns = messages + [
+            {"role": "user", "content": instruction + json.dumps(schema, ensure_ascii=False)}
+        ]
+        # ChatML as used by Qwen; the empty think block disables reasoning.
+        prompt = "".join(f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n" for m in turns)
+        prompt += "<|im_start|>assistant\n<think>\n\n</think>\n\n"
+        body = {
+            "model": self.model,
+            "prompt": prompt,
+            "raw": True,
+            "stream": False,
+            "options": {"temperature": 0, "num_ctx": 32768},
+        }
+        request = urllib.request.Request(
+            f"{self.native_url}/api/generate",
+            json.dumps(body).encode(),
+            {"content-type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                data = json.load(response)
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise RuntimeError(f"Ollama raw completion failed: {exc}") from exc
+        return data.get("response", ""), (
+            data.get("prompt_eval_count", 0),
+            data.get("eval_count", 0),
+        )
 
     def extract(self, pages: list[str], template: Template) -> ExtractionOutput:
         return extract_with(self, pages, template)

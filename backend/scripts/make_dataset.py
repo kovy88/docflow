@@ -13,7 +13,7 @@ import json
 import random
 import sys
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from fpdf import FPDF
@@ -132,6 +132,29 @@ BOILERPLATE = {
 }
 
 
+# Hard cases (realistic traps) travel in the same flag set as planted errors.
+HARD = {
+    "swap": "dodavatel a odběratel v prohozených boxech",
+    "no_due": "bez data splatnosti (splatné ihned)",
+    "credit": "dobropis se zápornými částkami",
+    "spaced_ico": "IČO psané s mezerami",
+    "duration": "doba trvání jen jako počet měsíců",
+    "times": "data s časem (0:00 hod.)",
+}
+
+
+def describe(desc: str, flags: set[str]) -> str:
+    if flags & HARD.keys():
+        desc += f", těžký případ: {'; '.join(HARD[f] for f in sorted(flags & HARD.keys()))}"
+    if flags - HARD.keys():
+        desc += f", vložené chyby: {', '.join(sorted(flags - HARD.keys()))}"
+    return desc
+
+
+def spaced(ico: str) -> str:
+    return f"{ico[:3]} {ico[3:5]} {ico[5:]}"
+
+
 def ico_check(prefix: str) -> str:
     remainder = sum(int(d) * w for d, w in zip(prefix, range(8, 1, -1), strict=True)) % 11
     return str((11 - remainder) % 10)
@@ -235,6 +258,7 @@ class Doc(FPDF):
         self.add_font("A", style="B", fname=str(FONT_DIR / "Arial Bold.ttf"))
         self.add_font("A", style="I", fname=str(FONT_DIR / "Arial Italic.ttf"))
         self.set_text_color(25, 28, 35)
+        self.set_creation_date(datetime(YEAR, 1, 1, tzinfo=UTC))  # reproducible bytes
         self.add_page()
 
     def footer(self) -> None:
@@ -338,6 +362,8 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
     for desc, unit, (lo, hi), rate in picked:
         qty = rng.choice([1, 1, 2, 3, 5, 10, 12, 25]) if unit != "měs" else 1
         price = round(rng.uniform(lo, hi) / (25 if currency == "EUR" else 1), 2)
+        if "credit" in errors:  # credit note: returned quantities
+            qty = -qty
         line = round(qty * price, 2)
         lines.append((desc, f"{qty} {unit}", price, rate, line))
         bases[rate] = round(bases.get(rate, 0) + line, 2)
@@ -357,13 +383,14 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
     m = lambda x: money(x, style)  # noqa: E731
     d = lambda x: fmt_date(x, dstyle)  # noqa: E731
     pdf = Doc()
+    due_text = "splatné ihned" if "no_due" in errors else d(due)
     raw = {
         "supplier_name": supplier.name,
         "supplier_ico": supplier.ico,
         "customer_name": customer.name,
         "invoice_number": number,
         "issue_date": d(issue),
-        "due_date": d(due),
+        "due_date": None if "no_due" in errors else d(due),
         "net_amount": m(net),
         "vat_amount": m(vat),
         "total_amount": m(total),
@@ -401,15 +428,20 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
 
     if layout == "A":  # classic Czech tax document
         pdf.set_font("A", "B", 15)
-        pdf.cell(0, 8, "FAKTURA – DAŇOVÝ DOKLAD", new_x="LMARGIN", new_y="NEXT")
+        title = (
+            "OPRAVNÝ DAŇOVÝ DOKLAD – DOBROPIS" if "credit" in errors else "FAKTURA – DAŇOVÝ DOKLAD"
+        )
+        pdf.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("A", "", 10)
         pdf.cell(0, 5, f"číslo {number}", new_x="LMARGIN", new_y="NEXT")
         pdf.gap(4)
         y, half = pdf.get_y(), pdf.content_w / 2 - 3
-        b1 = pdf.block(pdf.l_margin, y, half, "Dodavatel", party_lines(supplier), boxed=True)
-        b2 = pdf.block(
-            pdf.l_margin + half + 6, y, half, "Odběratel", party_lines(customer), boxed=True
-        )
+        boxes = [("Dodavatel", supplier), ("Odběratel", customer)]
+        if "swap" in errors:  # customer box first: the model must read the labels
+            boxes.reverse()
+        (t1, p1), (t2, p2) = boxes
+        b1 = pdf.block(pdf.l_margin, y, half, t1, party_lines(p1), boxed=True)
+        b2 = pdf.block(pdf.l_margin + half + 6, y, half, t2, party_lines(p2), boxed=True)
         pdf.set_y(max(b1, b2) + 2)
         pdf.set_font("A", "I", 7)
         pdf.cell(0, 4, f"Dodavatel je {supplier.registry}.", new_x="LMARGIN", new_y="NEXT")
@@ -419,7 +451,7 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
             [
                 ("Datum vystavení:", d(issue)),
                 ("Datum uskut. zdan. plnění:", d(taxable)),
-                ("Datum splatnosti:", d(due)),
+                ("Datum splatnosti:", due_text),
             ],
             pdf.l_margin,
             44,
@@ -469,7 +501,7 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
             [
                 ("Vystaveno", d(issue)),
                 ("DUZP", d(taxable)),
-                ("Splatnost", d(due)),
+                ("Splatnost", due_text),
                 ("Účet", account),
                 ("Měna", currency),
             ],
@@ -510,7 +542,7 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
         pdf.kv(
             [
                 ("Issue date / Datum vystavení:", d(issue)),
-                ("Due date / Datum splatnosti:", d(due)),
+                ("Due date / Datum splatnosti:", due_text),
                 ("Currency / Měna:", currency),
                 ("Bank account / Účet:", account),
             ],
@@ -537,8 +569,7 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
     name = f"invoice_{n:02d}.pdf"
     pdf.output(OUT / name)
     desc = f"layout {layout}, {len(lines)} pol., sazby DPH {sorted(bases)}, čísla {style}, data {dstyle}"
-    if errors:
-        desc += f", vložené chyby: {', '.join(sorted(errors))}"
+    desc = describe(desc, errors)
     return Sample(name, "invoice", desc, raw)
 
 
@@ -615,6 +646,10 @@ SIGN_AS = {  # genitive for "za ..." under the signature line
 
 def contract(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
     spec = CONTRACT_TYPES[kind]
+
+    def ico_text(p: Party) -> str:
+        return spaced(p.ico) if "spaced_ico" in errors else p.ico
+
     a_name, b_name = rng.sample(COMPANY_NAMES, 2)
     a = party(rng, a_name, ico_valid="ico" not in errors)
     b = party(rng, b_name)
@@ -653,7 +688,7 @@ def contract(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
     for p, role in ((a, role_a), (b, role_b)):
         pdf.para(p.name, style="B", size=10)
         pdf.para(
-            f"se sídlem: {p.address}\nIČO: {p.ico}, DIČ: {p.dic}\n{p.registry}\n"
+            f"se sídlem: {p.address}\nIČO: {ico_text(p)}, DIČ: {p.dic}\n{p.registry}\n"
             f"zastoupená: {p.person}, {p.role}",
             size=9.5,
         )
@@ -673,7 +708,12 @@ def contract(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
         ),
     ]
     duration = [f"Tato smlouva nabývá účinnosti dnem {d(start)}."]
-    if term == "fixed":
+    if term == "fixed" and "duration" in errors:  # end date must not be computed by the model
+        months = max(1, round((end - start).days / 30))
+        duration.append(
+            f"Smlouva se uzavírá na dobu určitou v délce {months} měsíců ode dne účinnosti."
+        )
+    elif term == "fixed":
         duration.append(f"Smlouva se uzavírá na dobu určitou do {d(end)}.")
     elif term == "indefinite":
         duration.append("Smlouva se uzavírá na dobu neurčitou.")
@@ -713,19 +753,18 @@ def contract(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
     pdf.output(OUT / name)
     raw = {
         "party_a_name": a.name,
-        "party_a_ico": a.ico,
+        "party_a_ico": ico_text(a),
         "party_b_name": b.name,
-        "party_b_ico": b.ico,
+        "party_b_ico": ico_text(b),
         "subject": subject,
         "price": price,
         "start_date": d(start),
-        "end_date": d(end) if end else None,
+        "end_date": d(end) if end and "duration" not in errors else None,
         "notice_period": notice,
         "signing_date": d(signing),
     }
     desc = f"{spec['title'].lower()}, {pdf.page_no()} str., data {dstyle}, doba {term}"
-    if errors:
-        desc += f", vložené chyby: {', '.join(sorted(errors))}"
+    desc = describe(desc, errors)
     return Sample(name, "contract", desc, raw)
 
 
@@ -745,6 +784,10 @@ def policy(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
         indefinite = False
         end = start - timedelta(days=rng.choice([31, 90]))
     concluded = start - timedelta(days=rng.choice([5, 12, 20]))
+    if "times" in errors:
+        indefinite = False
+        end = end or date(start.year + 1, start.month, 1) - timedelta(days=1)
+    at_midnight = (", 0:00 hod.", ", 24:00 hod.") if "times" in errors else ("", "")
     m = lambda x: money(x, "cz", 0)  # noqa: E731
     deductible = rng.choice([1_000, 5_000, 10_000, 20_000])
 
@@ -819,7 +862,13 @@ def policy(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
         )
     else:
         pdf.kv(
-            [("Počátek pojištění:", d(start)), ("Konec pojištění:", d(end))], pdf.l_margin, 40, 120
+            [
+                ("Počátek pojištění:", d(start) + at_midnight[0]),
+                ("Konec pojištění:", d(end) + at_midnight[1]),
+            ],
+            pdf.l_margin,
+            40,
+            120,
         )
     pdf.gap(4)
     pdf.para("2. Rozsah pojištění", style="B", size=10)
@@ -876,8 +925,7 @@ def policy(rng: random.Random, n: int, kind: str, errors: set[str]) -> Sample:
         "annual_premium": f"{m(premium)} Kč",
     }
     desc = f"{title}, {'doba neurčitá' if indefinite else 'doba určitá'}, splátky {freq[0]}"
-    if errors:
-        desc += f", vložené chyby: {', '.join(sorted(errors))}"
+    desc = describe(desc, errors)
     return Sample(name, "insurance_policy", desc, raw)
 
 
@@ -914,6 +962,14 @@ PLAN = [
         ("policy", "majetek", {"dates"}, 0),
         ("policy", "odpovednost", set(), 0),
     ],
+    # Hard cases, appended so the documents above stay identical.
+    *[
+        ("invoice", "A", {"swap"}, 4),
+        ("invoice", "B", {"no_due"}, 3),
+        ("invoice", "A", {"credit"}, 3),
+    ],
+    *[("contract", "sluzby", {"spaced_ico"}, 0), ("contract", "dilo", {"duration"}, 0)],
+    *[("policy", "majetek", {"times"}, 0), ("invoice", "A", {"swap", "sum"}, 3)],
 ]
 
 
@@ -932,6 +988,7 @@ def label(sample: Sample) -> dict:
         "file": sample.file,
         "template_id": sample.template_id,
         "description": sample.description,
+        "difficulty": "hard" if "těžký případ" in sample.description else "standard",
         "raw": sample.raw,
         "expected": expected,
         "expected_issues": sorted(issues),

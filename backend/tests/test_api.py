@@ -133,7 +133,7 @@ def test_inline_template(client, samples):
 
 def test_demo_documents(client):
     demo = client.get("/demo").json()
-    assert len(demo) == 26 and demo[0]["file"] == "invoice_01.pdf"
+    assert len(demo) >= 26 and demo[0]["file"] == "invoice_01.pdf"
     r = client.post("/demo/invoice_01.pdf")
     assert r.status_code == 201 and r.json()["has_text"]
     assert client.post("/demo/..%2Fpyproject.toml").status_code == 404
