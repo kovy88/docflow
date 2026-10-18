@@ -15,6 +15,8 @@ from app.templates import load_templates
         ("2.100", 2.1),
         ("1.000.000", 1000000.0),
         ("EUR 99", 99.0),
+        ("185 000,- Kč", 185000.0),
+        ("4,235.00 EUR", 4235.0),
     ],
 )
 def test_parse_number(raw, expected):
@@ -26,7 +28,9 @@ def test_parse_number_rejects_text():
         parse_number("neuvedeno")
 
 
-@pytest.mark.parametrize("raw", ["3. 9. 2026", "03.09.2026", "2026-09-03", "3/9/2026"])
+@pytest.mark.parametrize(
+    "raw", ["3. 9. 2026", "03.09.2026", "2026-09-03", "3/9/2026", "3. září 2026", "3. Září 2026"]
+)
 def test_parse_date(raw):
     assert parse_date(raw).isoformat() == "2026-09-03"
 

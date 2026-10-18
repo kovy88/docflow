@@ -10,10 +10,33 @@ from typing import Any
 from app.templates import DateOrderRule, IcoRule, SumRule, Template
 
 DATE_FORMATS = ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y", "%d.%m.%y")
+# Contracts often spell the month out: "1. října 2026" (genitive) or "říjen 2026".
+CZ_MONTHS = {
+    name: i
+    for i, names in enumerate(
+        [
+            ("ledna", "leden"),
+            ("února", "únor"),
+            ("března", "březen"),
+            ("dubna", "duben"),
+            ("května", "květen"),
+            ("června", "červen"),
+            ("července", "červenec"),
+            ("srpna", "srpen"),
+            ("září",),
+            ("října", "říjen"),
+            ("listopadu", "listopad"),
+            ("prosince", "prosinec"),
+        ],
+        start=1,
+    )
+    for name in names
+}
 
 
 def parse_number(raw: str) -> float:
     s = re.sub(r"[^\d,.\-]", "", raw.replace("−", "-"))
+    s = re.sub(r"[,.]-+$", "", s)  # "185 000,- Kč"
     if "," in s and "." in s:
         decimal = "," if s.rfind(",") > s.rfind(".") else "."
         s = s.replace("." if decimal == "," else ",", "").replace(",", ".")
@@ -28,6 +51,9 @@ def parse_number(raw: str) -> float:
 
 
 def parse_date(raw: str) -> date:
+    worded = re.fullmatch(r"\s*(\d{1,2})\.\s*([^\W\d_]+)\s+(\d{4})\s*", raw.casefold())
+    if worded and worded[2] in CZ_MONTHS:
+        return date(int(worded[3]), CZ_MONTHS[worded[2]], int(worded[1]))
     s = re.sub(r"\s+", "", raw)
     for fmt in DATE_FORMATS:
         try:

@@ -3,9 +3,9 @@
   "name": "Smlouva",
   "description": "Obchodní smlouva mezi dvěma stranami (dílo, služby, nájem).",
   "fields": [
-    {"key": "party_a_name", "label": "Smluvní strana A", "description": "První smluvní strana (objednatel / pronajímatel)."},
+    {"key": "party_a_name", "label": "Smluvní strana A", "description": "Smluvní strana uvedená ve smlouvě jako první."},
     {"key": "party_a_ico", "label": "IČO strany A", "required": false},
-    {"key": "party_b_name", "label": "Smluvní strana B", "description": "Druhá smluvní strana (zhotovitel / nájemce)."},
+    {"key": "party_b_name", "label": "Smluvní strana B", "description": "Smluvní strana uvedená ve smlouvě jako druhá."},
     {"key": "party_b_ico", "label": "IČO strany B", "required": false},
     {"key": "subject", "label": "Předmět smlouvy", "description": "Stručně, co je předmětem plnění."},
     {"key": "price", "label": "Cena", "type": "number", "required": false, "description": "Sjednaná cena nebo měsíční platba."},

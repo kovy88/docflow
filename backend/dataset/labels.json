@@ -1,0 +1,813 @@
+[
+  {
+    "file": "invoice_01.pdf",
+    "template_id": "invoice",
+    "description": "layout A, 4 pol., sazby DPH [12, 21], čísla cz, data cz0",
+    "raw": {
+      "supplier_name": "Webové Studio Jih s.r.o.",
+      "supplier_ico": "88501892",
+      "customer_name": "Strojírna Bystřice Demo a.s.",
+      "invoice_number": "FV20260001",
+      "issue_date": "22.01.2026",
+      "due_date": "21.02.2026",
+      "net_amount": "15 914,10",
+      "vat_amount": "3 126,21",
+      "total_amount": "19 040,00",
+      "currency": "CZK",
+      "bank_account": "19-3596840071/0600"
+    },
+    "expected": {
+      "supplier_name": "Webové Studio Jih s.r.o.",
+      "supplier_ico": "88501892",
+      "customer_name": "Strojírna Bystřice Demo a.s.",
+      "invoice_number": "FV20260001",
+      "issue_date": "2026-01-22",
+      "due_date": "2026-02-21",
+      "net_amount": 15914.1,
+      "vat_amount": 3126.21,
+      "total_amount": 19040.0,
+      "currency": "CZK",
+      "bank_account": "19-3596840071/0600"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_02.pdf",
+    "template_id": "invoice",
+    "description": "layout B, 3 pol., sazby DPH [12, 21], čísla cz, data cz0",
+    "raw": {
+      "supplier_name": "Pekárna U Mlýna a.s.",
+      "supplier_ico": "78229529",
+      "customer_name": "Tiskárna Nová Linie s.r.o.",
+      "invoice_number": "FV20260002",
+      "issue_date": "21.02.2026",
+      "due_date": "23.03.2026",
+      "net_amount": "13 510,05",
+      "vat_amount": "1 768,70",
+      "total_amount": "15 278,75",
+      "currency": "CZK",
+      "bank_account": "4419286821/5500"
+    },
+    "expected": {
+      "supplier_name": "Pekárna U Mlýna a.s.",
+      "supplier_ico": "78229529",
+      "customer_name": "Tiskárna Nová Linie s.r.o.",
+      "invoice_number": "FV20260002",
+      "issue_date": "2026-02-21",
+      "due_date": "2026-03-23",
+      "net_amount": 13510.05,
+      "vat_amount": 1768.7,
+      "total_amount": 15278.75,
+      "currency": "CZK",
+      "bank_account": "4419286821/5500"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_03.pdf",
+    "template_id": "invoice",
+    "description": "layout C, 2 pol., sazby DPH [12], čísla en, data iso",
+    "raw": {
+      "supplier_name": "Hotel Pod Vyhlídkou s.r.o.",
+      "supplier_ico": "56547641",
+      "customer_name": "Fyzio Centrum Rovnováha s.r.o.",
+      "invoice_number": "260003",
+      "issue_date": "2026-08-25",
+      "due_date": "2026-09-09",
+      "net_amount": "2,392.30",
+      "vat_amount": "287.08",
+      "total_amount": "2,679.38",
+      "currency": "EUR",
+      "bank_account": "2870066414/2010"
+    },
+    "expected": {
+      "supplier_name": "Hotel Pod Vyhlídkou s.r.o.",
+      "supplier_ico": "56547641",
+      "customer_name": "Fyzio Centrum Rovnováha s.r.o.",
+      "invoice_number": "260003",
+      "issue_date": "2026-08-25",
+      "due_date": "2026-09-09",
+      "net_amount": 2392.3,
+      "vat_amount": 287.08,
+      "total_amount": 2679.38,
+      "currency": "EUR",
+      "bank_account": "2870066414/2010"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_04.pdf",
+    "template_id": "invoice",
+    "description": "layout A, 5 pol., sazby DPH [21], čísla cz, data cz, vložené chyby: sum",
+    "raw": {
+      "supplier_name": "Kancelářské Potřeby Plus s.r.o.",
+      "supplier_ico": "86061127",
+      "customer_name": "Autoservis Vltava Sever s.r.o.",
+      "invoice_number": "2026-0004",
+      "issue_date": "18. 9. 2026",
+      "due_date": "2. 10. 2026",
+      "net_amount": "47 706,54",
+      "vat_amount": "10 018,37",
+      "total_amount": "57 624,91",
+      "currency": "CZK",
+      "bank_account": "35-3008383374/6100"
+    },
+    "expected": {
+      "supplier_name": "Kancelářské Potřeby Plus s.r.o.",
+      "supplier_ico": "86061127",
+      "customer_name": "Autoservis Vltava Sever s.r.o.",
+      "invoice_number": "2026-0004",
+      "issue_date": "2026-09-18",
+      "due_date": "2026-10-02",
+      "net_amount": 47706.54,
+      "vat_amount": 10018.37,
+      "total_amount": 57624.91,
+      "currency": "CZK",
+      "bank_account": "35-3008383374/6100"
+    },
+    "expected_issues": [
+      "sum_mismatch"
+    ]
+  },
+  {
+    "file": "invoice_05.pdf",
+    "template_id": "invoice",
+    "description": "layout B, 6 pol., sazby DPH [12, 21], čísla cz, data cz0",
+    "raw": {
+      "supplier_name": "Webové Studio Jih s.r.o.",
+      "supplier_ico": "35316250",
+      "customer_name": "Lumen Data Systems s.r.o.",
+      "invoice_number": "260005",
+      "issue_date": "14.06.2026",
+      "due_date": "29.06.2026",
+      "net_amount": "126 435,69",
+      "vat_amount": "24 538,86",
+      "total_amount": "150 974,55",
+      "currency": "CZK",
+      "bank_account": "35-1990220850/0300"
+    },
+    "expected": {
+      "supplier_name": "Webové Studio Jih s.r.o.",
+      "supplier_ico": "35316250",
+      "customer_name": "Lumen Data Systems s.r.o.",
+      "invoice_number": "260005",
+      "issue_date": "2026-06-14",
+      "due_date": "2026-06-29",
+      "net_amount": 126435.69,
+      "vat_amount": 24538.86,
+      "total_amount": 150974.55,
+      "currency": "CZK",
+      "bank_account": "35-1990220850/0300"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_06.pdf",
+    "template_id": "invoice",
+    "description": "layout A, 34 pol., sazby DPH [12, 21], čísla cz, data cz",
+    "raw": {
+      "supplier_name": "Kancelářské Potřeby Plus s.r.o.",
+      "supplier_ico": "69969582",
+      "customer_name": "Čisté Prostory CZ s.r.o.",
+      "invoice_number": "260006",
+      "issue_date": "9. 2. 2026",
+      "due_date": "23. 2. 2026",
+      "net_amount": "558 988,01",
+      "vat_amount": "105 623,37",
+      "total_amount": "664 611,38",
+      "currency": "CZK",
+      "bank_account": "19-1940632170/2010"
+    },
+    "expected": {
+      "supplier_name": "Kancelářské Potřeby Plus s.r.o.",
+      "supplier_ico": "69969582",
+      "customer_name": "Čisté Prostory CZ s.r.o.",
+      "invoice_number": "260006",
+      "issue_date": "2026-02-09",
+      "due_date": "2026-02-23",
+      "net_amount": 558988.01,
+      "vat_amount": 105623.37,
+      "total_amount": 664611.38,
+      "currency": "CZK",
+      "bank_account": "19-1940632170/2010"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_07.pdf",
+    "template_id": "invoice",
+    "description": "layout B, 2 pol., sazby DPH [12, 21], čísla cz, data cz0, vložené chyby: ico",
+    "raw": {
+      "supplier_name": "Klimatech Morava s.r.o.",
+      "supplier_ico": "64108962",
+      "customer_name": "Pekárna U Mlýna a.s.",
+      "invoice_number": "FV20260007",
+      "issue_date": "26.05.2026",
+      "due_date": "10.06.2026",
+      "net_amount": "9 515,70",
+      "vat_amount": "1 384,61",
+      "total_amount": "10 900,31",
+      "currency": "CZK",
+      "bank_account": "35-9486102218/0600"
+    },
+    "expected": {
+      "supplier_name": "Klimatech Morava s.r.o.",
+      "supplier_ico": "64108962",
+      "customer_name": "Pekárna U Mlýna a.s.",
+      "invoice_number": "FV20260007",
+      "issue_date": "2026-05-26",
+      "due_date": "2026-06-10",
+      "net_amount": 9515.7,
+      "vat_amount": 1384.61,
+      "total_amount": 10900.31,
+      "currency": "CZK",
+      "bank_account": "35-9486102218/0600"
+    },
+    "expected_issues": [
+      "ico_checksum"
+    ]
+  },
+  {
+    "file": "invoice_08.pdf",
+    "template_id": "invoice",
+    "description": "layout C, 4 pol., sazby DPH [12, 21], čísla en, data iso",
+    "raw": {
+      "supplier_name": "Pekárna U Mlýna a.s.",
+      "supplier_ico": "97359386",
+      "customer_name": "Fyzio Centrum Rovnováha s.r.o.",
+      "invoice_number": "2026-0008",
+      "issue_date": "2026-02-22",
+      "due_date": "2026-03-08",
+      "net_amount": "7,730.89",
+      "vat_amount": "1,618.01",
+      "total_amount": "9,348.90",
+      "currency": "EUR",
+      "bank_account": "6355169071/0800"
+    },
+    "expected": {
+      "supplier_name": "Pekárna U Mlýna a.s.",
+      "supplier_ico": "97359386",
+      "customer_name": "Fyzio Centrum Rovnováha s.r.o.",
+      "invoice_number": "2026-0008",
+      "issue_date": "2026-02-22",
+      "due_date": "2026-03-08",
+      "net_amount": 7730.89,
+      "vat_amount": 1618.01,
+      "total_amount": 9348.9,
+      "currency": "EUR",
+      "bank_account": "6355169071/0800"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_09.pdf",
+    "template_id": "invoice",
+    "description": "layout A, 3 pol., sazby DPH [21], čísla cz, data cz, vložené chyby: dates",
+    "raw": {
+      "supplier_name": "Hotel Pod Vyhlídkou s.r.o.",
+      "supplier_ico": "33769559",
+      "customer_name": "Dřevodílna Šumava s.r.o.",
+      "invoice_number": "FV20260009",
+      "issue_date": "8. 2. 2026",
+      "due_date": "25. 1. 2026",
+      "net_amount": "85 182,96",
+      "vat_amount": "17 888,42",
+      "total_amount": "103 071,38",
+      "currency": "CZK",
+      "bank_account": "35-5944579041/6100"
+    },
+    "expected": {
+      "supplier_name": "Hotel Pod Vyhlídkou s.r.o.",
+      "supplier_ico": "33769559",
+      "customer_name": "Dřevodílna Šumava s.r.o.",
+      "invoice_number": "FV20260009",
+      "issue_date": "2026-02-08",
+      "due_date": "2026-01-25",
+      "net_amount": 85182.96,
+      "vat_amount": 17888.42,
+      "total_amount": 103071.38,
+      "currency": "CZK",
+      "bank_account": "35-5944579041/6100"
+    },
+    "expected_issues": [
+      "date_order"
+    ]
+  },
+  {
+    "file": "invoice_10.pdf",
+    "template_id": "invoice",
+    "description": "layout B, 8 pol., sazby DPH [12, 21], čísla cz_dot, data cz",
+    "raw": {
+      "supplier_name": "Zelená Zahrada Bohemia s.r.o.",
+      "supplier_ico": "38092174",
+      "customer_name": "Modrá Kancelář s.r.o.",
+      "invoice_number": "260010",
+      "issue_date": "1. 8. 2026",
+      "due_date": "15. 8. 2026",
+      "net_amount": "207.793,51",
+      "vat_amount": "42.375,31",
+      "total_amount": "250.168,82",
+      "currency": "CZK",
+      "bank_account": "19-384043865/6100"
+    },
+    "expected": {
+      "supplier_name": "Zelená Zahrada Bohemia s.r.o.",
+      "supplier_ico": "38092174",
+      "customer_name": "Modrá Kancelář s.r.o.",
+      "invoice_number": "260010",
+      "issue_date": "2026-08-01",
+      "due_date": "2026-08-15",
+      "net_amount": 207793.51,
+      "vat_amount": 42375.31,
+      "total_amount": 250168.82,
+      "currency": "CZK",
+      "bank_account": "19-384043865/6100"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "invoice_11.pdf",
+    "template_id": "invoice",
+    "description": "layout A, 3 pol., sazby DPH [21], čísla cz, data cz0, vložené chyby: ico, sum",
+    "raw": {
+      "supplier_name": "Strojírna Bystřice Demo a.s.",
+      "supplier_ico": "82854812",
+      "customer_name": "Fyzio Centrum Rovnováha s.r.o.",
+      "invoice_number": "260011",
+      "issue_date": "25.10.2026",
+      "due_date": "09.11.2026",
+      "net_amount": "10 974,49",
+      "vat_amount": "2 304,64",
+      "total_amount": "12 379,00",
+      "currency": "CZK",
+      "bank_account": "8961019683/0100"
+    },
+    "expected": {
+      "supplier_name": "Strojírna Bystřice Demo a.s.",
+      "supplier_ico": "82854812",
+      "customer_name": "Fyzio Centrum Rovnováha s.r.o.",
+      "invoice_number": "260011",
+      "issue_date": "2026-10-25",
+      "due_date": "2026-11-09",
+      "net_amount": 10974.49,
+      "vat_amount": 2304.64,
+      "total_amount": 12379.0,
+      "currency": "CZK",
+      "bank_account": "8961019683/0100"
+    },
+    "expected_issues": [
+      "ico_checksum",
+      "sum_mismatch"
+    ]
+  },
+  {
+    "file": "invoice_12.pdf",
+    "template_id": "invoice",
+    "description": "layout C, 3 pol., sazby DPH [12, 21], čísla en, data iso, vložené chyby: dates",
+    "raw": {
+      "supplier_name": "Klimatech Morava s.r.o.",
+      "supplier_ico": "76872441",
+      "customer_name": "Atelier Pod Lipou s.r.o.",
+      "invoice_number": "2026-0012",
+      "issue_date": "2026-02-14",
+      "due_date": "2026-01-31",
+      "net_amount": "478.35",
+      "vat_amount": "93.86",
+      "total_amount": "572.21",
+      "currency": "EUR",
+      "bank_account": "3402394880/2010"
+    },
+    "expected": {
+      "supplier_name": "Klimatech Morava s.r.o.",
+      "supplier_ico": "76872441",
+      "customer_name": "Atelier Pod Lipou s.r.o.",
+      "invoice_number": "2026-0012",
+      "issue_date": "2026-02-14",
+      "due_date": "2026-01-31",
+      "net_amount": 478.35,
+      "vat_amount": 93.86,
+      "total_amount": 572.21,
+      "currency": "EUR",
+      "bank_account": "3402394880/2010"
+    },
+    "expected_issues": [
+      "date_order"
+    ]
+  },
+  {
+    "file": "contract_01.pdf",
+    "template_id": "contract",
+    "description": "smlouva o dílo, 2 str., data words, doba fixed",
+    "raw": {
+      "party_a_name": "Vinařství Na Kopečku s.r.o.",
+      "party_a_ico": "14996341",
+      "party_b_name": "Zelená Zahrada Bohemia s.r.o.",
+      "party_b_ico": "79701477",
+      "subject": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+      "price": "369 400,- Kč",
+      "start_date": "23. července 2026",
+      "end_date": "21. října 2026",
+      "notice_period": null,
+      "signing_date": "16. července 2026"
+    },
+    "expected": {
+      "party_a_name": "Vinařství Na Kopečku s.r.o.",
+      "party_a_ico": "14996341",
+      "party_b_name": "Zelená Zahrada Bohemia s.r.o.",
+      "party_b_ico": "79701477",
+      "subject": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+      "price": 369400.0,
+      "start_date": "2026-07-23",
+      "end_date": "2026-10-21",
+      "notice_period": null,
+      "signing_date": "2026-07-16"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "contract_02.pdf",
+    "template_id": "contract",
+    "description": "smlouva o nájmu prostor sloužících k podnikání, 2 str., data words, doba indefinite",
+    "raw": {
+      "party_a_name": "Kancelářské Potřeby Plus s.r.o.",
+      "party_a_ico": "74496280",
+      "party_b_name": "Atelier Pod Lipou s.r.o.",
+      "party_b_ico": "84838043",
+      "subject": "nájem skladovacích prostor o výměře 240 m²",
+      "price": "47 800 Kč",
+      "start_date": "19. července 2026",
+      "end_date": null,
+      "notice_period": "1 měsíc",
+      "signing_date": "12. července 2026"
+    },
+    "expected": {
+      "party_a_name": "Kancelářské Potřeby Plus s.r.o.",
+      "party_a_ico": "74496280",
+      "party_b_name": "Atelier Pod Lipou s.r.o.",
+      "party_b_ico": "84838043",
+      "subject": "nájem skladovacích prostor o výměře 240 m²",
+      "price": 47800.0,
+      "start_date": "2026-07-19",
+      "end_date": null,
+      "notice_period": "1 měsíc",
+      "signing_date": "2026-07-12"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "contract_03.pdf",
+    "template_id": "contract",
+    "description": "smlouva o poskytování služeb, 2 str., data words, doba indefinite",
+    "raw": {
+      "party_a_name": "Hotel Pod Vyhlídkou s.r.o.",
+      "party_a_ico": "82052450",
+      "party_b_name": "Modrá Kancelář s.r.o.",
+      "party_b_ico": "88781356",
+      "subject": "pravidelný úklid kancelářských prostor",
+      "price": "28 000 Kč",
+      "start_date": "18. dubna 2026",
+      "end_date": null,
+      "notice_period": "1 měsíc",
+      "signing_date": "17. dubna 2026"
+    },
+    "expected": {
+      "party_a_name": "Hotel Pod Vyhlídkou s.r.o.",
+      "party_a_ico": "82052450",
+      "party_b_name": "Modrá Kancelář s.r.o.",
+      "party_b_ico": "88781356",
+      "subject": "pravidelný úklid kancelářských prostor",
+      "price": 28000.0,
+      "start_date": "2026-04-18",
+      "end_date": null,
+      "notice_period": "1 měsíc",
+      "signing_date": "2026-04-17"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "contract_04.pdf",
+    "template_id": "contract",
+    "description": "kupní smlouva, 2 str., data cz, doba none",
+    "raw": {
+      "party_a_name": "Lumen Data Systems s.r.o.",
+      "party_a_ico": "56871511",
+      "party_b_name": "Účetní Centrum Brno-sever s.r.o.",
+      "party_b_ico": "93897707",
+      "subject": "prodej CNC frézky včetně příslušenství a dokumentace",
+      "price": "1 491 500 Kč",
+      "start_date": "4. 5. 2026",
+      "end_date": null,
+      "notice_period": null,
+      "signing_date": "20. 4. 2026"
+    },
+    "expected": {
+      "party_a_name": "Lumen Data Systems s.r.o.",
+      "party_a_ico": "56871511",
+      "party_b_name": "Účetní Centrum Brno-sever s.r.o.",
+      "party_b_ico": "93897707",
+      "subject": "prodej CNC frézky včetně příslušenství a dokumentace",
+      "price": 1491500.0,
+      "start_date": "2026-05-04",
+      "end_date": null,
+      "notice_period": null,
+      "signing_date": "2026-04-20"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "contract_05.pdf",
+    "template_id": "contract",
+    "description": "smlouva o dílo, 2 str., data words, doba fixed, vložené chyby: dates",
+    "raw": {
+      "party_a_name": "Klimatech Morava s.r.o.",
+      "party_a_ico": "20722621",
+      "party_b_name": "Čisté Prostory CZ s.r.o.",
+      "party_b_ico": "38752441",
+      "subject": "dodávka a montáž vzduchotechniky do výrobní haly",
+      "price": "563 300 Kč",
+      "start_date": "18. června 2026",
+      "end_date": "19. dubna 2026",
+      "notice_period": null,
+      "signing_date": "11. června 2026"
+    },
+    "expected": {
+      "party_a_name": "Klimatech Morava s.r.o.",
+      "party_a_ico": "20722621",
+      "party_b_name": "Čisté Prostory CZ s.r.o.",
+      "party_b_ico": "38752441",
+      "subject": "dodávka a montáž vzduchotechniky do výrobní haly",
+      "price": 563300.0,
+      "start_date": "2026-06-18",
+      "end_date": "2026-04-19",
+      "notice_period": null,
+      "signing_date": "2026-06-11"
+    },
+    "expected_issues": [
+      "date_order"
+    ]
+  },
+  {
+    "file": "contract_06.pdf",
+    "template_id": "contract",
+    "description": "smlouva o poskytování služeb, 2 str., data cz0, doba indefinite",
+    "raw": {
+      "party_a_name": "Kancelářské Potřeby Plus s.r.o.",
+      "party_a_ico": "62413813",
+      "party_b_name": "Realitní Správa Jih a.s.",
+      "party_b_ico": "90495306",
+      "subject": "pravidelný úklid kancelářských prostor",
+      "price": "16 200 Kč",
+      "start_date": "16.02.2026",
+      "end_date": null,
+      "notice_period": "3 měsíce",
+      "signing_date": "16.02.2026"
+    },
+    "expected": {
+      "party_a_name": "Kancelářské Potřeby Plus s.r.o.",
+      "party_a_ico": "62413813",
+      "party_b_name": "Realitní Správa Jih a.s.",
+      "party_b_ico": "90495306",
+      "subject": "pravidelný úklid kancelářských prostor",
+      "price": 16200.0,
+      "start_date": "2026-02-16",
+      "end_date": null,
+      "notice_period": "3 měsíce",
+      "signing_date": "2026-02-16"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "contract_07.pdf",
+    "template_id": "contract",
+    "description": "smlouva o nájmu prostor sloužících k podnikání, 2 str., data cz0, doba indefinite, vložené chyby: ico",
+    "raw": {
+      "party_a_name": "Čisté Prostory CZ s.r.o.",
+      "party_a_ico": "63168175",
+      "party_b_name": "Realitní Správa Jih a.s.",
+      "party_b_ico": "34249672",
+      "subject": "nájem nebytových prostor o výměře 86 m² v přízemí budovy",
+      "price": "16 800,- Kč",
+      "start_date": "05.06.2026",
+      "end_date": null,
+      "notice_period": "2 měsíce",
+      "signing_date": "04.06.2026"
+    },
+    "expected": {
+      "party_a_name": "Čisté Prostory CZ s.r.o.",
+      "party_a_ico": "63168175",
+      "party_b_name": "Realitní Správa Jih a.s.",
+      "party_b_ico": "34249672",
+      "subject": "nájem nebytových prostor o výměře 86 m² v přízemí budovy",
+      "price": 16800.0,
+      "start_date": "2026-06-05",
+      "end_date": null,
+      "notice_period": "2 měsíce",
+      "signing_date": "2026-06-04"
+    },
+    "expected_issues": [
+      "ico_checksum"
+    ]
+  },
+  {
+    "file": "contract_08.pdf",
+    "template_id": "contract",
+    "description": "kupní smlouva, 2 str., data cz0, doba none",
+    "raw": {
+      "party_a_name": "Pekárna U Mlýna a.s.",
+      "party_a_ico": "48281263",
+      "party_b_name": "Vinařství Na Kopečku s.r.o.",
+      "party_b_ico": "68732571",
+      "subject": "prodej CNC frézky včetně příslušenství a dokumentace",
+      "price": "1 277 000 Kč",
+      "start_date": "02.08.2026",
+      "end_date": null,
+      "notice_period": null,
+      "signing_date": "02.08.2026"
+    },
+    "expected": {
+      "party_a_name": "Pekárna U Mlýna a.s.",
+      "party_a_ico": "48281263",
+      "party_b_name": "Vinařství Na Kopečku s.r.o.",
+      "party_b_ico": "68732571",
+      "subject": "prodej CNC frézky včetně příslušenství a dokumentace",
+      "price": 1277000.0,
+      "start_date": "2026-08-02",
+      "end_date": null,
+      "notice_period": null,
+      "signing_date": "2026-08-02"
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "policy_01.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění majetku podnikatelů, doba neurčitá, splátky pololetně",
+    "raw": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Webové Studio Jih s.r.o.",
+      "policyholder_ico": "85272698",
+      "policy_number": "4188663152",
+      "start_date": "1. 1. 2026",
+      "end_date": null,
+      "sum_insured": "25 600 000 Kč",
+      "deductible": "1 000 Kč",
+      "annual_premium": "28 550 Kč"
+    },
+    "expected": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Webové Studio Jih s.r.o.",
+      "policyholder_ico": "85272698",
+      "policy_number": "4188663152",
+      "start_date": "2026-01-01",
+      "end_date": null,
+      "sum_insured": 25600000.0,
+      "deductible": 1000.0,
+      "annual_premium": 28550.0
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "policy_02.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění odpovědnosti podnikatele, doba určitá, splátky pololetně",
+    "raw": {
+      "insurer": "Demo Pojištění Morava a.s.",
+      "policyholder": "Lumen Data Systems s.r.o.",
+      "policyholder_ico": "81071566",
+      "policy_number": "8890173999",
+      "start_date": "01.04.2026",
+      "end_date": "31.03.2027",
+      "sum_insured": "5 000 000 Kč",
+      "deductible": "10 000 Kč",
+      "annual_premium": "6 640 Kč"
+    },
+    "expected": {
+      "insurer": "Demo Pojištění Morava a.s.",
+      "policyholder": "Lumen Data Systems s.r.o.",
+      "policyholder_ico": "81071566",
+      "policy_number": "8890173999",
+      "start_date": "2026-04-01",
+      "end_date": "2027-03-31",
+      "sum_insured": 5000000.0,
+      "deductible": 10000.0,
+      "annual_premium": 6640.0
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "policy_03.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění majetku podnikatelů, doba neurčitá, splátky pololetně, vložené chyby: ico",
+    "raw": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Webové Studio Jih s.r.o.",
+      "policyholder_ico": "72945504",
+      "policy_number": "8830612327",
+      "start_date": "1. 1. 2026",
+      "end_date": null,
+      "sum_insured": "30 380 000 Kč",
+      "deductible": "5 000 Kč",
+      "annual_premium": "37 290 Kč"
+    },
+    "expected": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Webové Studio Jih s.r.o.",
+      "policyholder_ico": "72945504",
+      "policy_number": "8830612327",
+      "start_date": "2026-01-01",
+      "end_date": null,
+      "sum_insured": 30380000.0,
+      "deductible": 5000.0,
+      "annual_premium": 37290.0
+    },
+    "expected_issues": [
+      "ico_checksum"
+    ]
+  },
+  {
+    "file": "policy_04.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění odpovědnosti podnikatele, doba neurčitá, splátky ročně",
+    "raw": {
+      "insurer": "Pojišťovna Vzorník a.s.",
+      "policyholder": "Klimatech Morava s.r.o.",
+      "policyholder_ico": "54710251",
+      "policy_number": "7037496270",
+      "start_date": "1. 4. 2026",
+      "end_date": null,
+      "sum_insured": "5 000 000 Kč",
+      "deductible": "20 000 Kč",
+      "annual_premium": "7 090 Kč"
+    },
+    "expected": {
+      "insurer": "Pojišťovna Vzorník a.s.",
+      "policyholder": "Klimatech Morava s.r.o.",
+      "policyholder_ico": "54710251",
+      "policy_number": "7037496270",
+      "start_date": "2026-04-01",
+      "end_date": null,
+      "sum_insured": 5000000.0,
+      "deductible": 20000.0,
+      "annual_premium": 7090.0
+    },
+    "expected_issues": []
+  },
+  {
+    "file": "policy_05.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění majetku podnikatelů, doba určitá, splátky čtvrtletně, vložené chyby: dates",
+    "raw": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Čisté Prostory CZ s.r.o.",
+      "policyholder_ico": "27161510",
+      "policy_number": "4180455982",
+      "start_date": "01.10.2026",
+      "end_date": "31.08.2026",
+      "sum_insured": "31 520 000 Kč",
+      "deductible": "1 000 Kč",
+      "annual_premium": "42 370 Kč"
+    },
+    "expected": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Čisté Prostory CZ s.r.o.",
+      "policyholder_ico": "27161510",
+      "policy_number": "4180455982",
+      "start_date": "2026-10-01",
+      "end_date": "2026-08-31",
+      "sum_insured": 31520000.0,
+      "deductible": 1000.0,
+      "annual_premium": 42370.0
+    },
+    "expected_issues": [
+      "date_order"
+    ]
+  },
+  {
+    "file": "policy_06.pdf",
+    "template_id": "insurance_policy",
+    "description": "pojištění odpovědnosti podnikatele, doba určitá, splátky čtvrtletně",
+    "raw": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Klimatech Morava s.r.o.",
+      "policyholder_ico": "26722852",
+      "policy_number": "7050239845",
+      "start_date": "1. 1. 2026",
+      "end_date": "31. 12. 2026",
+      "sum_insured": "1 000 000 Kč",
+      "deductible": "10 000 Kč",
+      "annual_premium": "970 Kč"
+    },
+    "expected": {
+      "insurer": "Ilustrační pojišťovna a.s.",
+      "policyholder": "Klimatech Morava s.r.o.",
+      "policyholder_ico": "26722852",
+      "policy_number": "7050239845",
+      "start_date": "2026-01-01",
+      "end_date": "2026-12-31",
+      "sum_insured": 1000000.0,
+      "deductible": 10000.0,
+      "annual_premium": 970.0
+    },
+    "expected_issues": []
+  }
+]

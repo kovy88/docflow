@@ -28,6 +28,15 @@ Measured on the samples (M-series Mac, 32 GB): all 4 docs correct, ~130–170 s 
 API docs at http://localhost:8000/docs. Sample PDFs (fictional) are in `samples/`;
 regenerate with `uv run python scripts/make_samples.py`.
 
+## Evaluation dataset
+
+`dataset/` holds 26 realistic but fictional PDFs (12 invoices in 3 layouts incl. a bilingual
+EUR one and a 2-page one, 8 contracts of 4 types, 6 insurance policies) with ground truth in
+`dataset/labels.json`. 10 documents contain planted errors (bad IČO checksum, totals that
+don't add up, dates in the wrong order). Regenerate deterministically with
+`uv run python scripts/make_dataset.py`; `tests/test_dataset.py` checks every label against
+the PDF text and the rule engine.
+
 ## Test
 
 ```bash
