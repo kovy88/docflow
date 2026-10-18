@@ -4,6 +4,7 @@ import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   api,
+  DEMO,
   parseTimestamp,
   type DocumentInfo,
   type ExtractedField,
@@ -195,7 +196,8 @@ export function ExtractionPanel({
         </p>
         {!document.has_text && (
           <p className="text-sm text-err">
-            PDF nemá textovou vrstvu a OCR v něm nenašlo text (chybí Tesseract?).
+            PDF nemá textovou vrstvu a OCR v něm nenašlo text (chybí
+            Tesseract?).
           </p>
         )}
         {document.ocr_pages.length > 0 && (
@@ -343,7 +345,8 @@ function ReviewForm({
               : "chyb"}{" "}
           · {warnings} upozornění · {extraction.model}
           {tokens > 0 && ` · ${tokens.toLocaleString("cs-CZ")} tokenů`}
-          {extraction.usage.latency_s != null &&
+          {!DEMO &&
+            extraction.usage.latency_s != null &&
             ` · ${Math.round(extraction.usage.latency_s)} s`}
         </p>
         {docIssues.map((issue, i) => (
@@ -436,20 +439,22 @@ function ReviewForm({
               ? `Uložit opravy (${changed.length}) a schválit`
               : "Schválit"}
         </button>
-        <span className="ml-auto flex gap-2 text-sm">
-          <a
-            className="text-accent hover:underline"
-            href={api.exportUrl(extraction.id, "csv")}
-          >
-            CSV
-          </a>
-          <a
-            className="text-accent hover:underline"
-            href={api.exportUrl(extraction.id, "json")}
-          >
-            JSON
-          </a>
-        </span>
+        {!DEMO && (
+          <span className="ml-auto flex gap-2 text-sm">
+            <a
+              className="text-accent hover:underline"
+              href={api.exportUrl(extraction.id, "csv")}
+            >
+              CSV
+            </a>
+            <a
+              className="text-accent hover:underline"
+              href={api.exportUrl(extraction.id, "json")}
+            >
+              JSON
+            </a>
+          </span>
+        )}
         {extraction.reviewed_at && (
           <span className="text-sm text-muted">
             Zkontrolováno{" "}

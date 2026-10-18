@@ -5,6 +5,9 @@ a deterministickou kontrolou pravidel. Faktury, smlouvy, pojistky nebo jakýkoli
 dokumentu: obor určuje jen **šablona**, kterou lze vytvořit v UI nebo nechat navrhnout
 modelem.
 
+**Živé demo:** https://docflow-inky-ten.vercel.app (předpočítané výsledky lokálního modelu na
+fiktivních dokumentech, jen pro čtení; celá aplikace běží lokálně, viz Spuštění).
+
 ![Detail dokumentu: PDF se zvýrazněnou citací vlevo, vytěžená pole a nálezy vpravo](docs/workspace.png)
 
 ## Proč to není „chat s PDF“
@@ -47,6 +50,10 @@ Co z evaluace vzešlo:
 - **Jistota modelu sama nestačí:** ze tří chyb qwen3.6 (v1) měla nízkou jistotu jen jedna
   (dopočítaný konec smlouvy, který zároveň neprošel ověřením citace); další dvě měly jistotu
   0,9 a 1,0. Proto Docflow kombinuje tři nezávislé kontroly: citaci, jistotu a pravidla.
+- **Překlep v citaci není chyba hodnoty:** model občas citaci zkomolí („ODBĚRATEEL“), i když
+  hodnotu opíše správně. Když citace v PDF není, ověřuje se teď přímo hodnota a ta se pak
+  zvýrazní. V demu zůstala neověřená jen 2 pole. Daň za to: jedna z takto ověřených hodnot
+  byla špatně (sken `invoice_18`, OCR prohodil částky); dokument ale zachytilo pravidlo součtu.
 - **Menší MoE model je pro tuto úlohu lepší volba:** stejná přesnost, 3× rychlejší.
 
 **Skeny (OCR).** Strany bez textové vrstvy čte lokálně Tesseract (`ces`). Sada má navíc

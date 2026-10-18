@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DemoPicker } from "@/components/DemoPicker";
-import { api, type DocumentInfo } from "@/lib/api";
+import { api, DEMO, REPO_URL, type DocumentInfo } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
@@ -33,6 +33,29 @@ export default function Home() {
       setUploading(false);
     }
   }
+
+  if (DEMO)
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-10">
+        <h1 className="text-2xl font-semibold tracking-tight">Docflow</h1>
+        <p className="mt-2 text-muted">
+          Vytěžování dat z faktur, smluv a pojistek lokálním LLM. Ke každé
+          hodnotě ukáže, kde v PDF je, a zkontroluje ji pravidly (IČO, součty,
+          pořadí dat). Vyber dokument níže: uvidíš skutečný výstup modelu
+          qwen3.6 běžícího lokálně přes Ollamu. Klikni na pole a v PDF se
+          zvýrazní citace.
+        </p>
+        <p className="mt-3 text-sm">
+          <a
+            href={REPO_URL}
+            className="font-medium text-accent hover:underline"
+          >
+            Zdrojový kód a výsledky evaluace na GitHubu →
+          </a>
+        </p>
+        <DemoPicker />
+      </div>
+    );
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">

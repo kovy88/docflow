@@ -84,6 +84,20 @@ def run_extraction(
             settings.quote_threshold,
             settings.ocr_quote_threshold,
         )
+        if found is None and answer.quote:
+            # Models sometimes paraphrase or mistype the quote ("ODBĚRATEEL") while the value
+            # itself is right. The value is what matters: if it is on a page, use it as the
+            # quote (the UI highlights it) instead of flagging a correct field.
+            found = locate_quote(
+                answer.value,
+                pages,
+                answer.page,
+                ocr_pages or (),
+                settings.quote_threshold,
+                settings.ocr_quote_threshold,
+            )
+            if found is not None:
+                quote = field["quote"] = answer.value
         field["grounded"] = found is not None and quote_in(answer.value, quote)
         if not field["grounded"]:
             issues.append(

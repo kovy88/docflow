@@ -1,3 +1,5 @@
+import { demoApi } from "@/lib/demo";
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -149,7 +151,7 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export const api = {
+const liveApi = {
   health: () => request<{ provider: string; model: string }>("/health"),
   templates: () => request<Template[]>("/templates"),
   template: (id: string) =>
@@ -199,6 +201,14 @@ export const api = {
     }),
   evals: () => request<EvalRun[]>("/evals"),
 };
+
+export type Api = typeof liveApi;
+
+/** Public read-only demo (static hosting, no backend): NEXT_PUBLIC_DEMO=1. */
+export const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
+export const REPO_URL = "https://github.com/kovy88/docflow";
+
+export const api: Api = DEMO ? demoApi : liveApi;
 
 /** Backend timestamps are UTC; SQLite drops the offset, Postgres keeps it. */
 export const parseTimestamp = (s: string) =>

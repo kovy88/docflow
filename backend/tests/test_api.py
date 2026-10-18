@@ -246,3 +246,14 @@ def test_template_suggestion_gets_unique_id(client, samples):
     r = client.post(f"/documents/{doc['id']}/template-suggestion")
     assert r.status_code == 200, r.text
     assert r.json()["id"] == "faktura" and r.json()["fields"][0]["key"] == "total"
+
+
+def test_mistyped_quote_falls_back_to_value(client, samples):
+    doc = upload(client, samples / "faktura_ok.pdf").json()
+    app.dependency_overrides[get_extractor] = lambda: FakeExtractor(
+        {"customer_name": ("Pekárna U Mlýna a.s.", 1, "ODBĚRATEEL: Pekárna U Mlýna a.s. XYZ", 0.95)}
+    )
+    result = extract(client, doc["id"], {"template_id": "invoice"})
+    field = next(f for f in result["fields"] if f["key"] == "customer_name")
+    assert field["grounded"] is True and field["quote"] == "Pekárna U Mlýna a.s."
+    assert not any(i["code"] == "ungrounded" for i in result["issues"])
