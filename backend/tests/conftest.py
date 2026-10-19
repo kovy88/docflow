@@ -7,7 +7,6 @@ import pytest
 
 _tmp = Path(tempfile.mkdtemp(prefix="docflow-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp / 'test.db'}"
-os.environ["STORAGE_DIR"] = str(_tmp / "storage")
 os.environ["LLM_PROVIDER"] = "openai"
 os.environ["OPENAI_API_KEY"] = ""
 

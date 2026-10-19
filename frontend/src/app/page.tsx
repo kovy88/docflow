@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DemoPicker } from "@/components/DemoPicker";
-import { api, DEMO, REPO_URL, type DocumentInfo } from "@/lib/api";
+import { useLive } from "@/lib/access";
+import { api, REPO_URL, type DocumentInfo } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
+  const live = useLive();
   const input = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<DocumentInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export default function Home() {
     }
   }
 
-  if (DEMO)
+  if (!live)
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-semibold tracking-tight">Docflow</h1>

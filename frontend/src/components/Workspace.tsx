@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExtractionPanel } from "@/components/ExtractionPanel";
 import {
   api,
@@ -24,6 +24,8 @@ export function Workspace({ documentId }: { documentId: number }) {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [quote, setQuote] = useState<string | null>(null);
+  // Stable object: react-pdf reloads the document whenever `file` changes identity.
+  const file = useMemo(() => api.fileSource(documentId), [documentId]);
 
   useEffect(() => {
     Promise.all([
@@ -68,7 +70,7 @@ export function Workspace({ documentId }: { documentId: number }) {
           aria-label="Náhled dokumentu"
         >
           <PdfViewer
-            url={api.fileUrl(documentId)}
+            file={file}
             page={page}
             onPageChange={setPage}
             quote={quote}

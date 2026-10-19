@@ -11,3 +11,4 @@ wheels/
 .env
 storage/
 *.db
+*.bak-*

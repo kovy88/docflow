@@ -1,3 +1,4 @@
+import { getAccessCode, isLive } from "@/lib/access";
 import { demoApi } from "@/lib/demo";
 
 export const API_URL =
@@ -124,8 +125,16 @@ export type EvalRun = {
   summary: EvalSummary;
 };
 
+function authHeaders(): Record<string, string> {
+  const code = getAccessCode();
+  return code ? { "X-Access-Code": code } : {};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, init);
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: { ...authHeaders(), ...init?.headers },
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     // FastAPI validation errors come as a list of {loc, msg}.
@@ -163,6 +172,7 @@ const liveApi = {
   deleteTemplate: (id: string) =>
     fetch(`${API_URL}/templates/${encodeURIComponent(id)}`, {
       method: "DELETE",
+      headers: authHeaders(),
     }).then((r) => {
       if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     }),
@@ -191,24 +201,55 @@ const liveApi = {
       `/extractions/${extractionId}`,
       json("PATCH", { values }),
     ),
-  fileUrl: (documentId: number) => `${API_URL}/documents/${documentId}/file`,
-  exportUrl: (extractionId: number, format: "json" | "csv") =>
-    `${API_URL}/extractions/${extractionId}/export?format=${format}`,
+  /** Source for react-pdf: the file endpoint needs the access header too. */
+  fileSource: (documentId: number): PdfSource => ({
+    url: `${API_URL}/documents/${documentId}/file`,
+    httpHeaders: authHeaders(),
+  }),
+  download: async (extractionId: number, format: "json" | "csv") => {
+    const res = await fetch(
+      `${API_URL}/extractions/${extractionId}/export?format=${format}`,
+      { headers: authHeaders() },
+    );
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(await res.blob());
+    link.download = `extraction-${extractionId}.${format}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
   demo: () => request<DemoDocument[]>("/demo"),
   createDemo: (file: string) =>
     request<DocumentInfo>(`/demo/${encodeURIComponent(file)}`, {
       method: "POST",
     }),
   evals: () => request<EvalRun[]>("/evals"),
+  /** Validates an access code; resolves with today's remaining model calls. */
+  checkAccess: (code: string) =>
+    request<{ ok: boolean; llm_calls_left_today: number }>("/access", {
+      headers: { "X-Access-Code": code },
+    }),
 };
 
 export type Api = typeof liveApi;
+export type PdfSource =
+  string | { url: string; httpHeaders: Record<string, string> };
 
-/** Public read-only demo (static hosting, no backend): NEXT_PUBLIC_DEMO=1. */
-export const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
 export const REPO_URL = "https://github.com/kovy88/docflow";
 
-export const api: Api = DEMO ? demoApi : liveApi;
+/** Always the live backend: used to validate a code before switching to live mode. */
+export const checkAccess = liveApi.checkAccess;
+
+/** Each call goes to the live backend or to the precomputed demo, decided per call so that
+ *  unlocking with an access code switches the whole app without a rebuild. */
+export const api = Object.fromEntries(
+  Object.keys(liveApi).map((key) => [
+    key,
+    (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((isLive() ? liveApi : demoApi)[key as keyof Api] as any)(...args),
+  ]),
+) as Api;
 
 /** Backend timestamps are UTC; SQLite drops the offset, Postgres keeps it. */
 export const parseTimestamp = (s: string) =>

@@ -175,3 +175,28 @@ def test_nested_list_items_encoded_as_strings():
 
     raw = json.dumps({"fields": [json.dumps({"key": "a"})], "name": "x"})
     assert loads_lenient(raw) == {"fields": [{"key": "a"}], "name": "x"}
+
+
+def test_openrouter_requests_strict_schema_and_no_data_retention():
+    from app.extractor import OpenRouterExtractor
+
+    extractor = OpenRouterExtractor("key", "qwen/qwen3.6-35b-a3b", timeout=1)
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        message = SimpleNamespace(content=json.dumps(VALID), tool_calls=None)
+        usage = SimpleNamespace(prompt_tokens=7, completion_tokens=3)
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
+
+    extractor.client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+    out = extractor.extract(["č. 42"], TEMPLATE)
+    assert out.answers["number"].value == "42"
+    fmt = calls[0]["response_format"]["json_schema"]
+    assert fmt["strict"] is True and "$ref" not in json.dumps(fmt["schema"])
+    assert calls[0]["extra_body"]["provider"] == {
+        "require_parameters": True,
+        "data_collection": "deny",
+    }

@@ -257,3 +257,42 @@ def test_mistyped_quote_falls_back_to_value(client, samples):
     field = next(f for f in result["fields"] if f["key"] == "customer_name")
     assert field["grounded"] is True and field["quote"] == "Pekárna U Mlýna a.s."
     assert not any(i["code"] == "ungrounded" for i in result["issues"])
+
+
+def test_access_code_guards_documents_but_not_public_pages(client, samples, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "access_code", "tajne-heslo")
+    assert client.get("/templates").status_code == 200
+    assert client.get("/demo").status_code == 200
+    assert client.get("/documents").status_code == 401
+    assert client.get("/access", headers={"X-Access-Code": "spatne"}).status_code == 401
+    ok = client.get("/access", headers={"X-Access-Code": "tajne-heslo"})
+    assert ok.status_code == 200 and ok.json()["ok"] is True
+    with (samples / "faktura_ok.pdf").open("rb") as f:
+        files = {"file": ("f.pdf", f, "application/pdf")}
+        assert client.post("/documents", files=files).status_code == 401
+
+
+def test_daily_llm_limit(client, samples, monkeypatch):
+    from sqlmodel import Session, delete
+
+    from app.config import settings
+    from app.db import UsageEvent, engine
+
+    with Session(engine) as session:
+        session.exec(delete(UsageEvent))
+        session.commit()
+    monkeypatch.setattr(settings, "daily_llm_limit", 1)
+    doc = upload(client, samples / "faktura_ok.pdf").json()
+    app.dependency_overrides[get_extractor] = lambda: FakeExtractor({})
+    first = client.post(f"/documents/{doc['id']}/extractions", json={"template_id": "invoice"})
+    assert first.status_code == 202
+    second = client.post(f"/documents/{doc['id']}/extractions", json={"template_id": "invoice"})
+    assert second.status_code == 429
+
+
+def test_pdf_is_served_from_the_database(client, samples):
+    doc = upload(client, samples / "faktura_ok.pdf").json()
+    r = client.get(f"/documents/{doc['id']}/file")
+    assert r.status_code == 200 and r.content == (samples / "faktura_ok.pdf").read_bytes()

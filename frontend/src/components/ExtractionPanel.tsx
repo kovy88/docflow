@@ -2,9 +2,9 @@
 
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLive } from "@/lib/access";
 import {
   api,
-  DEMO,
   parseTimestamp,
   type DocumentInfo,
   type ExtractedField,
@@ -300,6 +300,7 @@ function ReviewForm({
   const [focused, setFocused] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const live = useLive();
 
   const changed = extraction.fields.filter(
     (f) => drafts[f.key] !== (f.raw ?? ""),
@@ -345,7 +346,7 @@ function ReviewForm({
               : "chyb"}{" "}
           · {warnings} upozornění · {extraction.model}
           {tokens > 0 && ` · ${tokens.toLocaleString("cs-CZ")} tokenů`}
-          {!DEMO &&
+          {live &&
             extraction.usage.latency_s != null &&
             ` · ${Math.round(extraction.usage.latency_s)} s`}
         </p>
@@ -439,20 +440,22 @@ function ReviewForm({
               ? `Uložit opravy (${changed.length}) a schválit`
               : "Schválit"}
         </button>
-        {!DEMO && (
+        {live && (
           <span className="ml-auto flex gap-2 text-sm">
-            <a
-              className="text-accent hover:underline"
-              href={api.exportUrl(extraction.id, "csv")}
-            >
-              CSV
-            </a>
-            <a
-              className="text-accent hover:underline"
-              href={api.exportUrl(extraction.id, "json")}
-            >
-              JSON
-            </a>
+            {(["csv", "json"] as const).map((format) => (
+              <button
+                key={format}
+                type="button"
+                className="text-accent hover:underline"
+                onClick={() =>
+                  api
+                    .download(extraction.id, format)
+                    .catch((e: Error) => setError(e.message))
+                }
+              >
+                {format.toUpperCase()}
+              </button>
+            ))}
           </span>
         )}
         {extraction.reviewed_at && (

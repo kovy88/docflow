@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
+import type { PdfSource } from "@/lib/api";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 // Must be set in the same module that renders <Document> (see react-pdf README).
@@ -12,7 +13,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 type Props = {
-  url: string;
+  file: PdfSource;
   page: number;
   onPageChange: (page: number) => void;
   /** Verbatim quote to highlight on the current page. */
@@ -42,7 +43,7 @@ export function highlight(str: string, quote: string | null): string {
   return `${escapeHtml(str.slice(0, at))}<mark>${escapeHtml(str.slice(at, end))}</mark>${escapeHtml(str.slice(end))}`;
 }
 
-export default function PdfViewer({ url, page, onPageChange, quote }: Props) {
+export default function PdfViewer({ file, page, onPageChange, quote }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState(0);
   const [width, setWidth] = useState(600);
@@ -117,7 +118,7 @@ export default function PdfViewer({ url, page, onPageChange, quote }: Props) {
         className="min-h-0 flex-1 overflow-auto bg-background p-4"
       >
         <Document
-          file={url}
+          file={file}
           onLoadSuccess={({ numPages }) => setPages(numPages)}
           loading={<p className="text-muted">Načítám PDF…</p>}
           error={<p className="text-err">PDF se nepodařilo načíst.</p>}

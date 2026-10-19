@@ -5,8 +5,10 @@ a deterministickou kontrolou pravidel. Faktury, smlouvy, pojistky nebo jakýkoli
 dokumentu: obor určuje jen **šablona**, kterou lze vytvořit v UI nebo nechat navrhnout
 modelem.
 
-**Živé demo:** https://docflow-inky-ten.vercel.app (předpočítané výsledky lokálního modelu na
-fiktivních dokumentech, jen pro čtení; celá aplikace běží lokálně, viz Spuštění).
+**Živě:** https://docflow-inky-ten.vercel.app. Bez přístupového kódu ukazuje předpočítané
+výsledky na fiktivních dokumentech (rychle, bez nákladů). S kódem se přepne na ostrý
+provoz: nahrání vlastního PDF, OCR, extrakce, ruční kontrola a šablony nad skutečným
+backendem.
 
 ![Detail dokumentu: PDF se zvýrazněnou citací vlevo, vytěžená pole a nálezy vpravo](docs/workspace.png)
 
@@ -94,6 +96,23 @@ PDF ─► text po stranách (pypdf; skeny lokální OCR Tesseract)
 - **frontend/**: Next.js 16, react-pdf; PDF a pole vedle sebe, editor šablon, stránka
   evaluací. [Podrobnosti](frontend/README.md)
 - **backend/dataset/**: generátor realistických fiktivních dokumentů s ground truth.
+
+## Produkční nasazení
+
+```
+Vercel (Next.js) ──► Render (FastAPI v Dockeru, Tesseract) ──► OpenRouter: qwen/qwen3.6-35b-a3b
+                                   │
+                                   └──► Supabase Postgres (schéma docflow: dokumenty, PDF, extrakce)
+```
+
+- **Model:** stejný Qwen, který lokálně vyšel v evaluaci nejlépe, hostovaný přes OpenRouter
+  (≈ 0,03 Kč za dokument). Jen poskytovatelé, kteří neukládají ani netrénují na datech
+  (`data_collection: deny`), a jen ti se strukturovaným výstupem. Lokálně dál Ollama.
+- **Ochrana veřejné adresy:** dokumenty a volání modelu vyžadují přístupový kód
+  (`X-Access-Code`), globální denní limit volání modelu (`DAILY_LLM_LIMIT`).
+- **Úložiště:** PDF v Postgresu (disk na Renderu se při nasazení maže), extrakce běží na
+  pozadí a přežije zavření stránky.
+- Konfigurace: [render.yaml](render.yaml), tajné hodnoty jen v dashboardu Renderu.
 
 ## Spuštění
 

@@ -1,0 +1,29 @@
+# Render Blueprint: backend API (Docker, with Tesseract OCR). Secrets are set in the
+# Render dashboard (sync: false), never in this file.
+services:
+  - type: web
+    name: docflow-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_MODEL
+        value: qwen/qwen3.6-35b-a3b
+      - key: DB_SCHEMA
+        value: docflow
+      - key: DAILY_LLM_LIMIT
+        value: "100"
+      - key: CORS_ORIGINS
+        value: https://docflow-inky-ten.vercel.app,http://localhost:3000
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ACCESS_CODE
+        sync: false

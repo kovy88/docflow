@@ -2,24 +2,40 @@ import csv
 import io
 import json
 import logging
+import secrets
 import time
 from contextlib import asynccontextmanager
 from functools import cache
 from pathlib import Path
 from typing import Annotated
-from uuid import uuid4
 
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, model_validator
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.checks import issue
 from app.config import settings
-from app.db import CustomTemplate, Document, Extraction, engine, get_session, init_db, utcnow
-from app.extractor import Extractor, OpenAIExtractor, ToolCallExtractor, suggest_template
+from app.db import (
+    CustomTemplate,
+    Document,
+    DocumentFile,
+    Extraction,
+    UsageEvent,
+    engine,
+    get_session,
+    init_db,
+    utcnow,
+)
+from app.extractor import (
+    Extractor,
+    OpenAIExtractor,
+    OpenRouterExtractor,
+    ToolCallExtractor,
+    suggest_template,
+)
 from app.pdf import InvalidPdf, read_pdf
 from app.pipeline import apply_review, run_extraction
 from app.templates import Template, load_templates
@@ -27,7 +43,6 @@ from app.templates import Template, load_templates
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    settings.storage_dir.mkdir(parents=True, exist_ok=True)
     init_db()
     with Session(engine) as session:  # background work does not survive a restart
         for stale in session.exec(select(Extraction).where(Extraction.status == "running")):
@@ -41,7 +56,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Docflow", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -62,6 +77,12 @@ def get_extractor() -> Extractor:
     if settings.llm_provider == "ollama":
         return ToolCallExtractor(
             settings.ollama_base_url, settings.ollama_model, settings.llm_timeout_s
+        )
+    if settings.llm_provider == "openrouter":
+        if not settings.openrouter_api_key:
+            raise HTTPException(503, "OPENROUTER_API_KEY is not configured")
+        return OpenRouterExtractor(
+            settings.openrouter_api_key, settings.openrouter_model, settings.llm_timeout_s
         )
     if not settings.openai_api_key:
         raise HTTPException(503, "OPENAI_API_KEY is not configured")
@@ -108,14 +129,47 @@ def get_document(session: Session, document_id: int) -> Document:
     return doc
 
 
+def require_access(x_access_code: Annotated[str | None, Header()] = None) -> None:
+    """Production guard: everything that touches documents or calls the model needs the
+    access code (header X-Access-Code). Without ACCESS_CODE configured the API is open."""
+    if settings.access_code and not secrets.compare_digest(
+        (x_access_code or "").encode(), settings.access_code.encode()
+    ):
+        raise HTTPException(401, "Neplatný přístupový kód")
+
+
+Access = Depends(require_access)
+
+
+def llm_calls_today(session: Session) -> int:
+    midnight = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    query = select(func.count()).select_from(UsageEvent).where(UsageEvent.created_at >= midnight)
+    return session.exec(query).one()
+
+
+def consume_llm_quota(session: Session, kind: str) -> None:
+    """Global daily cap on paid model calls, so a public URL cannot drain the API budget."""
+    if llm_calls_today(session) >= settings.daily_llm_limit:
+        raise HTTPException(429, "Denní limit volání modelu je vyčerpaný, zkus to zítra.")
+    session.add(UsageEvent(kind=kind))
+    session.commit()
+
+
+@app.get("/access", dependencies=[Access])
+def check_access(session: SessionDep) -> dict:
+    return {"ok": True, "llm_calls_left_today": settings.daily_llm_limit - llm_calls_today(session)}
+
+
 @app.get("/health")
 def health():
     return {
         "status": "ok",
         "provider": settings.llm_provider,
-        "model": settings.ollama_model
-        if settings.llm_provider == "ollama"
-        else settings.openai_model,
+        "model": {
+            "ollama": settings.ollama_model,
+            "openai": settings.openai_model,
+            "openrouter": settings.openrouter_model,
+        }[settings.llm_provider],
     }
 
 
@@ -158,7 +212,7 @@ def get_template(template_id: str, session: SessionDep) -> TemplateOut:
     return get_template_or_404(session, template_id)
 
 
-@app.post("/templates", status_code=201)
+@app.post("/templates", status_code=201, dependencies=[Access])
 def create_template(template: Template, session: SessionDep) -> TemplateOut:
     if template.id in all_templates(session):
         raise HTTPException(409, f"Template {template.id!r} already exists")
@@ -167,7 +221,7 @@ def create_template(template: Template, session: SessionDep) -> TemplateOut:
     return TemplateOut(**template.model_dump(), builtin=False)
 
 
-@app.put("/templates/{template_id}")
+@app.put("/templates/{template_id}", dependencies=[Access])
 def update_template(template_id: str, template: Template, session: SessionDep) -> TemplateOut:
     row = get_custom_or_409(session, template_id)
     if template.id != template_id:
@@ -178,13 +232,13 @@ def update_template(template_id: str, template: Template, session: SessionDep) -
     return TemplateOut(**template.model_dump(), builtin=False)
 
 
-@app.delete("/templates/{template_id}", status_code=204)
+@app.delete("/templates/{template_id}", status_code=204, dependencies=[Access])
 def delete_template(template_id: str, session: SessionDep) -> None:
     session.delete(get_custom_or_409(session, template_id))
     session.commit()
 
 
-@app.post("/documents/{document_id}/template-suggestion")
+@app.post("/documents/{document_id}/template-suggestion", dependencies=[Access])
 def suggest_document_template(
     document_id: int, session: SessionDep, llm: Annotated[Extractor, Depends(get_extractor)]
 ) -> Template:
@@ -192,6 +246,7 @@ def suggest_document_template(
     doc = get_document(session, document_id)
     if not any(doc.pages):
         raise HTTPException(422, "PDF has no text layer")
+    consume_llm_quota(session, "template_suggestion")
     try:
         template, _ = suggest_template(llm, doc.pages)
     except Exception as exc:
@@ -213,22 +268,22 @@ def store_pdf(session: Session, data: bytes, filename: str) -> Document:
     except InvalidPdf as exc:
         raise HTTPException(422, f"Cannot read PDF: {exc}") from exc
 
-    path = settings.storage_dir / f"{uuid4().hex}.pdf"
-    path.write_bytes(data)
     doc = Document(
         filename=filename,
-        path=str(path),
         page_count=len(pdf.pages),
         pages=pdf.pages,
         ocr_pages=pdf.ocr_pages,
     )
     session.add(doc)
+    session.flush()
+    # The PDF lives in the database: hosting disks (Render) are wiped on every deploy.
+    session.add(DocumentFile(document_id=doc.id, data=data))
     session.commit()
     session.refresh(doc)
     return doc
 
 
-@app.post("/documents", status_code=201)
+@app.post("/documents", status_code=201, dependencies=[Access])
 async def upload_document(file: UploadFile, session: SessionDep) -> DocumentOut:
     data = await file.read()
     # OCR of a scan takes seconds per page; keep it off the event loop.
@@ -245,36 +300,43 @@ def list_demo_documents() -> list[dict]:
     ]
 
 
-@app.post("/demo/{file}", status_code=201)
+@app.post("/demo/{file}", status_code=201, dependencies=[Access])
 def create_demo_document(file: str, session: SessionDep) -> DocumentOut:
     if file not in {x["file"] for x in load_labels()}:  # also prevents path traversal
         raise HTTPException(404, "Demo document not found")
     return to_out(store_pdf(session, (DATASET_DIR / file).read_bytes(), file))
 
 
-@app.get("/documents")
+@app.get("/documents", dependencies=[Access])
 def list_documents(session: SessionDep) -> list[DocumentOut]:
     docs = session.exec(select(Document).order_by(Document.id.desc())).all()
     return [to_out(d) for d in docs]
 
 
-@app.get("/documents/{document_id}")
+@app.get("/documents/{document_id}", dependencies=[Access])
 def read_document(document_id: int, session: SessionDep) -> DocumentOut:
     return to_out(get_document(session, document_id))
 
 
-@app.get("/documents/{document_id}/text")
+@app.get("/documents/{document_id}/text", dependencies=[Access])
 def read_document_text(document_id: int, session: SessionDep) -> list[str]:
     return get_document(session, document_id).pages
 
 
-@app.get("/documents/{document_id}/file")
+@app.get("/documents/{document_id}/file", dependencies=[Access])
 def read_document_file(document_id: int, session: SessionDep):
     doc = get_document(session, document_id)
-    return FileResponse(doc.path, media_type="application/pdf", filename=doc.filename)
+    file = session.get(DocumentFile, document_id)
+    if file is None:
+        raise HTTPException(404, "File not found")
+    return Response(
+        file.data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{doc.filename}"'},
+    )
 
 
-@app.post("/documents/{document_id}/extractions", status_code=202)
+@app.post("/documents/{document_id}/extractions", status_code=202, dependencies=[Access])
 def create_extraction(
     document_id: int,
     body: ExtractionRequest,
@@ -289,6 +351,7 @@ def create_extraction(
         get_template_or_404(session, body.template_id).model_dump(exclude={"builtin"})
     )
 
+    consume_llm_quota(session, "extraction")
     extraction = Extraction(
         document_id=doc.id,
         template_id=template.id,
@@ -337,7 +400,7 @@ def process_extraction(
         session.commit()
 
 
-@app.get("/documents/{document_id}/extractions")
+@app.get("/documents/{document_id}/extractions", dependencies=[Access])
 def list_extractions(document_id: int, session: SessionDep) -> list[Extraction]:
     get_document(session, document_id)
     query = (
@@ -355,12 +418,12 @@ def get_extraction_or_404(session: Session, extraction_id: int) -> Extraction:
     return extraction
 
 
-@app.get("/extractions/{extraction_id}")
+@app.get("/extractions/{extraction_id}", dependencies=[Access])
 def read_extraction(extraction_id: int, session: SessionDep) -> Extraction:
     return get_extraction_or_404(session, extraction_id)
 
 
-@app.patch("/extractions/{extraction_id}")
+@app.patch("/extractions/{extraction_id}", dependencies=[Access])
 def review_extraction(extraction_id: int, body: ReviewRequest, session: SessionDep) -> Extraction:
     """Human review: save corrected values and mark the extraction approved."""
     extraction = get_extraction_or_404(session, extraction_id)
@@ -384,7 +447,7 @@ def review_extraction(extraction_id: int, body: ReviewRequest, session: SessionD
 EXPORT_COLUMNS = ["key", "label", "type", "raw", "value", "page", "confidence", "grounded", "quote"]
 
 
-@app.get("/extractions/{extraction_id}/export")
+@app.get("/extractions/{extraction_id}/export", dependencies=[Access])
 def export_extraction(extraction_id: int, session: SessionDep, format: str = "json"):
     extraction = get_extraction_or_404(session, extraction_id)
     name = f"extraction-{extraction.id}-{extraction.template_id}"

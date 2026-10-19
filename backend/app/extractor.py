@@ -9,6 +9,7 @@ import urllib.request
 from typing import Any, Literal, Protocol, TypeVar
 
 from openai import InternalServerError, OpenAI
+from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, Field, ValidationError, create_model
 
 from app.templates import IcoRule, Template, TemplateField
@@ -231,6 +232,60 @@ class OpenAIExtractor:
             "input_tokens": usage.input_tokens if usage else None,
             "output_tokens": usage.output_tokens if usage else None,
         }
+
+    def extract(self, pages: list[str], template: Template) -> ExtractionOutput:
+        return extract_with(self, pages, template)
+
+
+class OpenRouterExtractor:
+    """Hosted open models via OpenRouter (OpenAI-compatible API): the same Qwen model that
+    was evaluated locally runs in production. Strict JSON-schema output is requested from
+    providers that support it; output is still validated and retried like everywhere else.
+    Providers that store or train on prompts are excluded, documents may be confidential."""
+
+    def __init__(self, api_key: str, model: str, timeout: float, retries: int = 1):
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=timeout,
+            default_headers={"X-Title": "Docflow"},
+        )
+        self.model = model
+        self.retries = retries
+
+    def structured(self, system: str, user: str, schema_model: type[T]) -> tuple[T, dict[str, Any]]:
+        schema = inline_refs(to_strict_json_schema(schema_model))
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+        usage = {"input_tokens": 0, "output_tokens": 0, "attempts": 0}
+        while True:
+            usage["attempts"] += 1
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"name": "result", "strict": True, "schema": schema},
+                },
+                extra_body={
+                    "provider": {"require_parameters": True, "data_collection": "deny"},
+                    "reasoning": {"enabled": False},
+                },
+            )
+            if response.usage:
+                usage["input_tokens"] += response.usage.prompt_tokens
+                usage["output_tokens"] += response.usage.completion_tokens
+            raw = response.choices[0].message.content or ""
+            try:
+                return schema_model.model_validate(loads_lenient(raw)), usage
+            except (ValueError, ValidationError) as exc:
+                if usage["attempts"] > self.retries:
+                    raise RuntimeError(f"Model output does not match the schema: {exc}") from exc
+                messages.append({"role": "assistant", "content": raw})
+                messages.append({"role": "user", "content": f"Invalid output, fix it:\n{exc}"})
 
     def extract(self, pages: list[str], template: Template) -> ExtractionOutput:
         return extract_with(self, pages, template)
