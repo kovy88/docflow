@@ -23,6 +23,9 @@ export default function Home() {
       .catch((e: Error) => setError(`Backend není dostupný: ${e.message}`));
   }, []);
 
+  // The page stays alive (cacheComponents) while a document is open; reset on the way out.
+  useEffect(() => () => setUploading(false), []);
+
   async function upload(file: File | undefined) {
     if (!file) return;
     setUploading(true);
@@ -38,7 +41,7 @@ export default function Home() {
 
   if (!live)
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-10">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-semibold tracking-tight">Docflow</h1>
         <p className="mt-2 text-muted">
           Vytěžování dat z faktur, smluv a pojistek lokálním LLM. Ke každé
@@ -55,12 +58,14 @@ export default function Home() {
             Zdrojový kód a výsledky evaluace na GitHubu →
           </a>
         </p>
-        <DemoPicker />
+        <div className="mt-10">
+          <DemoPicker />
+        </div>
       </div>
     );
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10">
+    <div className="mx-auto w-full max-w-4xl px-4 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Dokumenty</h1>
       <p className="mt-1 text-muted">
         Nahraj PDF, vyber šablonu a Docflow vytáhne data. Ke každé hodnotě
@@ -108,31 +113,34 @@ export default function Home() {
         </p>
       )}
 
-      <ul className="mt-8 divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-        {documents === null && !error && (
-          <li className="px-4 py-3 text-muted">Načítám…</li>
-        )}
-        {documents?.length === 0 && (
-          <li className="px-4 py-3 text-muted">Zatím žádné dokumenty.</li>
-        )}
-        {documents?.map((doc) => (
-          <li key={doc.id}>
-            <Link
-              href={`/documents/${doc.id}`}
-              className="flex items-center justify-between px-4 py-3 hover:bg-background"
-            >
-              <span className="font-medium">{doc.filename}</span>
-              <span className="text-sm text-muted">
-                {doc.page_count} {doc.page_count === 1 ? "strana" : "stran"}
-                {!doc.has_text && " · bez textu"}
-                {doc.ocr_pages.length > 0 && " · sken (OCR)"}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-10">
+        <DemoPicker />
+      </div>
 
-      <DemoPicker />
+      {documents && documents.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Moje dokumenty
+          </h2>
+          <ul className="mt-3 divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+            {documents.map((doc) => (
+              <li key={doc.id}>
+                <Link
+                  href={`/documents/${doc.id}`}
+                  className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-background"
+                >
+                  <span className="truncate font-medium">{doc.filename}</span>
+                  <span className="shrink-0 text-sm text-muted">
+                    {doc.page_count} {doc.page_count === 1 ? "strana" : "stran"}
+                    {!doc.has_text && " · bez textu"}
+                    {doc.ocr_pages.length > 0 && " · sken (OCR)"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

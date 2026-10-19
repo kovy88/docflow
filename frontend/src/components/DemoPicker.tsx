@@ -7,13 +7,80 @@ import { api, type DemoDocument } from "@/lib/api";
 const GROUPS: { id: string; label: string }[] = [
   { id: "invoice", label: "Faktury" },
   { id: "contract", label: "Smlouvy" },
-  { id: "insurance_policy", label: "Pojistné smlouvy" },
+  { id: "insurance_policy", label: "Pojistky" },
 ];
+
+const PLANTED: Record<string, string> = {
+  sum: "nesedí součet",
+  ico: "neplatné IČO",
+  dates: "data v nesprávném pořadí",
+};
+
+type Card = {
+  title: string;
+  detail: string;
+  badge: { text: string; tone: "err" | "warn" } | null;
+};
+
+/** Turns the evaluation-set description ("layout A, 4 pol., …, vložené chyby: sum") into
+ *  something a visitor can read. */
+function describe(d: DemoDocument): Card {
+  const parts = d.description.split(", ");
+  const number = d.file.match(/_(\d+)/)?.[1] ?? "";
+  let badge: Card["badge"] = null;
+  let hard: string | null = null;
+  for (const p of parts) {
+    if (p.startsWith("vložené chyby: "))
+      badge = {
+        text: `Chyba: ${p
+          .slice(15)
+          .split(/[+ ]+/)
+          .map((c) => PLANTED[c] ?? c)
+          .join(", ")}`,
+        tone: "err",
+      };
+    else if (p.startsWith("těžký případ: ")) {
+      hard = p.slice(14);
+      badge = { text: "Těžký případ", tone: "warn" };
+    } else if (p === "sken bez textové vrstvy")
+      badge = { text: "Sken, čte se OCR", tone: "warn" };
+  }
+
+  if (d.template_id === "invoice") {
+    const items = Number(d.description.match(/(\d+) pol\./)?.[1]);
+    const vat = d.description
+      .match(/sazby DPH \[([^\]]*)\]/)?.[1]
+      .replaceAll(", ", " + ");
+    return {
+      title: `Faktura ${number}`,
+      detail:
+        hard ??
+        [
+          items && `${items} ${items >= 2 && items <= 4 ? "položky" : "položek"}`,
+          vat && `DPH ${vat} %`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      badge,
+    };
+  }
+  const kind = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  const detail =
+    d.template_id === "insurance_policy"
+      ? parts.filter((p) => p.startsWith("doba") || p.startsWith("splátky"))
+      : [];
+  return {
+    title: kind,
+    detail: hard ?? [`č. ${number}`, ...detail].join(" · "),
+    badge,
+  };
+}
 
 /** Fictional documents from the evaluation set, so the app can be tried without own PDFs. */
 export function DemoPicker() {
   const router = useRouter();
   const [demo, setDemo] = useState<DemoDocument[]>([]);
+  const [group, setGroup] = useState(GROUPS[0].id);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +90,10 @@ export function DemoPicker() {
       .then(setDemo)
       .catch(() => setDemo([]));
   }, []);
+
+  // cacheComponents keeps this page alive while a document is open; without the reset the
+  // buttons would still be disabled after navigating back.
+  useEffect(() => () => setBusy(null), []);
 
   async function open(file: string) {
     setBusy(file);
@@ -39,58 +110,86 @@ export function DemoPicker() {
   if (demo.length === 0) return null;
 
   return (
-    <section className="mt-10">
-      <h2 className="text-lg font-semibold tracking-tight">
-        Vyzkoušet na ukázce
-      </h2>
-      <p className="mt-1 text-sm text-muted">
-        Fiktivní dokumenty z evaluační sady. Ty označené červeně obsahují
-        schválně vložené chyby, které má Docflow najít.
-      </p>
+    <section>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Vyzkoušet na ukázce
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-muted">
+            Fiktivní dokumenty z evaluační sady. Červeně označené obsahují
+            schválně vloženou chybu, kterou má Docflow najít.
+          </p>
+        </div>
+        <div
+          role="tablist"
+          className="flex rounded-lg border border-line bg-surface p-0.5 text-sm"
+        >
+          {GROUPS.map((g) => {
+            const count = demo.filter((d) => d.template_id === g.id).length;
+            const active = g.id === group;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setGroup(g.id)}
+                className={`rounded-md px-3 py-1 transition ${
+                  active
+                    ? "bg-accent-soft font-medium text-accent"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {g.label} <span className="text-xs opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {error && (
         <p className="mt-3 rounded-md bg-err-soft px-3 py-2 text-sm text-err">
           {error}
         </p>
       )}
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        {GROUPS.map((group) => (
-          <div key={group.id}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              {group.label}
-            </h3>
-            <ul className="space-y-1">
-              {demo
-                .filter((d) => d.template_id === group.id)
-                .map((d) => {
-                  const planted = d.description.includes("vložené chyby");
-                  return (
-                    <li key={d.file}>
-                      <button
-                        type="button"
-                        onClick={() => open(d.file)}
-                        disabled={busy !== null}
-                        title={d.description}
-                        className="flex w-full items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 text-left text-sm hover:border-accent disabled:opacity-50"
-                      >
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${planted ? "bg-err" : "bg-ok"}`}
-                          aria-label={
-                            planted ? "obsahuje vložené chyby" : "bez chyb"
-                          }
-                        />
-                        <span className="truncate">
-                          {busy === d.file
-                            ? "Otevírám…"
-                            : d.file.replace(".pdf", "")}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-            </ul>
-          </div>
-        ))}
-      </div>
+
+      <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {demo
+          .filter((d) => d.template_id === group)
+          .map((d) => {
+            const card = describe(d);
+            const opening = busy === d.file;
+            return (
+              <li key={d.file}>
+                <button
+                  type="button"
+                  onClick={() => open(d.file)}
+                  disabled={busy !== null}
+                  className={`flex h-full w-full flex-col items-start gap-1 rounded-lg border bg-surface px-3 py-2.5 text-left transition hover:border-accent hover:shadow-sm disabled:cursor-wait ${
+                    opening ? "border-accent" : "border-line"
+                  } ${busy !== null && !opening ? "opacity-60" : ""}`}
+                >
+                  <span className="text-sm font-medium">
+                    {opening ? "Otevírám…" : card.title}
+                  </span>
+                  <span className="text-xs text-muted">{card.detail}</span>
+                  {card.badge && (
+                    <span
+                      className={`mt-0.5 rounded px-1.5 py-0.5 text-xs ${
+                        card.badge.tone === "err"
+                          ? "bg-err-soft text-err"
+                          : "bg-warn-soft text-warn"
+                      }`}
+                    >
+                      {card.badge.text}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+      </ul>
     </section>
   );
 }

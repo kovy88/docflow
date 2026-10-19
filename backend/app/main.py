@@ -304,7 +304,13 @@ def list_demo_documents() -> list[dict]:
 def create_demo_document(file: str, session: SessionDep) -> DocumentOut:
     if file not in {x["file"] for x in load_labels()}:  # also prevents path traversal
         raise HTTPException(404, "Demo document not found")
-    return to_out(store_pdf(session, (DATASET_DIR / file).read_bytes(), file))
+    data = (DATASET_DIR / file).read_bytes()
+    # Reopening a sample returns the same document with its extractions, not a fresh copy.
+    for doc in session.exec(select(Document).where(Document.filename == file)):
+        stored = session.get(DocumentFile, doc.id)
+        if stored is not None and stored.data == data:
+            return to_out(doc)
+    return to_out(store_pdf(session, data, file))
 
 
 @app.get("/documents", dependencies=[Access])
