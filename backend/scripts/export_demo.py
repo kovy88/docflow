@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.config import settings  # noqa: E402
+from app.demo import demo_path, load_demo_labels  # noqa: E402
 from app.extractor import ExtractionOutput, FieldAnswer, ToolCallExtractor  # noqa: E402
 from app.pdf import read_pdf  # noqa: E402
 from app.pipeline import run_extraction  # noqa: E402
@@ -72,13 +73,13 @@ def main() -> None:
     path = OUT / "data.json"
     data = json.loads(path.read_text()) if path.exists() and not args.fresh else {}
     done = {e["document_id"] for es in data.get("extractions", {}).values() for e in es}
-    labels = json.loads((DATASET / "labels.json").read_text())
+    labels = load_demo_labels()
     extractor = ToolCallExtractor(settings.ollama_base_url, args.model, settings.llm_timeout_s)
 
     documents, extractions = [], data.get("extractions", {})
     for doc_id, label in enumerate(labels, 1):
-        pdf_bytes = (DATASET / label["file"]).read_bytes()
-        shutil.copyfile(DATASET / label["file"], OUT / "pdfs" / f"{doc_id}.pdf")
+        pdf_bytes = demo_path(label["file"]).read_bytes()
+        shutil.copyfile(demo_path(label["file"]), OUT / "pdfs" / f"{doc_id}.pdf")
         pdf = read_pdf(pdf_bytes)
         documents.append(
             {

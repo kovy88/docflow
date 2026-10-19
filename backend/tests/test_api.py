@@ -62,7 +62,7 @@ def upload(client, path):
 
 def test_templates(client):
     ids = [t["id"] for t in client.get("/templates").json()]
-    assert ids == ["contract", "insurance_policy", "invoice"]
+    assert ids == ["contract", "insurance_policy", "invoice", "lease"]
 
 
 def test_upload_rejects_non_pdf(client):
@@ -263,7 +263,7 @@ def test_access_code_guards_documents_but_not_public_pages(client, samples, monk
     from app.config import settings
 
     monkeypatch.setattr(settings, "access_code", "tajne-heslo")
-    assert client.get("/templates").status_code == 200
+    assert client.get("/templates").status_code == 401  # custom templates can contain client data
     assert client.get("/demo").status_code == 200
     assert client.get("/documents").status_code == 401
     assert client.get("/access", headers={"X-Access-Code": "spatne"}).status_code == 401

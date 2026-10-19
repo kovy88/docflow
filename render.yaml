@@ -20,7 +20,7 @@ services:
       - key: DAILY_LLM_LIMIT
         value: "100"
       - key: CORS_ORIGINS
-        value: https://docflow-inky-ten.vercel.app,http://localhost:3000
+        value: https://docflow.logicflow.cz,https://docflow-inky-ten.vercel.app,http://localhost:3000
       - key: OPENROUTER_API_KEY
         sync: false
       - key: DATABASE_URL

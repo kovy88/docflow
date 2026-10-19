@@ -17,9 +17,11 @@ LABELS = json.loads((DATASET / "labels.json").read_text())
 SCANS = [x for x in LABELS if x["difficulty"] == "scan"]
 
 
-def test_dataset_covers_all_templates_and_planted_errors():
-    assert {x["template_id"] for x in LABELS} == set(load_templates())
-    assert {x["template_id"] for x in SCANS} == set(load_templates())
+def test_dataset_covers_evaluated_templates_and_planted_errors():
+    # Lease is a new pilot template; it has no measured model accuracy yet.
+    evaluated = set(load_templates()) - {"lease"}
+    assert {x["template_id"] for x in LABELS} == evaluated
+    assert {x["template_id"] for x in SCANS} == evaluated
     planted = {code for x in LABELS for code in x["expected_issues"]}
     assert {"sum_mismatch", "ico_checksum", "date_order"} <= planted
     assert sum(1 for x in LABELS if not x["expected_issues"]) >= len(LABELS) // 2

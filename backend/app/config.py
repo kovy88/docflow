@@ -1,5 +1,6 @@
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +19,7 @@ class Settings(BaseSettings):
     openrouter_model: str = "qwen/qwen3.6-35b-a3b"
     llm_timeout_s: float = 600
     access_code: str | None = None  # required for documents and model calls when set
+    pilot_mode: bool = False
     daily_llm_limit: int = 100
     cors_origins: str = "http://localhost:3000"  # comma-separated
     max_upload_mb: int = 20
@@ -26,6 +28,12 @@ class Settings(BaseSettings):
     # so its pages get a looser threshold (measured on the scan set, see README).
     quote_threshold: float = 0.9
     ocr_quote_threshold: float = 0.85
+
+    @model_validator(mode="after")
+    def pilot_requires_access(self):
+        if self.pilot_mode and not (self.access_code and self.access_code.strip()):
+            raise ValueError("PILOT_MODE requires a non-empty ACCESS_CODE")
+        return self
 
 
 settings = Settings()

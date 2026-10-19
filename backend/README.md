@@ -37,6 +37,29 @@ scans still upload but extraction reports `no_text`.
 API docs at http://localhost:8000/docs. Sample PDFs (fictional) are in `samples/`;
 regenerate with `uv run python scripts/make_samples.py`.
 
+## Lease pilot
+
+Built-in template `lease` extracts rental evidence without calculating missing dates or amounts.
+Generate its fictional walkthrough with `uv run python scripts/make_lease_sample.py`.
+It is separate from the measured evaluation dataset. The public demo exporter includes it
+and skips the already computed examples on rerun.
+
+- `POST /exports/xlsx`: body `{ "extraction_ids": [1, 2], "columns": ["tenant", "rent"] }`.
+  Up to 100 unique extraction IDs, one per document; `columns` is an optional ordered subset
+  of template field keys. Default: every field in template order. Filename and UTC review date
+  are always included. Amounts/dates are native Excel cells, missing values blank, text never formulas.
+  Entire batch rejected with 409 unless all results are human-approved, have `reviewed_at`,
+  have no error issues, and share a template ID and field schema. Unknown IDs: 404; invalid
+  selection/columns: 422. Existing individual JSON/CSV exports are unchanged.
+- `DELETE /documents/{id}` removes all extraction rows, stored PDF and document text in one
+  transaction. Active extraction: 409; absent document: 404. Historical backups are separate.
+- Both operations and template reads require `X-Access-Code` when configured. This now also
+  protects custom template names and instructions. Public static demo remains readable.
+- `PILOT_MODE=true` refuses startup without a non-empty `ACCESS_CODE`.
+
+See [pilot operations](../docs/pilot/operations.md) for separate deployment, SQLite backup and
+an isolated PostgreSQL restore drill. No client instance is provisioned by checking out this code.
+
 ## Evaluation dataset
 
 `dataset/` holds 37 realistic but fictional PDFs (18 invoices in 3 layouts incl. a bilingual

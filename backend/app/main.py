@@ -5,7 +5,7 @@ import logging
 import secrets
 import time
 from contextlib import asynccontextmanager
-from functools import cache
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
@@ -13,7 +13,8 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Up
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import delete
 from sqlmodel import Session, func, select
 
 from app.checks import issue
@@ -29,6 +30,7 @@ from app.db import (
     init_db,
     utcnow,
 )
+from app.demo import demo_path, load_demo_labels
 from app.extractor import (
     Extractor,
     OpenAIExtractor,
@@ -39,6 +41,7 @@ from app.extractor import (
 from app.pdf import InvalidPdf, read_pdf
 from app.pipeline import apply_review, run_extraction
 from app.templates import Template, load_templates
+from app.xlsx import workbook
 
 
 @asynccontextmanager
@@ -63,14 +66,7 @@ app.add_middleware(
 
 logger = logging.getLogger("docflow")
 SessionDep = Annotated[Session, Depends(get_session)]
-DATASET_DIR = Path(__file__).resolve().parent.parent / "dataset"
 EVALS_DIR = Path(__file__).resolve().parent.parent / "evals"
-
-
-@cache
-def load_labels() -> list[dict]:
-    path = DATASET_DIR / "labels.json"
-    return json.loads(path.read_text()) if path.exists() else []
 
 
 def get_extractor() -> Extractor:
@@ -202,12 +198,12 @@ def get_custom_or_409(session: Session, template_id: str) -> CustomTemplate:
     return row
 
 
-@app.get("/templates")
+@app.get("/templates", dependencies=[Access])
 def list_templates(session: SessionDep) -> list[TemplateOut]:
     return list(all_templates(session).values())
 
 
-@app.get("/templates/{template_id}")
+@app.get("/templates/{template_id}", dependencies=[Access])
 def get_template(template_id: str, session: SessionDep) -> TemplateOut:
     return get_template_or_404(session, template_id)
 
@@ -296,15 +292,15 @@ def list_demo_documents() -> list[dict]:
     """Fictional sample documents from the evaluation set, for trying the app quickly."""
     return [
         {"file": x["file"], "template_id": x["template_id"], "description": x["description"]}
-        for x in load_labels()
+        for x in load_demo_labels()
     ]
 
 
 @app.post("/demo/{file}", status_code=201, dependencies=[Access])
 def create_demo_document(file: str, session: SessionDep) -> DocumentOut:
-    if file not in {x["file"] for x in load_labels()}:  # also prevents path traversal
+    if file not in {x["file"] for x in load_demo_labels()}:  # also prevents path traversal
         raise HTTPException(404, "Demo document not found")
-    data = (DATASET_DIR / file).read_bytes()
+    data = demo_path(file).read_bytes()
     # Reopening a sample returns the same document with its extractions, not a fresh copy.
     for doc in session.exec(select(Document).where(Document.filename == file)):
         stored = session.get(DocumentFile, doc.id)
@@ -322,6 +318,22 @@ def list_documents(session: SessionDep) -> list[DocumentOut]:
 @app.get("/documents/{document_id}", dependencies=[Access])
 def read_document(document_id: int, session: SessionDep) -> DocumentOut:
     return to_out(get_document(session, document_id))
+
+
+@app.delete("/documents/{document_id}", status_code=204, dependencies=[Access])
+def delete_document(document_id: int, session: SessionDep) -> None:
+    doc = get_document(session, document_id)
+    running = session.exec(
+        select(Extraction).where(
+            Extraction.document_id == document_id, Extraction.status == "running"
+        )
+    ).first()
+    if running:
+        raise HTTPException(409, "Počkej na dokončení extrakce a zkus smazání znovu.")
+    session.execute(delete(Extraction).where(Extraction.document_id == document_id))
+    session.execute(delete(DocumentFile).where(DocumentFile.document_id == document_id))
+    session.delete(doc)
+    session.commit()
 
 
 @app.get("/documents/{document_id}/text", dependencies=[Access])
@@ -451,6 +463,60 @@ def review_extraction(extraction_id: int, body: ReviewRequest, session: SessionD
 
 
 EXPORT_COLUMNS = ["key", "label", "type", "raw", "value", "page", "confidence", "grounded", "quote"]
+
+
+class BatchExportRequest(BaseModel):
+    extraction_ids: list[int] = Field(min_length=1, max_length=100)
+    # Optional ordered subset of template keys; labels come from the reviewed snapshot.
+    columns: list[str] | None = Field(default=None, min_length=1)
+
+
+@app.post("/exports/xlsx", dependencies=[Access])
+def export_batch(body: BatchExportRequest, session: SessionDep):
+    if len(set(body.extraction_ids)) != len(body.extraction_ids):
+        raise HTTPException(422, "Vyber každou extrakci pouze jednou.")
+    extractions = [get_extraction_or_404(session, id) for id in body.extraction_ids]
+    if len({e.document_id for e in extractions}) != len(extractions):
+        raise HTTPException(422, "Pro každý dokument vyber pouze jednu extrakci.")
+    for extraction in extractions:
+        if (
+            extraction.status != "approved"
+            or extraction.reviewed_at is None
+            or any(i["severity"] == "error" for i in extraction.issues)
+        ):
+            raise HTTPException(
+                409, f"Extrakce #{extraction.id} musí být lidsky schválená a bez chybových nálezů."
+            )
+    template = Template.model_validate(extractions[0].template)
+    signature = [(f.key, f.label, f.type) for f in template.fields]
+    if any(
+        e.template_id != template.id
+        or [(f["key"], f["label"], f.get("type", "string")) for f in e.template["fields"]]
+        != signature
+        for e in extractions
+    ):
+        raise HTTPException(409, "Vyber dokumenty se stejnou šablonou a stejnými sloupci.")
+    fields = {f.key: f for f in template.fields}
+    keys = body.columns if body.columns is not None else list(fields)
+    if len(set(keys)) != len(keys) or any(key not in fields for key in keys):
+        raise HTTPException(422, "Sloupce musí být unikátní klíče z použité šablony.")
+    headers = ["Soubor", "Datum kontroly (UTC)", *[fields[key].label for key in keys]]
+    rows = []
+    for extraction in extractions:
+        doc = get_document(session, extraction.document_id)
+        values = {f["key"]: f["value"] for f in extraction.fields}
+        row = [doc.filename, extraction.reviewed_at.date()]
+        for key in keys:
+            value = values.get(key)
+            if value is not None and fields[key].type == "date":
+                value = date.fromisoformat(value)
+            row.append(value)
+        rows.append(row)
+    return Response(
+        workbook(headers, rows),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="docflow-evidence.xlsx"'},
+    )
 
 
 @app.get("/extractions/{extraction_id}/export", dependencies=[Access])

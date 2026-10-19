@@ -1,0 +1,31 @@
+# One backend per client. Supply a NEW database/project, never the demo database.
+# Provision only after selecting the pilot client; see docs/pilot/operations.md.
+services:
+  - type: web
+    name: docflow-lease-pilot-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PILOT_MODE
+        value: "true"
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_MODEL
+        value: qwen/qwen3.6-35b-a3b
+      - key: DB_SCHEMA
+        value: docflow
+      - key: DAILY_LLM_LIMIT
+        value: "100"
+      - key: CORS_ORIGINS
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ACCESS_CODE
+        sync: false
