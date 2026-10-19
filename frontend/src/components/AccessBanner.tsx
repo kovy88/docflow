@@ -40,7 +40,7 @@ export function AccessBanner() {
       const message = (err as Error).message;
       setError(
         message === "Failed to fetch"
-          ? "Server se probouzí (free hosting), zkus to za minutu znovu."
+          ? "Server se probouzí (free hosting), zkuste to za minutu znovu."
           : message,
       );
       setBusy(false);

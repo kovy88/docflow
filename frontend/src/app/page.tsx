@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DocumentList } from "@/components/DocumentList";
-import { PilotOffer } from "@/components/PilotOffer";
+import { DataAndTech, Hero, PilotOffer, Steps } from "@/components/PilotOffer";
 import { DemoPicker } from "@/components/DemoPicker";
 import { useLive } from "@/lib/access";
-import { api, REPO_URL, type DocumentInfo } from "@/lib/api";
+import { api, type DocumentInfo } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
@@ -42,27 +42,14 @@ export default function Home() {
 
   if (!live)
     return (
-      <div className="mx-auto w-full max-w-4xl px-4 py-10">
-        <PilotOffer />
-        <h2 className="text-2xl font-semibold tracking-tight">Vyzkoušejte veřejné demo</h2>
-        <p className="mt-2 text-muted">
-          Ukázka vytěžování dat z faktur, smluv a pojistek. Ke každé
-          hodnotě ukáže, kde v PDF je, a zkontroluje ji pravidly (IČO, součty,
-          pořadí dat). Vyber dokument níže: uvidíš skutečný výstup modelu
-          qwen3.6 běžícího lokálně přes Ollamu. Klikni na pole a v PDF se
-          zvýrazní citace.
-        </p>
-        <p className="mt-3 text-sm">
-          <a
-            href={REPO_URL}
-            className="font-medium text-accent hover:underline"
-          >
-            Zdrojový kód a výsledky evaluace na GitHubu →
-          </a>
-        </p>
-        <div className="mt-10">
+      <div className="mx-auto grid w-full max-w-6xl gap-20 px-4 py-12 md:py-16">
+        <Hero />
+        <div id="demo" className="scroll-mt-6 rounded-lg border border-line bg-surface p-6">
           <DemoPicker />
         </div>
+        <Steps />
+        <PilotOffer />
+        <DataAndTech />
       </div>
     );
 

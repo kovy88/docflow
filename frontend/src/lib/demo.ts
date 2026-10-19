@@ -19,7 +19,7 @@ type DemoData = {
 };
 
 export const DEMO_MESSAGE =
-  "Veřejné demo je jen pro čtení. Nahrávání, extrakci a úpravy si vyzkoušíš po spuštění Docflow lokálně.";
+  "Veřejné demo je jen pro čtení. Nahrávání, extrakci a úpravy si vyzkoušíte po spuštění Docflow lokálně.";
 
 let cache: Promise<DemoData> | null = null;
 const data = () =>

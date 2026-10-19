@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { api, type DemoDocument } from "@/lib/api";
 
 const GROUPS: { id: string; label: string }[] = [
-  { id: "lease", label: "Nájmy" },
   { id: "invoice", label: "Faktury" },
   { id: "contract", label: "Smlouvy" },
   { id: "insurance_policy", label: "Pojistky" },
+  { id: "lease", label: "Nájmy" },
 ];
 
 const PLANTED: Record<string, string> = {
@@ -82,11 +82,14 @@ function describe(d: DemoDocument): Card {
   };
 }
 
+const LIMIT = 6;
+
 /** Fictional documents from the evaluation set, so the app can be tried without own PDFs. */
 export function DemoPicker() {
   const router = useRouter();
   const [demo, setDemo] = useState<DemoDocument[]>([]);
   const [group, setGroup] = useState(GROUPS[0].id);
+  const [all, setAll] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,17 +117,19 @@ export function DemoPicker() {
   }
 
   if (demo.length === 0) return null;
+  const shown = demo.filter((d) => d.template_id === group);
 
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">
-            Vyzkoušet na ukázce
+          <h2 className="text-2xl font-bold tracking-[-0.01em]">
+            Vyzkoušejte na ukázce
           </h2>
-          <p className="mt-1 max-w-xl text-sm text-muted">
-            Fiktivní ukázka nájmu a dokumenty z evaluační sady. Červeně označené obsahují
-            schválně vloženou chybu, kterou má Docflow najít.
+          <p className="mt-1 max-w-xl text-muted">
+            Vyberte dokument a klikněte na libovolný údaj: v PDF se zvýrazní, odkud
+            pochází. Červeně označené ukázky obsahují schválně vloženou chybu, kterou
+            má Docflow najít. Všechny dokumenty jsou fiktivní.
           </p>
         </div>
         <div
@@ -140,7 +145,10 @@ export function DemoPicker() {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setGroup(g.id)}
+                onClick={() => {
+                  setGroup(g.id);
+                  setAll(false);
+                }}
                 className={`rounded-md px-3 py-1 transition ${
                   active
                     ? "bg-accent-soft font-medium text-accent"
@@ -161,8 +169,8 @@ export function DemoPicker() {
       )}
 
       <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {demo
-          .filter((d) => d.template_id === group)
+        {shown
+          .slice(0, all ? undefined : LIMIT)
           .map((d) => {
             const card = describe(d);
             const opening = busy === d.file;
@@ -196,6 +204,15 @@ export function DemoPicker() {
             );
           })}
       </ul>
+      {!all && shown.length > LIMIT && (
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="mt-3 text-sm font-medium text-accent hover:underline"
+        >
+          Zobrazit všech {shown.length}
+        </button>
+      )}
     </section>
   );
 }
