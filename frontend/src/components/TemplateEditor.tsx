@@ -247,6 +247,18 @@ export function TemplateEditor({
                 povinné
               </label>
               {!readOnly && (
+                <div className="flex items-center gap-2">
+                {([-1, 1] as const).map((direction) => (
+                  <button type="button" key={direction}
+                    aria-label={`${direction === -1 ? "Posunout nahoru" : "Posunout dolů"}: ${f.label}`}
+                    disabled={i + direction < 0 || i + direction >= t.fields.length}
+                    className="text-sm text-accent disabled:opacity-30"
+                    onClick={() => setT((prev) => {
+                      const fields = [...prev.fields];
+                      [fields[i], fields[i + direction]] = [fields[i + direction], fields[i]];
+                      return { ...prev, fields };
+                    })}>{direction === -1 ? "↑" : "↓"}</button>
+                ))}
                 <button
                   type="button"
                   onClick={() =>
@@ -256,6 +268,7 @@ export function TemplateEditor({
                 >
                   Odebrat
                 </button>
+                </div>
               )}
               <input
                 className={`${input} sm:col-span-5`}

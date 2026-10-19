@@ -161,6 +161,29 @@ const json = (method: string, body: unknown): RequestInit => ({
 });
 
 const liveApi = {
+  deleteDocument: async (id: number) => {
+    const res = await fetch(`${API_URL}/documents/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.detail || "Dokument se nepodařilo smazat.");
+    }
+  },
+  exportBatch: async (extractionIds: number[]) => {
+    const res = await fetch(`${API_URL}/exports/xlsx`, {
+      ...json("POST", { extraction_ids: extractionIds }),
+      headers: { ...authHeaders(), "content-type": "application/json" },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(typeof body?.detail === "string" ? body.detail : "Export se nepodařil.");
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "docflow-evidence.xlsx";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
   health: () => request<{ provider: string; model: string }>("/health"),
   templates: () => request<Template[]>("/templates"),
   template: (id: string) =>

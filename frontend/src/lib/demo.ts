@@ -39,6 +39,8 @@ async function documentById(id: number) {
 }
 
 export const demoApi: Api = {
+  deleteDocument: readOnly,
+  exportBatch: readOnly,
   health: async () => ({ provider: "ollama", model: (await data()).model }),
   templates: async () => (await data()).templates,
   template: async (id) => {

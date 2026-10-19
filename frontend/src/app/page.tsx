@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { DocumentList } from "@/components/DocumentList";
+import { PilotOffer } from "@/components/PilotOffer";
 import { DemoPicker } from "@/components/DemoPicker";
 import { useLive } from "@/lib/access";
 import { api, REPO_URL, type DocumentInfo } from "@/lib/api";
@@ -42,9 +43,10 @@ export default function Home() {
   if (!live)
     return (
       <div className="mx-auto w-full max-w-4xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">Docflow</h1>
+        <PilotOffer />
+        <h2 className="text-2xl font-semibold tracking-tight">Vyzkoušejte veřejné demo</h2>
         <p className="mt-2 text-muted">
-          Vytěžování dat z faktur, smluv a pojistek lokálním LLM. Ke každé
+          Ukázka vytěžování dat z faktur, smluv a pojistek. Ke každé
           hodnotě ukáže, kde v PDF je, a zkontroluje ji pravidly (IČO, součty,
           pořadí dat). Vyber dokument níže: uvidíš skutečný výstup modelu
           qwen3.6 běžícího lokálně přes Ollamu. Klikni na pole a v PDF se
@@ -96,7 +98,7 @@ export default function Home() {
           {uploading ? "Nahrávám…" : "Přetáhni PDF sem nebo klikni pro výběr"}
         </span>
         <span className="text-sm text-muted">
-          PDF s textovou vrstvou, max. 20 MB
+          PDF s textem nebo sken, max. 20 MB
         </span>
       </button>
       <input
@@ -113,34 +115,15 @@ export default function Home() {
         </p>
       )}
 
+      {documents && documents.length > 0 && (
+        <DocumentList documents={documents} onDelete={(id) => setDocuments((prev) => prev?.filter((d) => d.id !== id) ?? [])} />
+      )}
+
       <div className="mt-10">
         <DemoPicker />
       </div>
 
-      {documents && documents.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Moje dokumenty
-          </h2>
-          <ul className="mt-3 divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <Link
-                  href={`/documents/${doc.id}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-background"
-                >
-                  <span className="truncate font-medium">{doc.filename}</span>
-                  <span className="shrink-0 text-sm text-muted">
-                    {doc.page_count} {doc.page_count === 1 ? "strana" : "stran"}
-                    {!doc.has_text && " · bez textu"}
-                    {doc.ocr_pages.length > 0 && " · sken (OCR)"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+
     </div>
   );
 }

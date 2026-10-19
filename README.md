@@ -5,7 +5,12 @@ a deterministickou kontrolou pravidel. Faktury, smlouvy, pojistky nebo jakýkoli
 dokumentu: obor určuje jen **šablona**, kterou lze vytvořit v UI nebo nechat navrhnout
 modelem.
 
-**Živě:** https://docflow-inky-ten.vercel.app. Bez přístupového kódu ukazuje předpočítané
+**První placený pilot:** nájemní smlouvy → evidence v Excelu pro správce nájmů.
+Připravené funkce, nabídka, podmínky, provoz a měření jsou v [docs/pilot/](docs/pilot/README.md).
+Nová nájemní šablona zatím nemá změřenou přesnost na reálných smlouvách; veřejná
+ukázka obsahuje jeden další fiktivní nájem mimo níže uváděnou evaluační sadu.
+
+**Živě:** https://docflow.logicflow.cz (původní adresa https://docflow-inky-ten.vercel.app také funguje). Bez přístupového kódu ukazuje předpočítané
 výsledky na fiktivních dokumentech (rychle, bez nákladů). S kódem se přepne na ostrý
 provoz: nahrání vlastního PDF, OCR, extrakce, ruční kontrola a šablony nad skutečným
 backendem.

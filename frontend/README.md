@@ -16,3 +16,13 @@ npm run dev          # http://localhost:3000, expects the backend on :8000
 `backend/scripts/export_demo.py`. Uploads, extraction and edits are disabled there.
 Deploy: `vercel --prod` from this folder.
 
+The public homepage now offers a managed lease-to-Excel pilot and a fictional lease walkthrough
+with actual local model output (outside the measured evaluation set). Configure
+`NEXT_PUBLIC_PILOT_EMAIL` for the CTA; default: `logicflow88@gmail.com`.
+See `.env.example` for a public demo with an access-code-unlocked live backend.
+
+In live mode, select documents on the homepage to export their latest reviewed extractions
+as one `.xlsx` table. Unapproved results or error findings block the entire batch; different
+template schemas cannot be mixed. Documents can also be deleted with confirmation. The
+template editor supports field ordering for the client's column layout.
+

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api, type DemoDocument } from "@/lib/api";
 
 const GROUPS: { id: string; label: string }[] = [
+  { id: "lease", label: "Nájmy" },
   { id: "invoice", label: "Faktury" },
   { id: "contract", label: "Smlouvy" },
   { id: "insurance_policy", label: "Pojistky" },
@@ -25,6 +26,11 @@ type Card = {
 /** Turns the evaluation-set description ("layout A, 4 pol., …, vložené chyby: sum") into
  *  something a visitor can read. */
 function describe(d: DemoDocument): Card {
+  if (d.template_id === "lease") return {
+    title: "Nájemní smlouva → evidence",
+    detail: "Fiktivní ukázka · doba neurčitá · mimo měřenou evaluaci",
+    badge: null,
+  };
   const parts = d.description.split(", ");
   const number = d.file.match(/_(\d+)/)?.[1] ?? "";
   let badge: Card["badge"] = null;
@@ -117,7 +123,7 @@ export function DemoPicker() {
             Vyzkoušet na ukázce
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted">
-            Fiktivní dokumenty z evaluační sady. Červeně označené obsahují
+            Fiktivní ukázka nájmu a dokumenty z evaluační sady. Červeně označené obsahují
             schválně vloženou chybu, kterou má Docflow najít.
           </p>
         </div>

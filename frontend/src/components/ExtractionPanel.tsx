@@ -57,13 +57,14 @@ function guessTemplate(filename: string, templates: Template[]): string {
   const name = filename.toLowerCase();
   const hints: Record<string, string[]> = {
     invoice: ["invoice", "faktur"],
+    lease: ["lease", "nájem", "najem"],
     contract: ["contract", "smlouv"],
     insurance_policy: ["policy", "pojist"],
   };
   const hit = Object.entries(hints).find(([, words]) =>
     words.some((w) => name.includes(w)),
   );
-  return hit?.[0] ?? templates[0]?.id ?? "invoice";
+  return hit && templates.some((t) => t.id === hit[0]) ? hit[0] : templates[0]?.id ?? "invoice";
 }
 
 export function ExtractionPanel({
@@ -248,8 +249,8 @@ export function ExtractionPanel({
             Extrahuji… <Elapsed since={extraction.created_at} />
           </p>
           <p className="text-sm text-muted">
-            Model {extraction.model} běží lokálně, jeden dokument trvá zhruba
-            jednu až dvě minuty. Extrakce běží na serveru, stránku můžeš zavřít
+            Dokument zpracovává model {extraction.model}. Doba závisí na délce
+            dokumentu a poskytovateli modelu. Extrakce běží na serveru, stránku můžeš zavřít
             a vrátit se později.
           </p>
         </div>
