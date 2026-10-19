@@ -29,3 +29,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+# Hosting dashboards (Supabase, Render) hand out postgres:// or postgresql:// URLs; the
+# installed driver is psycopg 3, so the URL can be pasted as is.
+for prefix in ("postgres://", "postgresql://"):
+    if settings.database_url.startswith(prefix):
+        settings.database_url = "postgresql+psycopg://" + settings.database_url[len(prefix) :]
