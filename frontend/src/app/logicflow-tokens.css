@@ -1,0 +1,80 @@
+/*
+ * Logic flow UI – sdílené tokeny pro appky (Docflow, PasportIQ, BrokerScribe, nové appky).
+ * Zkopíruj do appky a přepiš JEN blok "akcent". Neutrály, stavy a tvar zůstávají stejné.
+ * Tailwind v4: soubor importuj za `@import "tailwindcss";`, blok @theme zpřístupní utility
+ * (bg-accent, text-muted, border-line, rounded-control …).
+ */
+
+:root {
+  /* akcent – jediná věc, která se liší mezi appkami */
+  --accent: #2f5bd3;        /* Docflow #2f5bd3 · PasportIQ #d65a31 · BrokerScribe #3b3fc4 */
+  --accent-hover: #2449ad;  /* Docflow #2449ad · PasportIQ #b94522 · BrokerScribe #2f33a3 */
+  --accent-soft: #eaf0fc;   /* Docflow #eaf0fc · PasportIQ #fbece6 · BrokerScribe #ececfb */
+
+  /* neutrály */
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --subtle: #f1f3f6;
+  --ink: #1f242b;
+  --muted: #5e6672;
+  --line: #dde0e5;
+  --line-strong: #c9ced6;
+
+  /* stavy */
+  --ok: #1f7a4d;   --ok-bg: #e8f5ee;
+  --warn: #9a6200; --warn-bg: #fdf3dc;
+  --err: #b42318;  --err-bg: #fdecea;
+  --info: #2f5bd3; --info-bg: #eaf0fc;
+
+  /* tvar */
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-pill: 999px;
+  --shadow-float: 0 12px 32px -12px rgba(31, 36, 43, 0.28);
+
+  /* písmo */
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 12px;  /* minimum, nic menšího */
+  --text-sm: 13px;
+  --text-md: 14px;  /* výchozí UI text */
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+
+  /* layout */
+  --topbar-h: 56px;
+  --sidebar-w: 240px;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-err: var(--err);
+  --color-err-bg: var(--err-bg);
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

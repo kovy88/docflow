@@ -28,7 +28,7 @@ export default function TemplatesPage() {
         </div>
         <Link
           href="/templates/new"
-          className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:opacity-90"
+          className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover"
         >
           Nová šablona
         </Link>

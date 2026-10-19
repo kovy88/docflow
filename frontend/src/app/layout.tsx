@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { AccessBanner } from "@/components/AccessBanner";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin", "latin-ext"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin", "latin-ext"],
-});
 
 export const metadata: Metadata = {
   title: "Docflow",
@@ -22,17 +11,22 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="cs"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="cs" className="h-full antialiased">
+      <head>
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
+        <link rel="preconnect" href="https://cdn.fontshare.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap"
+        />
+      </head>
       <body className="flex h-full flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
           <Link
             href="/"
-            className="flex items-center gap-2 font-semibold tracking-tight"
+            className="flex items-center gap-2 text-base font-bold tracking-tight"
           >
-            <span className="grid h-6 w-6 place-items-center rounded bg-accent text-xs text-white">
+            <span className="grid h-7 w-7 place-items-center rounded bg-accent text-sm text-white">
               D
             </span>
             Docflow
@@ -40,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <span className="hidden text-sm text-muted sm:inline">
             extrakce dokumentů s ověřenými citacemi
           </span>
-          <nav className="ml-auto flex gap-4 text-sm">
+          <nav className="ml-auto flex items-center gap-4 text-sm">
             <Link href="/" className="text-muted hover:text-foreground">
               Dokumenty
             </Link>
@@ -53,6 +47,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/evals" className="text-muted hover:text-foreground">
               Evaluace
             </Link>
+            <a
+              href="https://logicflow.cz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden border-l border-line pl-4 text-xs text-muted hover:text-foreground md:inline"
+            >
+              Postaveno Logic flow ↗
+            </a>
           </nav>
         </header>
         <AccessBanner />

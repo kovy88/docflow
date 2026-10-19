@@ -25,11 +25,11 @@ const STATUS: Record<
   Extraction["status"],
   { label: string; className: string }
 > = {
-  ok: { label: "Bez nálezů", className: "bg-ok-soft text-ok" },
+  ok: { label: "Ověřeno", className: "bg-ok-soft text-ok" },
   needs_review: { label: "Ke kontrole", className: "bg-warn-soft text-warn" },
-  approved: { label: "Schváleno", className: "bg-accent-soft text-accent" },
-  failed: { label: "Selhalo", className: "bg-err-soft text-err" },
-  running: { label: "Běží", className: "bg-accent-soft text-accent" },
+  approved: { label: "Schváleno", className: "bg-ok text-white" },
+  failed: { label: "Chyba", className: "bg-err-soft text-err" },
+  running: { label: "Zpracovává se", className: "bg-info-bg text-info" },
 };
 
 /** Time since the extraction was queued (survives page reloads). */
@@ -170,7 +170,7 @@ export function ExtractionPanel({
             type="button"
             onClick={run}
             disabled={busy || !document.has_text}
-            className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
           >
             {busy ? "Extrahuji…" : "Extrahovat"}
           </button>
@@ -432,7 +432,7 @@ function ReviewForm({
           type="button"
           onClick={approve}
           disabled={saving || extraction.status === "failed"}
-          className="rounded-md bg-foreground px-3 py-1.5 font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
           {saving
             ? "Ukládám…"

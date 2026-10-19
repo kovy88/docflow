@@ -415,7 +415,7 @@ export function TemplateEditor({
             <button
               type="button"
               onClick={duplicate}
-              className="rounded-md bg-foreground px-3 py-1.5 font-medium text-white hover:opacity-90"
+              className="rounded-md border border-line-strong bg-surface px-3 py-1.5 font-medium text-foreground hover:bg-subtle"
             >
               Vytvořit kopii
             </button>
@@ -426,7 +426,7 @@ export function TemplateEditor({
               type="button"
               onClick={save}
               disabled={saving}
-              className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
             >
               {saving
                 ? "Ukládám…"
