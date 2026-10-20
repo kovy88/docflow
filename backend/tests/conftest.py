@@ -22,3 +22,14 @@ def samples() -> Path:
 
         make_samples.main()
     return SAMPLES
+
+
+@pytest.fixture
+def client():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()

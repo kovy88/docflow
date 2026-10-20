@@ -44,6 +44,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             >
               Šablony
             </Link>
+            <Link href="/report" className="text-muted hover:text-foreground">
+              Měření
+            </Link>
             <Link href="/evals" className="text-muted hover:text-foreground">
               Evaluace
             </Link>

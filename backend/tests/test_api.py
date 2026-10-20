@@ -1,6 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-
 from app.extractor import ExtractionOutput, FieldAnswer
 from app.main import app, get_extractor
 
@@ -37,13 +34,6 @@ BAD_INVOICE = {
     "currency": ("EUR", 1, "Měna: EUR", 0.4),
     "bank_account": (None, None, None, 0.0),
 }
-
-
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
 
 
 def extract(client, document_id, body):

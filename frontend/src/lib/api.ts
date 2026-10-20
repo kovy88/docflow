@@ -11,6 +11,12 @@ export type DocumentInfo = {
   has_text: boolean;
   /** 1-based pages whose text was read by OCR (scans). */
   ocr_pages: number[];
+  latest_extraction?: {
+    id: number;
+    status: Extraction["status"];
+    template_id: string;
+    reviewed_at: string | null;
+  } | null;
 };
 
 export type TemplateField = {
@@ -69,9 +75,37 @@ export type Extraction = {
     attempts?: number;
     mode?: string;
     latency_s?: number;
+    review_s?: number;
   };
   created_at: string;
   reviewed_at: string | null;
+};
+
+export type ReviewRow = {
+  document_id: number;
+  filename: string;
+  extraction_id: number;
+  template_id: string;
+  pages: number;
+  ocr: boolean;
+  fields_total: number;
+  fields_corrected: number;
+  review_s: number | null;
+  latency_s: number | null;
+  reviewed_at: string;
+};
+
+export type ReviewReport = {
+  summary: {
+    documents: number;
+    fields: number;
+    fields_corrected: number;
+    accuracy_before_review: number | null;
+    documents_timed: number;
+    review_s_median: number | null;
+    review_s_total: number | null;
+  };
+  rows: ReviewRow[];
 };
 
 export type DemoDocument = {
@@ -217,13 +251,39 @@ const liveApi = {
       `/documents/${documentId}/extractions`,
       json("POST", { template_id: templateId }),
     ),
+  extractBatch: (documentIds: number[], templateId: string) =>
+    request<Extraction[]>(
+      "/extractions/batch",
+      json("POST", { document_ids: documentIds, template_id: templateId }),
+    ),
   extraction: (extractionId: number) =>
     request<Extraction>(`/extractions/${extractionId}`),
-  review: (extractionId: number, values: Record<string, string | null>) =>
+  review: (
+    extractionId: number,
+    values: Record<string, string | null>,
+    reviewSeconds?: number,
+  ) =>
     request<Extraction>(
       `/extractions/${extractionId}`,
-      json("PATCH", { values }),
+      json("PATCH", { values, review_seconds: reviewSeconds }),
     ),
+  reviewReport: (templateId?: string) =>
+    request<ReviewReport>(
+      `/reports/review${templateId ? `?template_id=${encodeURIComponent(templateId)}` : ""}`,
+    ),
+  downloadReviewCsv: async (templateId?: string) => {
+    const query = new URLSearchParams({ format: "csv" });
+    if (templateId) query.set("template_id", templateId);
+    const res = await fetch(`${API_URL}/reports/review?${query}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(await res.blob());
+    link.download = "docflow-mereni.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
   /** Source for react-pdf: the file endpoint needs the access header too. */
   fileSource: (documentId: number): PdfSource => ({
     url: `${API_URL}/documents/${documentId}/file`,

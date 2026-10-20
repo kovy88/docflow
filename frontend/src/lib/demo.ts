@@ -73,7 +73,10 @@ export const demoApi: Api = {
     if (!found) throw new Error("Extrakce nenalezena.");
     return found;
   },
+  extractBatch: readOnly,
   review: readOnly,
+  reviewReport: readOnly,
+  downloadReviewCsv: readOnly,
   fileSource: (documentId) => `/demo/pdfs/${documentId}.pdf`,
   download: readOnly,
   checkAccess: readOnly,

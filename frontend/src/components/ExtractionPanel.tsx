@@ -1,7 +1,14 @@
 "use client";
 
-import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useLive } from "@/lib/access";
 import {
   api,
@@ -19,17 +26,6 @@ type Props = {
   extractions: Extraction[];
   onExtractionsChange: Dispatch<SetStateAction<Extraction[]>>;
   onFocusField: (field: ExtractedField | null) => void;
-};
-
-const STATUS: Record<
-  Extraction["status"],
-  { label: string; className: string }
-> = {
-  ok: { label: "Ověřeno", className: "bg-ok-soft text-ok" },
-  needs_review: { label: "Ke kontrole", className: "bg-warn-soft text-warn" },
-  approved: { label: "Schváleno", className: "bg-ok text-white" },
-  failed: { label: "Chyba", className: "bg-err-soft text-err" },
-  running: { label: "Zpracovává se", className: "bg-info-bg text-info" },
 };
 
 /** Time since the extraction was queued (survives page reloads). */
@@ -231,13 +227,7 @@ export function ExtractionPanel({
                 </option>
               ))}
             </select>
-            {extraction && (
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS[extraction.status].className}`}
-              >
-                {STATUS[extraction.status].label}
-              </span>
-            )}
+            {extraction && <StatusBadge status={extraction.status} />}
           </div>
         )}
       </div>
@@ -274,6 +264,29 @@ export function ExtractionPanel({
   );
 }
 
+/** Milliseconds the page was visible since mount: review time for the pilot measurement,
+ *  without the time the tab spent in the background. */
+function useVisibleTime() {
+  const total = useRef(0);
+  const since = useRef<number | null>(null);
+  useEffect(() => {
+    const sync = () => {
+      if (document.hidden && since.current !== null) {
+        total.current += performance.now() - since.current;
+        since.current = null;
+      } else if (!document.hidden && since.current === null) {
+        since.current = performance.now();
+      }
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
+  return () =>
+    total.current +
+    (since.current === null ? 0 : performance.now() - since.current);
+}
+
 function formatValue(field: ExtractedField) {
   if (field.value === null) return null;
   if (field.type === "number")
@@ -302,6 +315,7 @@ function ReviewForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const live = useLive();
+  const reviewMs = useVisibleTime();
 
   const changed = extraction.fields.filter(
     (f) => drafts[f.key] !== (f.raw ?? ""),
@@ -328,7 +342,7 @@ function ReviewForm({
     setSaving(true);
     setError(null);
     try {
-      onSaved(await api.review(extraction.id, values));
+      onSaved(await api.review(extraction.id, values, Math.min(reviewMs() / 1000, 4 * 3600)));
     } catch (e) {
       setError((e as Error).message);
       setSaving(false);

@@ -6,7 +6,8 @@ dokumentu: obor určuje jen **šablona**, kterou lze vytvořit v UI nebo nechat 
 modelem.
 
 **První placený pilot:** nájemní smlouvy → evidence v Excelu pro správce nájmů.
-Připravené funkce, nabídka, podmínky, provoz a měření jsou v [docs/pilot/](docs/pilot/README.md).
+Připravené funkce, nabídka, podmínky, provoz a měření jsou v [docs/pilot/](docs/pilot/README.md),
+obory, ceník a cesta k zákazníkům v [docs/strategie.md](docs/strategie.md).
 Nová nájemní šablona zatím nemá změřenou přesnost na reálných smlouvách; veřejná
 ukázka obsahuje jeden další fiktivní nájem mimo níže uváděnou evaluační sadu.
 

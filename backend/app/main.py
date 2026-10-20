@@ -5,8 +5,9 @@ import logging
 import secrets
 import time
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from statistics import median
 from typing import Annotated
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, UploadFile
@@ -85,16 +86,31 @@ def get_extractor() -> Extractor:
     return OpenAIExtractor(settings.openai_api_key, settings.openai_model, settings.llm_timeout_s)
 
 
+class LatestExtraction(BaseModel):
+    id: int
+    status: str
+    template_id: str
+    reviewed_at: datetime | None
+
+
 class DocumentOut(BaseModel):
     id: int
     filename: str
     page_count: int
     has_text: bool
     ocr_pages: list[int]
+    latest_extraction: LatestExtraction | None = None
 
 
 class ReviewRequest(BaseModel):
     values: dict[str, str | None] = {}
+    # Time the reviewer spent on this extraction, measured by the UI (pilot measurement).
+    review_seconds: float | None = Field(default=None, ge=0, le=4 * 3600)
+
+
+class BatchExtractionRequest(BaseModel):
+    document_ids: list[int] = Field(min_length=1, max_length=100)
+    template_id: str
 
 
 class ExtractionRequest(BaseModel):
@@ -108,14 +124,22 @@ class ExtractionRequest(BaseModel):
         return self
 
 
-def to_out(doc: Document) -> DocumentOut:
+def to_out(doc: Document, latest: Extraction | None = None) -> DocumentOut:
     return DocumentOut(
         id=doc.id,
         filename=doc.filename,
         page_count=doc.page_count,
         has_text=any(doc.pages),
         ocr_pages=doc.ocr_pages or [],
+        latest_extraction=latest and LatestExtraction.model_validate(latest.model_dump()),
     )
+
+
+def latest_extractions(session: Session) -> dict[int, Extraction]:
+    """Newest extraction of every document, in one query."""
+    newest = select(func.max(Extraction.id)).group_by(Extraction.document_id)
+    rows = session.exec(select(Extraction).where(Extraction.id.in_(newest)))
+    return {e.document_id: e for e in rows}
 
 
 def get_document(session: Session, document_id: int) -> Document:
@@ -312,7 +336,8 @@ def create_demo_document(file: str, session: SessionDep) -> DocumentOut:
 @app.get("/documents", dependencies=[Access])
 def list_documents(session: SessionDep) -> list[DocumentOut]:
     docs = session.exec(select(Document).order_by(Document.id.desc())).all()
-    return [to_out(d) for d in docs]
+    latest = latest_extractions(session)
+    return [to_out(d, latest.get(d.id)) for d in docs]
 
 
 @app.get("/documents/{document_id}", dependencies=[Access])
@@ -365,11 +390,50 @@ def create_extraction(
     """Queue an extraction. A local model needs minutes per document, so the work runs in
     the background and clients poll GET /extractions/{id} until status != "running"."""
     doc = get_document(session, document_id)
-    template = body.template or Template.model_validate(
-        get_template_or_404(session, body.template_id).model_dump(exclude={"builtin"})
+    template = body.template or stored_template(session, body.template_id)
+    consume_llm_quota(session, "extraction")
+    return queue_extraction(session, doc, template, extractor, background)
+
+
+@app.post("/extractions/batch", status_code=202, dependencies=[Access])
+def create_batch_extraction(
+    body: BatchExtractionRequest,
+    session: SessionDep,
+    background: BackgroundTasks,
+    extractor: Annotated[Extractor, Depends(get_extractor)],
+) -> list[Extraction]:
+    """Queue one extraction per document. All or nothing: unknown documents or too little
+    daily quota reject the whole batch. Tasks of one request run one after another, so a
+    batch does not flood the model provider."""
+    if len(set(body.document_ids)) != len(body.document_ids):
+        raise HTTPException(422, "Každý dokument vyber pouze jednou.")
+    docs = [get_document(session, id) for id in body.document_ids]
+    template = stored_template(session, body.template_id)
+    left = settings.daily_llm_limit - llm_calls_today(session)
+    if len(docs) > left:
+        raise HTTPException(
+            429, f"Denní limit modelu stačí ještě na {max(left, 0)} dokumentů, ne na {len(docs)}."
+        )
+    session.add_all(UsageEvent(kind="extraction") for _ in docs)
+    queued = [queue_extraction(session, doc, template, extractor, background) for doc in docs]
+    for extraction in queued:  # each commit expired the rows queued before it
+        session.refresh(extraction)
+    return queued
+
+
+def stored_template(session: Session, template_id: str) -> Template:
+    return Template.model_validate(
+        get_template_or_404(session, template_id).model_dump(exclude={"builtin"})
     )
 
-    consume_llm_quota(session, "extraction")
+
+def queue_extraction(
+    session: Session,
+    doc: Document,
+    template: Template,
+    extractor: Extractor,
+    background: BackgroundTasks,
+) -> Extraction:
     extraction = Extraction(
         document_id=doc.id,
         template_id=template.id,
@@ -456,6 +520,10 @@ def review_extraction(extraction_id: int, body: ReviewRequest, session: SessionD
     extraction.fields = result["fields"]
     extraction.issues = result["issues"]
     extraction.reviewed_at = utcnow()
+    if body.review_seconds is not None:
+        # A second review adds to the first. New dict: JSON columns don't track mutation.
+        spent = extraction.usage.get("review_s", 0) + body.review_seconds
+        extraction.usage = extraction.usage | {"review_s": round(spent, 1)}
     session.add(extraction)
     session.commit()
     session.refresh(extraction)
@@ -545,6 +613,90 @@ def export_extraction(extraction_id: int, session: SessionDep, format: str = "js
     return JSONResponse(
         payload, headers={"Content-Disposition": f'attachment; filename="{name}.json"'}
     )
+
+
+# Same columns as the pilot measurement sheet (docs/pilot/measurement.md); the operator
+# fills in the manual baseline and the rest by hand.
+MEASUREMENT_COLUMNS = [
+    "case_id",
+    "split",
+    "manual_seconds",
+    "upload_seconds",
+    "blocked_wait_seconds",
+    "review_and_fix_seconds",
+    "export_share_seconds",
+    "fields_total",
+    "fields_wrong_before_review",
+    "key_errors_after_review",
+    "excluded_reason",
+]
+
+
+@app.get("/reports/review", dependencies=[Access])
+def review_report(session: SessionDep, template_id: str | None = None, format: str = "json"):
+    """Human review of real documents: how many fields the person had to correct and how
+    long the review took. Uses the newest extraction of each document, if it is approved."""
+    if format not in ("json", "csv"):
+        raise HTTPException(422, "format must be json or csv")
+    latest = latest_extractions(session)
+    docs = {d.id: d for d in session.exec(select(Document).where(Document.id.in_(latest)))}
+    rows = []
+    for extraction in sorted(latest.values(), key=lambda e: e.reviewed_at or utcnow()):
+        if extraction.status != "approved" or extraction.reviewed_at is None:
+            continue
+        if template_id and extraction.template_id != template_id:
+            continue
+        doc = docs[extraction.document_id]
+        rows.append(
+            {
+                "document_id": doc.id,
+                "filename": doc.filename,
+                "extraction_id": extraction.id,
+                "template_id": extraction.template_id,
+                "pages": doc.page_count,
+                "ocr": bool(doc.ocr_pages),
+                "fields_total": len(extraction.fields),
+                "fields_corrected": sum(bool(f.get("corrected")) for f in extraction.fields),
+                "review_s": extraction.usage.get("review_s"),
+                "latency_s": extraction.usage.get("latency_s"),
+                "reviewed_at": extraction.reviewed_at,
+            }
+        )
+    if format == "csv":
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, MEASUREMENT_COLUMNS, restval="")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "case_id": f"doc-{row['document_id']}",
+                    "review_and_fix_seconds": row["review_s"]
+                    if row["review_s"] is not None
+                    else "",
+                    "fields_total": row["fields_total"],
+                    "fields_wrong_before_review": row["fields_corrected"],
+                }
+            )
+        return Response(
+            "﻿" + buffer.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="docflow-mereni.csv"'},
+        )
+    fields = sum(r["fields_total"] for r in rows)
+    corrected = sum(r["fields_corrected"] for r in rows)
+    timed = [r["review_s"] for r in rows if r["review_s"] is not None]
+    return {
+        "summary": {
+            "documents": len(rows),
+            "fields": fields,
+            "fields_corrected": corrected,
+            "accuracy_before_review": 1 - corrected / fields if fields else None,
+            "documents_timed": len(timed),
+            "review_s_median": median(timed) if timed else None,
+            "review_s_total": round(sum(timed), 1) if timed else None,
+        },
+        "rows": rows,
+    }
 
 
 @app.get("/evals")

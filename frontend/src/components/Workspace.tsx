@@ -24,6 +24,7 @@ export function Workspace({ documentId }: { documentId: number }) {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [quote, setQuote] = useState<string | null>(null);
+  const [nextId, setNextId] = useState<number | null>(null);
   // Stable object: react-pdf reloads the document whenever `file` changes identity.
   const file = useMemo(() => api.fileSource(documentId), [documentId]);
 
@@ -40,6 +41,20 @@ export function Workspace({ documentId }: { documentId: number }) {
       })
       .catch((e: Error) => setError(e.message));
   }, [documentId]);
+
+  // Next document waiting for review (oldest first), refreshed after every change here.
+  useEffect(() => {
+    api
+      .documents()
+      .then((docs) => {
+        const waiting = docs.filter((d) => {
+          const e = d.latest_extraction;
+          return d.id !== documentId && e && !e.reviewed_at && (e.status === "needs_review" || e.status === "ok");
+        });
+        setNextId(waiting.at(-1)?.id ?? null);
+      })
+      .catch(() => setNextId(null));
+  }, [documentId, extractions]);
 
   if (error)
     return (
@@ -62,6 +77,11 @@ export function Workspace({ documentId }: { documentId: number }) {
           >
             OCR: str. {doc.ocr_pages.join(", ")}
           </span>
+        )}
+        {nextId !== null && (
+          <Link href={`/documents/${nextId}`} className="ml-auto text-accent hover:underline">
+            Další ke kontrole →
+          </Link>
         )}
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[60vh_auto] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)] lg:grid-rows-1 lg:overflow-hidden">
