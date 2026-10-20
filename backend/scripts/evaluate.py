@@ -55,21 +55,25 @@ def main() -> None:
     parser.add_argument("--model")
     parser.add_argument("--limit", type=int, help="only the first N documents")
     parser.add_argument("--only", help="substring filter on file names, e.g. 'invoice'")
-    parser.add_argument("--difficulty", choices=["standard", "hard", "scan"])
+    parser.add_argument("--difficulty", choices=["standard", "hard", "scan", "real"])
+    parser.add_argument(
+        "--dataset", type=Path, default=DATASET, help="folder with labels.json and the PDFs"
+    )
+    parser.add_argument("--out", type=Path, default=EVALS, help="folder for the results")
     parser.add_argument(
         "--resume", type=Path, help="continue evals/<run>.json; failed documents are retried"
     )
     args = parser.parse_args()
 
     extractor = make_extractor(args.provider, args.model)
-    labels = json.loads((DATASET / "labels.json").read_text())
+    labels = json.loads((args.dataset / "labels.json").read_text())
     if args.only:
         labels = [x for x in labels if args.only in x["file"]]
     if args.difficulty:
         labels = [x for x in labels if x.get("difficulty", "standard") == args.difficulty]
     labels = labels[: args.limit]
 
-    EVALS.mkdir(exist_ok=True)
+    args.out.mkdir(exist_ok=True)
     if args.resume:
         path = args.resume
         run = json.loads(path.read_text())
@@ -77,7 +81,7 @@ def main() -> None:
             sys.exit("Run used a different prompt version; start a new run instead of resuming.")
     else:
         slug = re.sub(r"[^a-z0-9.]+", "-", extractor.model.lower()).strip("-")
-        path = EVALS / f"{datetime.now():%Y%m%d-%H%M}-{slug}-p{PROMPT_VERSION}.json"
+        path = args.out / f"{datetime.now():%Y%m%d-%H%M}-{slug}-p{PROMPT_VERSION}.json"
         run = {
             "model": extractor.model,
             "provider": args.provider,
@@ -94,7 +98,7 @@ def main() -> None:
             continue
         template = load_templates()[label["template_id"]]
         started = time.perf_counter()  # includes OCR of scanned documents
-        pdf = read_pdf((DATASET / label["file"]).read_bytes())
+        pdf = read_pdf((args.dataset / label["file"]).read_bytes())
         try:
             result = run_extraction(pdf.pages, template, extractor, pdf.ocr_pages)
             doc = score_document(label, result) | {"usage": result.get("usage", {})}

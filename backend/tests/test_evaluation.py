@@ -57,6 +57,14 @@ def result(total, issues, grounded=True, confidence=0.95):
     }
 
 
+def test_values_match_accepts_any_listed_answer():
+    assert values_match("number", [23497.5, 5874.38], 5874.38)
+    assert not values_match("number", [23497.5, 5874.38], 1000)
+    assert values_match("string", [None, "jednorázově"], None)
+    assert values_match("string", ["Kč", "CZK"], "CZK")
+    assert not values_match("date", ["2026-10-01"], None)
+
+
 def test_score_and_summarize():
     good = score_document(LABEL, result(100.0, ["sum_mismatch"])) | {
         "latency_s": 2.0,

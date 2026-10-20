@@ -42,8 +42,17 @@ def parse_number(raw: str) -> float:
         r"\d \d", raw
     ):
         raw = raw.replace(".", " ")
-    s = re.sub(r"[^\d,.\-]", "", raw.replace("−", "-"))
-    s = re.sub(r"[,.]-+$", "", s)  # "185 000,- Kč"
+    # Only the first number counts: "700,- Kč za hodinu (60 minut)" is 700, not 70060.
+    # A space continues the number only before a group of exactly three digits.
+    found = re.search(r"-?\d(?:[\d.,]|[  ](?=\d{3}(?!\d)))*", raw.replace("−", "-"))
+    if found is None:
+        raise ValueError(f"not a number: {raw!r}")
+    s = re.sub(r"[  ]", "", found[0]).rstrip(",")  # "185 000,- Kč" → "185000"
+    # Czech documents use the dot only as a thousands separator ("100.000 Kč",
+    # "9.300,- Kč"); the decimal mark is a comma. Measured on real contracts, where every
+    # such value was a thousands amount.
+    if re.fullmatch(r"-?[1-9]\d{0,2}(?:\.\d{3})+", s):
+        s = s.replace(".", "")
     if "," in s and "." in s:
         decimal = "," if s.rfind(",") > s.rfind(".") else "."
         s = s.replace("." if decimal == "," else ",", "").replace(",", ".")

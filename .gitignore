@@ -5,3 +5,6 @@
 # Market validation and old outreach demo: contain contacts of real companies, never publish
 validation/
 prototype/
+# Real public contracts (Registr smluv): contain names of real people, never publish
+backend/dataset_real/
+backend/evals_real/

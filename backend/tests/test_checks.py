@@ -12,7 +12,13 @@ from app.templates import load_templates
         ("1.234,56", 1234.56),
         ("1,234.56", 1234.56),
         ("15 000 000", 15000000.0),
-        ("2.100", 2.1),
+        # Czech documents: a dot is a thousands separator (real contracts, Registr smluv).
+        ("2.100", 2100.0),
+        ("100.000 Kč", 100000.0),
+        ("9.300,- Kč/rok", 9300.0),
+        ("Kč 1.000.000 bez DPH", 1000000.0),
+        ("700,- Kč za hodinu (60 minut) užívání", 700.0),
+        ("0.5", 0.5),
         ("1.000.000", 1000000.0),
         ("EUR 99", 99.0),
         ("185 000,- Kč", 185000.0),
@@ -93,3 +99,14 @@ def test_invoice_rules():
 def test_rules_skip_missing_values():
     template = load_templates()["invoice"]
     assert apply_rules(template, {"net_amount": 1.0}) == []
+
+
+def test_broken_text_layer_without_diacritics_is_read_by_ocr():
+    from app.pdf import needs_ocr
+
+    czech = "Nájemní smlouva uzavřená podle ustanovení občanského zákoníku. " * 6
+    stripped = "Najemnl smlouva uzavrena podle ustanovenf obcanskeho zakoniku. " * 6
+    assert not needs_ocr(czech)
+    assert needs_ocr(stripped)
+    assert needs_ocr("  strana 1  ")  # scan with a stamped page number
+    assert not needs_ocr("Invoice 2026-01, total 1 200 EUR")  # too short to judge

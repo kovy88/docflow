@@ -22,6 +22,9 @@ def _canon(value: Any) -> str:
 
 
 def values_match(kind: str, expected: Any, predicted: Any) -> bool:
+    # A list is a set of acceptable answers (real documents: annual or monthly rent, …).
+    if isinstance(expected, list):
+        return any(values_match(kind, e, predicted) for e in expected)
     if expected is None or predicted is None:
         return expected is None and predicted is None
     if kind == "number":

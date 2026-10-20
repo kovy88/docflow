@@ -13,6 +13,21 @@ OCR_DPI = 300
 # Scanners often stamp a page number or a date on top of the image; a page with less
 # than this many visible characters in its text layer is treated as a scan.
 MIN_TEXT_CHARS = 20
+# Some scanners add a text layer without diacritics ("Najemnl smlouva c."). Czech text
+# has 9–19 % letters with diacritics (measured on real contracts and the dataset); such a
+# broken layer has none, so the page is read by OCR instead.
+CZECH_LETTERS = set("áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ")
+MIN_DIACRITICS_SHARE = 0.02
+MIN_LETTERS_FOR_CHECK = 200
+
+
+def needs_ocr(text: str) -> bool:
+    if len("".join(text.split())) < MIN_TEXT_CHARS:
+        return True
+    letters = sum(c.isalpha() for c in text)
+    if letters < MIN_LETTERS_FOR_CHECK:
+        return False
+    return sum(c in CZECH_LETTERS for c in text) / letters < MIN_DIACRITICS_SHARE
 
 
 class InvalidPdf(ValueError):
@@ -38,15 +53,15 @@ def ocr_page(pdf: pdfium.PdfDocument, index: int) -> str:
 
 
 def read_pdf(data: bytes, ocr: bool = True) -> PdfText:
-    """Text of each page: the text layer where there is one, local OCR (Tesseract)
-    for scanned pages."""
+    """Text of each page: the text layer where there is a usable one, local OCR
+    (Tesseract) for scanned pages and broken text layers."""
     try:
         reader = PdfReader(BytesIO(data))
         pages = [(page.extract_text() or "").strip() for page in reader.pages]
     except (PdfReadError, ValueError) as exc:
         raise InvalidPdf(str(exc)) from exc
 
-    scanned = [i for i, text in enumerate(pages) if len("".join(text.split())) < MIN_TEXT_CHARS]
+    scanned = [i for i, text in enumerate(pages) if needs_ocr(text)]
     if not scanned or not ocr or not ocr_available():
         return PdfText(pages)
     pdf = pdfium.PdfDocument(data)
