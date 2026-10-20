@@ -17,7 +17,7 @@ def load_demo_labels() -> list[dict]:
             {
                 "file": LEASE_FILE,
                 "template_id": "lease",
-                "description": "Nájemní smlouva, doba neurčitá; fiktivní ukázka mimo měřenou evaluaci",
+                "description": "Nájem bytu, doba určitá; fiktivní ukázka mimo měřenou evaluaci",
             }
         )
     return labels

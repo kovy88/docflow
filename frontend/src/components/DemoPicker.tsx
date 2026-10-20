@@ -28,7 +28,7 @@ type Card = {
 function describe(d: DemoDocument): Card {
   if (d.template_id === "lease") return {
     title: "Nájemní smlouva → evidence",
-    detail: "Fiktivní ukázka · doba neurčitá · mimo měřenou evaluaci",
+    detail: "Nájem bytu 2+kk · doba určitá · mimo měřenou evaluaci",
     badge: null,
   };
   const parts = d.description.split(", ");

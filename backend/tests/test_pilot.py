@@ -206,26 +206,27 @@ def test_lease_upload_review_export_flow(client):
     path = Path(__file__).parents[1] / "samples/najem_pilot.pdf"
     doc = upload(client, path).json()
     answers = {
-        "landlord": "Ukázkový Pronajímatel s.r.o.",
-        "tenant": "Ukázkový Nájemce s.r.o.",
-        "property_address": "Ukázková 123, 602 00 Brno",
-        "start_date": "1. 11. 2026",
-        "rent": "15 000 Kč",
-        "currency": "CZK",
+        "landlord": "Ing. Pavel Hrubý",
+        "tenant": "Mgr. Kristýna Málková",
+        "property_address": "Štefánikova 1426/38, 612 00 Brno",
+        "start_date": "1. listopadu 2026",
+        "end_date": "31. října 2027",
+        "rent": "16 500 Kč",
+        "currency": "Kč",
         "payment_period": "měsíčně",
-        "service_advance": "3 000 Kč",
-        "deposit": "30 000 Kč",
-        "notice_period": "3 měsíce",
+        "service_advance": "2 650 Kč",
+        "deposit": "33 000 Kč",
+        "notice_period": "tři měsíce",
     }
     app.dependency_overrides[get_extractor] = lambda: FakeExtractor(
         {key: (value, 1, value, 0.9) for key, value in answers.items()}
     )
     result = extract(client, doc["id"], {"template_id": "lease"})
     assert result["status"] == "ok", result["issues"]
-    assert next(f for f in result["fields"] if f["key"] == "end_date")["value"] is None
+    assert next(f for f in result["fields"] if f["key"] == "end_date")["value"] == "2027-10-31"
     assert client.post("/exports/xlsx", json={"extraction_ids": [result["id"]]}).status_code == 409
-    reviewed = client.patch(f"/extractions/{result['id']}", json={"values": {"rent": "15 500 Kč"}})
+    reviewed = client.patch(f"/extractions/{result['id']}", json={"values": {"rent": "17 000 Kč"}})
     assert reviewed.status_code == 200 and reviewed.json()["issues"] == []
     response = client.post("/exports/xlsx", json={"extraction_ids": [result["id"]]})
     assert response.status_code == 200
-    assert sheet(response.content).find(".//s:c[@r='H2']/s:v", NS).text == "15500.0"
+    assert sheet(response.content).find(".//s:c[@r='H2']/s:v", NS).text == "17000.0"
