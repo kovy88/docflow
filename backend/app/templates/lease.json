@@ -5,13 +5,14 @@
   "fields": [
     {"key": "landlord", "label": "Pronajímatel", "description": "Jméno nebo obchodní název pronajímatele podle jeho role, nikoli pořadí stran."},
     {"key": "tenant", "label": "Nájemce", "description": "Jméno nebo obchodní název nájemce podle jeho role, nikoli pořadí stran."},
-    {"key": "property_address", "label": "Adresa předmětu nájmu", "description": "Adresa pronajímané nemovitosti, nikoli bydliště či sídlo smluvních stran."},
+    {"key": "property_address", "label": "Adresa předmětu nájmu", "description": "Adresa pronajímané nemovitosti s ulicí. Když ve smlouvě ulice není, krátký popis umístění: místnost, budova č. p. nebo pozemek p. č. a katastrální území. Nikoli sídlo či bydliště smluvních stran."},
     {"key": "start_date", "label": "Začátek nájmu", "type": "date", "description": "Výslovné datum začátku nájmu, nikoli datum podpisu."},
     {"key": "end_date", "label": "Konec nájmu", "type": "date", "required": false, "description": "Jen výslovné datum. Null u doby neurčité, chybějícího data i délky typu 12 měsíců; nedopočítávat."},
-    {"key": "rent", "label": "Nájemné", "type": "number", "description": "Samostatně uvedené nájemné bez záloh na služby. Neodvozuj odečítáním od celkové platby."},
+    {"key": "rent", "label": "Nájemné", "type": "number", "description": "Samotné nájemné bez služeb a záloh, v období, ve kterém ho smlouva uvádí. Neodvozuj odečítáním od celkové platby."},
     {"key": "currency", "label": "Měna", "description": "Výslovně uvedená měna nájemného, například Kč nebo CZK."},
     {"key": "payment_period", "label": "Období platby", "description": "Doslovně uvedené období nájemného, např. měsíčně. Nezaměň za den splatnosti."},
-    {"key": "service_advance", "label": "Zálohy na služby", "type": "number", "required": false, "description": "Jen výslovně uvedený celkový součet záloh. Nesčítej položky a nezaměň za nájemné."},
+    {"key": "service_advance", "label": "Služby a zálohy", "type": "number", "required": false, "description": "Výslovně uvedený součet plateb nebo záloh za služby (energie, voda, teplo apod.). Nesčítej jednotlivé položky a nezaměň za nájemné."},
+    {"key": "total_payment", "label": "Celková platba", "type": "number", "required": false, "description": "Výslovně uvedená celková platba nájemce včetně služeb, např. „celková cena včetně služeb“. Nesčítej sám; když ve smlouvě není, vrať null."},
     {"key": "deposit", "label": "Kauce", "type": "number", "required": false, "description": "Jen výslovná částka kauce. U násobku měsíčního nájemného vrať null; nepočítej."},
     {"key": "notice_period", "label": "Výpovědní lhůta", "required": false, "description": "Doslovně uvedená lhůta, nikoli právní výklad nebo lhůta doplněná ze zákona."}
   ],

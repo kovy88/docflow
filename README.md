@@ -86,23 +86,28 @@ kvalita, razítka, rukopis) budou horší. Sada také nemá skutečně neuspoř�
 **Skutečné smlouvy (20. 10. 2026).** 17 nájemních smluv a dodatků z veřejného
 [Registru smluv](https://smlouvy.gov.cz) od 17 různých úřadů a firem: skeny, vadné OCR
 vrstvy, nájem na hodinu, ročně i čtvrtletně, podnájmy, dodatky, 1–11 stran. Správné hodnoty
-vyplněné ručním čtením každého PDF; kde je více správných zápisů (roční i měsíční nájemné),
-platí kterýkoli. Šablona `lease`, qwen3.6:35b-a3b:
+vyplněné ručním čtením každého PDF, 5 smluv zkontroloval druhý člověk (50 / 55 hodnot
+potvrdil, zbytek vedl ke změnám níže). Kde je víc správných zápisů (roční i měsíční
+nájemné), platí kterýkoli; u místa bez ulice stačí, když odpověď obsahuje číslo budovy či
+pozemku. qwen3.6:35b-a3b:
 
-| Stav | Přesnost polí | Smlouvy bez chyby | Medián času |
-|---|---|---|---|
-| Před opravami | 88,8 % (166 / 187) | 4 / 17 | 62 s |
-| Po dvou opravách kódu | **94,1 %** (176 / 187) | 8 / 17 | 40 s |
+| Stav | Polí | Přesnost polí | Smlouvy bez chyby | Medián času |
+|---|---|---|---|---|
+| Výchozí šablona | 11 | 88,8 % (166 / 187) | 4 / 17 | 62 s |
+| Po dvou opravách kódu | 11 | 94,1 % (176 / 187) | 8 / 17 | 40 s |
+| Nájemné rozdělené na 3 pole, opravené hodnoty | 12 | **95,6 %** (195 / 204) | 10 / 17 | 50 s |
 
 - **Chyba normalizace, ne modelu:** české smlouvy píší tisíce s tečkou („100.000 Kč“,
   „9.300,- Kč/rok“); parser je četl jako desetinná čísla. 8 chybných polí v 6 smlouvách,
   fiktivní sada to neodhalila. Opraveno; na fiktivní sadě beze změny.
 - **Vadná textová vrstva skenu** („Najemnl smlouva c.“, bez diakritiky): strana se teď čte
   OCR, pokud má méně než 2 % písmen s diakritikou (český text 9–19 %).
-- **Zbývá:** nájemné zaměněné za celkovou platbu včetně služeb (2×), období platby (3×),
-  adresy zapsané jinak či s oběma adresami (5×), jméno zkomolené OCR (1×). Neověřená pole
-  mají přesnost 62 %, ověřená 95 % – označení v UI má smysl, nájemné ale musí zkontrolovat
-  člověk vždy.
+- **Nejasná šablona, ne model:** ani člověk při kontrole nevěděl, jestli „nájemné“ zahrnuje
+  služby. Šablona má teď tři pole: nájemné, služby a zálohy, celková platba.
+- **Zbývá 9 chyb:** služby a celkové platby v příloze dlouhé smlouvy nenalezeny (3×), nájemné
+  zaměněné za celkovou platbu (1×), kauce přičtená k celkové platbě (1×), adresa sídla
+  nájemce místo předmětu nájmu (1×), chybějící popis místa (1×), období platby (2×).
+  Částky a adresy tedy dál musí zkontrolovat člověk.
 - Smlouvy obsahují jména skutečných osob, proto PDF ani správné hodnoty nejsou v repozitáři
   (`backend/dataset_real/`, `backend/evals_real/` v `.gitignore`). Spuštění:
   `uv run python scripts/evaluate.py --dataset dataset_real --out evals_real`.

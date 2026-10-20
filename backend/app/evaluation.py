@@ -25,6 +25,11 @@ def values_match(kind: str, expected: Any, predicted: Any) -> bool:
     # A list is a set of acceptable answers (real documents: annual or monthly rent, …).
     if isinstance(expected, list):
         return any(values_match(kind, e, predicted) for e in expected)
+    # A location without a street: any wording counts if it names these identifiers
+    # (building or plot numbers, cadastral area).
+    if isinstance(expected, dict):
+        found = _canon(predicted) if predicted is not None else ""
+        return all(_canon(part) in found for part in expected["contains"])
     if expected is None or predicted is None:
         return expected is None and predicted is None
     if kind == "number":

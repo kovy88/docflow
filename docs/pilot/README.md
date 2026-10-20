@@ -6,7 +6,7 @@ Obchodní příprava: sestaveno 30 kandidátů; první vlna 15 zpráv odeslána 
 
 ## Připravený produkt
 
-- Šablona `lease`: role stran, adresa předmětu nájmu, data, nájemné, měna, období platby, zálohy, kauce a výpovědní lhůta. Pole i jejich pořadí lze nastavit zkopírováním vestavěné šablony v existujícím editoru.
+- Šablona `lease`: role stran, adresa předmětu nájmu, data, nájemné, měna, období platby, služby a zálohy, celková platba, kauce a výpovědní lhůta. Pole i jejich pořadí lze nastavit zkopírováním vestavěné šablony v existujícím editoru.
 - V přehledu dokumentů výběr a Excel export do 100 dokumentů. Použije nejnovější extrakci každého dokumentu; server odmítne celou dávku, pokud některý výsledek není schválený, nemá datum kontroly nebo obsahuje chybový nález. Šablona a sloupce musí odpovídat.
 - Dávkové zpracování: víc PDF najednou, jedna šablona a extrakce pro všechny (nejvýše 100, celá dávka se odmítne, pokud nestačí denní limit). Seznam ukazuje stav každého dokumentu a odkaz „Další ke kontrole“.
 - Stránka **Měření**: aplikace sama zaznamená čas kontroly (jen při otevřené kartě) a počet opravených polí; souhrn a CSV se sloupci [měřicího listu](measurement.md). Ruční základ se doplňuje ručně.

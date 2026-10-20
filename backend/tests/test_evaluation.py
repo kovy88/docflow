@@ -65,6 +65,13 @@ def test_values_match_accepts_any_listed_answer():
     assert not values_match("date", ["2026-10-01"], None)
 
 
+def test_values_match_location_by_identifiers():
+    where = {"contains": ["č. p. 732", "Kbely"]}
+    assert values_match("string", where, "Tělocvična, budova č. p. 732, k. ú. Kbely")
+    assert not values_match("string", where, "Semilská 43/1, Praha 9")
+    assert not values_match("string", where, None)
+
+
 def test_score_and_summarize():
     good = score_document(LABEL, result(100.0, ["sum_mismatch"])) | {
         "latency_s": 2.0,
