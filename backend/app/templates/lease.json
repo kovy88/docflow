@@ -5,7 +5,7 @@
   "fields": [
     {"key": "landlord", "label": "Pronajímatel", "description": "Jméno nebo obchodní název pronajímatele podle jeho role, nikoli pořadí stran."},
     {"key": "tenant", "label": "Nájemce", "description": "Jméno nebo obchodní název nájemce podle jeho role, nikoli pořadí stran."},
-    {"key": "property_address", "label": "Adresa předmětu nájmu", "description": "Adresa pronajímané nemovitosti s ulicí. Když ve smlouvě ulice není, krátký popis umístění: místnost, budova č. p. nebo pozemek p. č. a katastrální území. Nikoli sídlo či bydliště smluvních stran."},
+    {"key": "property_address", "label": "Adresa předmětu nájmu", "description": "Poštovní adresa pronajímané nemovitosti: ulice s číslem, případně PSČ a obec, např. Dlouhá 12/5, 110 00 Praha 1. Nepopisuj prostory (místnost, patro, tělocvična, výměra). Jen když smlouva ulici neuvádí, budova č. p. nebo pozemek p. č. s katastrálním územím. Když předmětem nájmu není nemovitost (vozidla, reklamní plochy), null. Nikoli sídlo či bydliště smluvních stran."},
     {"key": "start_date", "label": "Začátek nájmu", "type": "date", "description": "Výslovné datum začátku nájmu, nikoli datum podpisu."},
     {"key": "end_date", "label": "Konec nájmu", "type": "date", "required": false, "description": "Jen výslovné datum. Null u doby neurčité, chybějícího data i délky typu 12 měsíců; nedopočítávat."},
     {"key": "rent", "label": "Nájemné", "type": "number", "description": "Samotné nájemné bez služeb a záloh, v období, ve kterém ho smlouva uvádí. Neodvozuj odečítáním od celkové platby."},

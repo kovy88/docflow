@@ -3,6 +3,7 @@
     uv run python scripts/evaluate.py                      # local model from .env
     uv run python scripts/evaluate.py --model qwen3.6:35b-a3b --limit 5
     uv run python scripts/evaluate.py --provider openai --model gpt-5.4-mini
+    uv run python scripts/evaluate.py --provider openrouter --dataset dataset_real --out evals_real
 
 Results are written after every document to evals/<run>.json (so a long local run can be
 inspected or resumed) and a Markdown summary to evals/<run>.md.
@@ -25,6 +26,7 @@ from app.extractor import (  # noqa: E402
     PROMPT_VERSION,
     Extractor,
     OpenAIExtractor,
+    OpenRouterExtractor,
     ToolCallExtractor,
 )
 from app.pdf import read_pdf  # noqa: E402
@@ -42,6 +44,12 @@ def make_extractor(provider: str, model: str | None) -> Extractor:
         return OpenAIExtractor(
             settings.openai_api_key, model or settings.openai_model, settings.llm_timeout_s
         )
+    if provider == "openrouter":
+        if not settings.openrouter_api_key:
+            sys.exit("OPENROUTER_API_KEY is not set")
+        return OpenRouterExtractor(
+            settings.openrouter_api_key, model or settings.openrouter_model, settings.llm_timeout_s
+        )
     return ToolCallExtractor(
         settings.ollama_base_url, model or settings.ollama_model, settings.llm_timeout_s
     )
@@ -51,7 +59,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--provider", choices=["ollama", "openai"], default=settings.llm_provider)
+    parser.add_argument(
+        "--provider", choices=["ollama", "openai", "openrouter"], default=settings.llm_provider
+    )
     parser.add_argument("--model")
     parser.add_argument("--limit", type=int, help="only the first N documents")
     parser.add_argument("--only", help="substring filter on file names, e.g. 'invoice'")

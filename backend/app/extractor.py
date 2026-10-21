@@ -28,7 +28,7 @@ Rules:
 - If the document gives no explicit value for a field (e.g. "splatné ihned", or a duration
   such as "12 měsíců" instead of an end date), return null instead of inferring one."""
 # Bump when INSTRUCTIONS change, so evaluation runs stay comparable.
-PROMPT_VERSION = 2
+PROMPT_VERSION = 3  # 3: field labels/descriptions reach Ollama and OpenRouter
 
 
 class FieldAnswer(BaseModel):
@@ -76,7 +76,9 @@ def inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     def resolve(node: Any) -> Any:
         if isinstance(node, dict):
             if "$ref" in node:
-                return resolve(defs[node["$ref"].rsplit("/", 1)[-1]])
+                # Keep the field's own description next to the ref; it carries the label.
+                siblings = {k: resolve(v) for k, v in node.items() if k != "$ref"}
+                return resolve(defs[node["$ref"].rsplit("/", 1)[-1]]) | siblings
             return {k: resolve(v) for k, v in node.items()}
         if isinstance(node, list):
             return [resolve(v) for v in node]

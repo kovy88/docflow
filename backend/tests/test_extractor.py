@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.extractor import ToolCallExtractor
-from app.templates import Template
+from app.extractor import ToolCallExtractor, inline_refs, response_model
+from app.templates import Template, load_templates
 
 TEMPLATE = Template(
     id="mini", name="Mini", fields=[{"key": "number", "label": "Číslo", "type": "string"}]
@@ -200,3 +200,11 @@ def test_openrouter_requests_strict_schema_and_no_data_retention():
         "require_parameters": True,
         "data_collection": "deny",
     }
+
+
+def test_flat_schema_keeps_field_label_and_description():
+    schema = inline_refs(response_model(load_templates()["invoice"]).model_json_schema())
+    field = schema["properties"]["tax_date"]
+    assert "$ref" not in json.dumps(schema)
+    assert "DUZP" in field["description"] and field["description"].startswith("Datum")
+    assert "value" in field["properties"]
