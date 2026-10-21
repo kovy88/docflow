@@ -35,11 +35,12 @@ export default function EvalsPage() {
         Přesnost měřená na fiktivních dokumentech se známými správnými
         hodnotami: standardní sada a těžké případy (prohozené boxy, dobropis,
         chybějící splatnost, data s časem…). Část dokumentů obsahuje schválně
-        vložené chyby, které musí pravidla zachytit. Spuštění:{" "}
-        <code className="font-mono text-sm">
-          uv run python scripts/evaluate.py
-        </code>
+        vložené chyby, které musí pravidla zachytit.
       </p>
+      <details className="mt-2 text-sm text-muted">
+        <summary className="cursor-pointer">Jak evaluaci spustit</summary>
+        <code className="mt-1 block break-all font-mono">uv run python scripts/evaluate.py</code>
+      </details>
       {error && (
         <p className="mt-4 rounded-md bg-err-soft px-3 py-2 text-err">
           {error}
@@ -75,14 +76,17 @@ export default function EvalsPage() {
                 return (
                   <tr
                     key={r.id}
-                    onClick={() => setSelected(r.id)}
-                    className={`cursor-pointer ${r.id === selected ? "bg-accent-soft" : "hover:bg-background"}`}
+                    className={r.id === selected ? "bg-accent-soft" : "hover:bg-background"}
                   >
                     <td className="px-3 py-2 font-medium">
-                      {r.model}{" "}
+                      <button type="button" onClick={() => setSelected(r.id)} aria-pressed={r.id === selected}
+                        className="text-left text-accent hover:underline"
+                        aria-label={`Zobrazit běh ${r.model}, prompt v${r.prompt_version}, ${r.id}`}>
+                        {r.model}
                       <span className="text-muted">
                         ({r.provider}, prompt v{r.prompt_version})
                       </span>
+                      </button>
                     </td>
                     <td className="px-3 py-2 tabular-nums">
                       {pct(s.field_accuracy)}
@@ -121,7 +125,7 @@ export default function EvalsPage() {
       )}
 
       {run && (
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section className="rounded-lg border border-line bg-surface p-4">
             <h2 className="font-semibold">Přesnost podle polí</h2>
             <ul className="mt-3 space-y-1.5">
@@ -130,7 +134,7 @@ export default function EvalsPage() {
                 .map(([key, value]) => (
                   <li
                     key={key}
-                    className="grid grid-cols-[150px_1fr_56px] items-center gap-2 text-sm"
+                    className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_56px] items-center gap-2 text-sm"
                   >
                     <span className="truncate font-mono text-xs">{key}</span>
                     <span className="h-2 overflow-hidden rounded-full bg-background">

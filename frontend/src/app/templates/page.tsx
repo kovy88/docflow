@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, plural, type Template } from "@/lib/api";
+import { useLive } from "@/lib/access";
 
 export default function TemplatesPage() {
+  const router = useRouter();
+  const live = useLive();
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,13 +30,18 @@ export default function TemplatesPage() {
             ručně, nebo ji nechat navrhnout modelem přímo z nahraného dokumentu.
           </p>
         </div>
-        <Link
-          href="/templates/new"
+        {live && <button
+          type="button"
+          onClick={() => {
+            try { sessionStorage.removeItem("docflow:template-draft"); } catch { /* storage unavailable */ }
+            router.push(`/templates/new?draft=${crypto.randomUUID()}`);
+          }}
           className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover"
         >
           Nová šablona
-        </Link>
+        </button>}
       </div>
+      {!live && <p className="mt-4 text-sm text-muted">Prohlížíš ukázkové šablony. Vlastní šablony lze vytvářet po zadání přístupového kódu.</p>}
       {error && (
         <p className="mt-4 rounded-md bg-err-soft px-3 py-2 text-err">
           {error}

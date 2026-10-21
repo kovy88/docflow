@@ -44,6 +44,7 @@ export default function Home() {
   useEffect(() => () => setUploading(false), []);
 
   async function upload(list: FileList | null | undefined) {
+    if (uploading) return;
     const files = Array.from(list ?? []);
     if (files.length === 0) return;
     setUploading(true);
@@ -79,9 +80,9 @@ export default function Home() {
 
   if (!live)
     return (
-      <div className="mx-auto grid w-full max-w-6xl gap-20 px-4 py-12 md:py-16">
+      <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-8 md:py-12">
         <Hero />
-        <div id="demo" className="scroll-mt-6 rounded-lg border border-line bg-surface p-6">
+        <div id="demo" className="scroll-mt-6 rounded-lg border border-line bg-surface p-4 sm:p-6">
           <DemoPicker />
         </div>
         <Steps />
@@ -170,7 +171,7 @@ export default function Home() {
       )}
 
       {error && (
-        <p className="mt-4 rounded-md bg-err-soft px-3 py-2 text-sm text-err">
+        <p role="alert" className="mt-4 rounded-md bg-err-soft px-3 py-2 text-sm text-err">
           {error}
         </p>
       )}

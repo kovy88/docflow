@@ -10,7 +10,7 @@ PREMIUM = {"annual_premium": ("48 600 Kč", 1, "Roční pojistné: 48 600 Kč", 
 
 
 @pytest.fixture(autouse=True)
-def fresh_quota():
+def fresh_quota(client):
     with Session(engine) as session:
         session.exec(delete(UsageEvent))
         session.commit()
@@ -112,3 +112,53 @@ def test_review_seconds_are_bounded(client, samples):
     for bad in (-1, 4 * 3600 + 1):
         r = client.patch(f"/extractions/{queued['id']}", json={"review_seconds": bad})
         assert r.status_code == 422
+
+
+def test_batch_progress_is_visible_while_model_runs(client, samples):
+    ids = [upload(client, samples / "pojistka.pdf").json()["id"] for _ in range(2)]
+    observations = []
+
+    class InspectingExtractor(FakeExtractor):
+        def extract(self, pages, template):
+            with Session(engine) as session:
+                rows = session.exec(
+                    select(Extraction)
+                    .where(Extraction.document_id.in_(ids))
+                    .order_by(Extraction.id)
+                ).all()
+                observations.append([row.usage["phase"] for row in rows])
+                active = next(row for row in rows if row.usage["phase"] == "processing")
+                assert active.usage["started_at"]
+                assert active.usage["queue_wait_s"] >= 0
+            return super().extract(pages, template)
+
+    app.dependency_overrides[get_extractor] = lambda: InspectingExtractor(PREMIUM)
+    response = client.post(
+        "/extractions/batch", json={"document_ids": ids, "template_id": "insurance_policy"}
+    )
+    assert response.status_code == 202
+    assert all(row["usage"]["phase"] == "queued" for row in response.json())
+    assert observations == [["processing", "queued"], ["completed", "processing"]]
+    for row in response.json():
+        finished = client.get(f"/extractions/{row['id']}").json()
+        assert finished["usage"]["phase"] == "completed"
+        assert finished["usage"]["started_at"]
+        assert finished["usage"]["latency_s"] >= 0
+
+
+def test_failed_model_keeps_progress_timing(client, samples):
+    doc = upload(client, samples / "pojistka.pdf").json()
+
+    class FailingExtractor(FakeExtractor):
+        def extract(self, pages, template):
+            raise RuntimeError("Model unavailable")
+
+    app.dependency_overrides[get_extractor] = lambda: FailingExtractor({})
+    queued = client.post(
+        f"/documents/{doc['id']}/extractions", json={"template_id": "insurance_policy"}
+    ).json()
+    result = client.get(f"/extractions/{queued['id']}").json()
+    assert result["status"] == "failed"
+    assert result["usage"]["phase"] == "failed"
+    assert result["usage"]["started_at"]
+    assert result["usage"]["queue_wait_s"] >= 0

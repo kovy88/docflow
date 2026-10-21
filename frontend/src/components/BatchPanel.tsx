@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, plural, type DocumentInfo, type Extraction, type Template } from "@/lib/api";
+import { guessTemplate } from "@/lib/templates";
 
 /** After a multi-file upload: pick one template and queue an extraction for every file. */
 export function BatchPanel({
@@ -25,10 +26,11 @@ export function BatchPanel({
       .templates()
       .then((t) => {
         setTemplates(t);
-        setTemplateId((current) => current || t[0]?.id || "");
+        const guesses = new Set(documents.map((d) => guessTemplate(d.filename, t)));
+        setTemplateId((current) => current || (guesses.size === 1 ? [...guesses][0] : ""));
       })
       .catch((e: Error) => setError(e.message));
-  }, []);
+  }, [documents]);
 
   async function start() {
     setBusy(true);
@@ -63,6 +65,7 @@ export function BatchPanel({
           aria-label="Šablona pro dávku"
           className="h-9 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-2"
         >
+          <option value="">Vyber šablonu</option>
           {templates.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}

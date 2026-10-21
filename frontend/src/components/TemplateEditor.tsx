@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api, type Rule, type Template, type TemplateField } from "@/lib/api";
+import { useLive } from "@/lib/access";
 
 type Mode = "new" | "edit" | "view";
 
@@ -29,7 +30,7 @@ export const slug = (text: string) =>
     .slice(0, 48);
 
 const input =
-  "w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm focus:border-accent focus:outline-none disabled:bg-background";
+  "min-h-9 w-full rounded-md border border-line-strong bg-surface px-2 py-1.5 text-sm focus:border-accent disabled:bg-background";
 
 export function TemplateEditor({
   initial,
@@ -39,6 +40,8 @@ export function TemplateEditor({
   mode: Mode;
 }) {
   const router = useRouter();
+  const live = useLive();
+  const keyBeforeEdit = useRef("");
   const [t, setT] = useState<Template>(initial);
   const [idTouched, setIdTouched] = useState(mode !== "new");
   const [saving, setSaving] = useState(false);
@@ -49,10 +52,31 @@ export function TemplateEditor({
     t.fields.filter((f) => f.type === type && f.key);
 
   function setField(i: number, patch: Partial<TemplateField>) {
-    setT({
-      ...t,
-      fields: t.fields.map((f, j) => (j === i ? { ...f, ...patch } : f)),
+    setT((prev) => ({
+      ...prev,
+      fields: prev.fields.map((f, j) => (j === i ? { ...f, ...patch } : f)),
+      rules: patch.key && prev.fields[i].key ? renameReferences(prev.rules, prev.fields[i].key, patch.key) : prev.rules,
+    }));
+  }
+
+  function renameReferences(rules: Rule[], from: string, to: string): Rule[] {
+    return rules.map((rule) => {
+      const rename = (key: string) => key === from ? to : key;
+      if (rule.type === "ico") return { ...rule, field: rename(rule.field) };
+      if (rule.type === "date_order") return { ...rule, earlier: rename(rule.earlier), later: rename(rule.later) };
+      return { ...rule, fields: rule.fields.map(rename), equals: rename(rule.equals) };
     });
+  }
+
+  function removeField(i: number) {
+    const key = t.fields[i].key;
+    const used = key && t.rules.some((r) => r.type === "ico" ? r.field === key : r.type === "date_order" ? r.earlier === key || r.later === key : r.equals === key || r.fields.includes(key));
+    if (used) {
+      setError(`Pole „${t.fields[i].label || key}“ používá pravidlo kontroly. Nejdřív uprav nebo odeber toto pravidlo.`);
+      return;
+    }
+    setError(null);
+    setT({ ...t, fields: t.fields.filter((_, j) => j !== i) });
   }
 
   function setRule(i: number, rule: Rule) {
@@ -76,6 +100,14 @@ export function TemplateEditor({
   }
 
   async function save() {
+    if (!t.name.trim()) { setError("Vyplň název šablony."); return; }
+    const validKey = /^[a-z][a-z0-9_]*$/;
+    if (!validKey.test(t.id)) { setError("Identifikátor musí začínat malým písmenem a obsahovat jen malá písmena bez diakritiky, číslice a podtržítka."); return; }
+    if (t.fields.length === 0) { setError("Přidej alespoň jedno pole."); return; }
+    if (t.fields.some((field) => !field.label.trim() || !validKey.test(field.key))) {
+      setError("Každé pole musí mít popisek a klíč začínající malým písmenem, bez diakritiky a mezer."); return;
+    }
+    if (new Set(t.fields.map((field) => field.key)).size !== t.fields.length) { setError("Každé pole musí mít jiný klíč."); return; }
     setSaving(true);
     setError(null);
     try {
@@ -121,7 +153,7 @@ export function TemplateEditor({
     } catch {
       /* storage unavailable: open an empty editor */
     }
-    router.push("/templates/new");
+    router.push(`/templates/new?draft=${crypto.randomUUID()}`);
   }
 
   const fieldSelect = (
@@ -180,8 +212,9 @@ export function TemplateEditor({
           <span className="text-muted">
             Popis typu dokumentu (pomáhá modelu)
           </span>
-          <input
-            className={input}
+          <textarea
+            rows={3}
+            className={`${input} resize-y`}
             value={t.description}
             disabled={readOnly}
             onChange={(e) => setT({ ...t, description: e.target.value })}
@@ -197,7 +230,7 @@ export function TemplateEditor({
           {t.fields.map((f, i) => (
             <div
               key={i}
-              className="grid gap-2 px-4 py-3 sm:grid-cols-[1fr_1fr_110px_auto_auto]"
+              className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_110px_auto_auto]"
             >
               <input
                 className={input}
@@ -213,14 +246,6 @@ export function TemplateEditor({
                   })
                 }
                 aria-label="Popisek pole"
-              />
-              <input
-                className={`${input} font-mono`}
-                placeholder="klic_pole"
-                value={f.key}
-                disabled={readOnly}
-                onChange={(e) => setField(i, { key: e.target.value })}
-                aria-label="Klíč pole"
               />
               <select
                 className={input}
@@ -261,23 +286,49 @@ export function TemplateEditor({
                 ))}
                 <button
                   type="button"
-                  onClick={() =>
-                    setT({ ...t, fields: t.fields.filter((_, j) => j !== i) })
-                  }
+                  onClick={() => removeField(i)}
                   className="text-sm text-err hover:underline"
                 >
                   Odebrat
                 </button>
                 </div>
               )}
-              <input
-                className={`${input} sm:col-span-5`}
-                placeholder="Nápověda pro model, např. „Celková částka včetně DPH.“"
-                value={f.description}
-                disabled={readOnly}
-                onChange={(e) => setField(i, { description: e.target.value })}
-                aria-label="Nápověda pro model"
-              />
+              <details className="sm:col-span-4">
+                <summary className="cursor-pointer text-sm text-accent" aria-label={`Pokročilé nastavení: ${f.label || `Pole ${i + 1}`}`}>
+                  Pokročilé nastavení
+                </summary>
+                <div className="mt-3 grid gap-3 rounded-md bg-background p-3">
+                  <label className="text-sm">
+                    <span className="text-muted">Klíč pole</span>
+                    <input
+                      className={`${input} font-mono`}
+                      placeholder="klic_pole"
+                      value={f.key}
+                      disabled={readOnly}
+                      onFocus={() => { keyBeforeEdit.current = f.key; }}
+                      onChange={(e) => setT((prev) => ({ ...prev, fields: prev.fields.map((field, j) => j === i ? { ...field, key: e.target.value } : field) }))}
+                      onBlur={(e) => {
+                        const from = keyBeforeEdit.current;
+                        const to = e.target.value;
+                        if (from && to && from !== to) setT((prev) => ({ ...prev, rules: renameReferences(prev.rules, from, to) }));
+                      }}
+                      aria-label="Klíč pole"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted">Pokyny pro model</span>
+                    <textarea
+                      rows={3}
+                      className={`${input} resize-y`}
+                      placeholder="Např. Celková částka včetně DPH."
+                      value={f.description}
+                      disabled={readOnly}
+                      onChange={(e) => setField(i, { description: e.target.value })}
+                      aria-label="Nápověda pro model"
+                    />
+                  </label>
+                </div>
+              </details>
             </div>
           ))}
         </div>
@@ -414,7 +465,7 @@ export function TemplateEditor({
       </section>
 
       {error && (
-        <p className="rounded-md bg-err-soft px-3 py-2 text-sm text-err">
+        <p role="alert" className="rounded-md bg-err-soft px-3 py-2 text-sm text-err">
           {error}
         </p>
       )}
@@ -423,15 +474,15 @@ export function TemplateEditor({
         {readOnly ? (
           <>
             <span className="text-sm text-muted">
-              Vestavěná šablona je jen pro čtení.
+              {live ? "Vestavěná šablona je jen pro čtení." : "Ukázková šablona je jen pro čtení."}
             </span>
-            <button
+            {live && <button
               type="button"
               onClick={duplicate}
               className="rounded-md border border-line-strong bg-surface px-3 py-1.5 font-medium text-foreground hover:bg-subtle"
             >
               Vytvořit kopii
-            </button>
+            </button>}
           </>
         ) : (
           <>

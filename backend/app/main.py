@@ -1,9 +1,8 @@
+import asyncio
 import csv
 import io
 import json
-import logging
 import secrets
-import time
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -18,7 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete
 from sqlmodel import Session, func, select
 
-from app import accounting
+from app import accounting, api_v1, trial
 from app.accounting import AccountingError
 from app.checks import issue
 from app.config import settings
@@ -26,37 +25,59 @@ from app.db import (
     CustomTemplate,
     Document,
     DocumentFile,
+    ExternalExtraction,
     Extraction,
     UsageEvent,
     engine,
-    get_session,
     init_db,
     utcnow,
 )
 from app.demo import demo_path, load_demo_labels
+from app.external import purge_expired
 from app.extractor import (
     Extractor,
-    OpenAIExtractor,
-    OpenRouterExtractor,
-    ToolCallExtractor,
     suggest_template,
 )
-from app.pdf import InvalidPdf, read_pdf
-from app.pipeline import apply_review, run_extraction
+from app.pipeline import apply_review
+from app.runtime import (
+    SessionDep,
+    consume_llm_quota,
+    get_extractor,
+    llm_calls_today,
+    logger,
+    parse_pdf,
+    process_extraction,
+)
 from app.templates import Template, load_templates
 from app.xlsx import workbook
+
+PURGE_INTERVAL_S = 600
+
+
+async def purge_periodically() -> None:
+    """Trial documents are deleted 24 h after upload, also when nobody calls the API."""
+    while True:
+        await asyncio.sleep(PURGE_INTERVAL_S)
+        try:
+            await run_in_threadpool(purge_expired)
+        except Exception:
+            logger.exception("Purging expired trial documents failed")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
     with Session(engine) as session:  # background work does not survive a restart
-        for stale in session.exec(select(Extraction).where(Extraction.status == "running")):
-            stale.status = "failed"
-            stale.issues = [issue("error", "interrupted", "Extrakce byla přerušena restartem.")]
-            session.add(stale)
+        for table in (Extraction, ExternalExtraction):
+            for stale in session.exec(select(table).where(table.status == "running")):
+                stale.status = "failed"
+                stale.issues = [issue("error", "interrupted", "Extrakce byla přerušena restartem.")]
+                session.add(stale)
         session.commit()
+    purge_expired()
+    purger = asyncio.create_task(purge_periodically())
     yield
+    purger.cancel()
 
 
 app = FastAPI(title="Docflow", version="0.1.0", lifespan=lifespan)
@@ -67,25 +88,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger = logging.getLogger("docflow")
-SessionDep = Annotated[Session, Depends(get_session)]
 EVALS_DIR = Path(__file__).resolve().parent.parent / "evals"
-
-
-def get_extractor() -> Extractor:
-    if settings.llm_provider == "ollama":
-        return ToolCallExtractor(
-            settings.ollama_base_url, settings.ollama_model, settings.llm_timeout_s
-        )
-    if settings.llm_provider == "openrouter":
-        if not settings.openrouter_api_key:
-            raise HTTPException(503, "OPENROUTER_API_KEY is not configured")
-        return OpenRouterExtractor(
-            settings.openrouter_api_key, settings.openrouter_model, settings.llm_timeout_s
-        )
-    if not settings.openai_api_key:
-        raise HTTPException(503, "OPENAI_API_KEY is not configured")
-    return OpenAIExtractor(settings.openai_api_key, settings.openai_model, settings.llm_timeout_s)
 
 
 class LatestExtraction(BaseModel):
@@ -161,20 +164,6 @@ def require_access(x_access_code: Annotated[str | None, Header()] = None) -> Non
 
 
 Access = Depends(require_access)
-
-
-def llm_calls_today(session: Session) -> int:
-    midnight = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    query = select(func.count()).select_from(UsageEvent).where(UsageEvent.created_at >= midnight)
-    return session.exec(query).one()
-
-
-def consume_llm_quota(session: Session, kind: str) -> None:
-    """Global daily cap on paid model calls, so a public URL cannot drain the API budget."""
-    if llm_calls_today(session) >= settings.daily_llm_limit:
-        raise HTTPException(429, "Denní limit volání modelu je vyčerpaný, zkus to zítra.")
-    session.add(UsageEvent(kind=kind))
-    session.commit()
 
 
 @app.get("/access", dependencies=[Access])
@@ -281,15 +270,7 @@ def suggest_document_template(
 
 
 def store_pdf(session: Session, data: bytes, filename: str) -> Document:
-    if len(data) > settings.max_upload_mb * 1024 * 1024:
-        raise HTTPException(413, f"File larger than {settings.max_upload_mb} MB")
-    if not data.startswith(b"%PDF"):
-        raise HTTPException(415, "Only PDF files are supported")
-    try:
-        pdf = read_pdf(data)
-    except InvalidPdf as exc:
-        raise HTTPException(422, f"Cannot read PDF: {exc}") from exc
-
+    pdf = parse_pdf(data, settings.max_upload_mb)
     doc = Document(
         filename=filename,
         page_count=len(pdf.pages),
@@ -444,7 +425,7 @@ def queue_extraction(
         status="running",
         fields=[],
         issues=[],
-        usage={},
+        usage={"phase": "queued"},
     )
     session.add(extraction)
     session.commit()
@@ -453,35 +434,6 @@ def queue_extraction(
         process_extraction, extraction.id, doc.pages, doc.ocr_pages or [], template, extractor
     )
     return extraction
-
-
-def process_extraction(
-    extraction_id: int,
-    pages: list[str],
-    ocr_pages: list[int],
-    template: Template,
-    extractor: Extractor,
-) -> None:
-    started = time.perf_counter()
-    try:
-        result = run_extraction(pages, template, extractor, ocr_pages)
-    except Exception as exc:  # stored on the row so the UI can show it
-        logger.exception("Extraction %s failed", extraction_id)
-        result = {
-            "status": "failed",
-            "fields": [],
-            "issues": [issue("error", "extraction_failed", f"Extrakce selhala: {exc}")],
-            "usage": {},
-        }
-    result["usage"] = result["usage"] | {"latency_s": round(time.perf_counter() - started, 1)}
-    with Session(engine) as session:
-        extraction = session.get(Extraction, extraction_id)
-        if extraction is None:
-            return
-        for key, value in result.items():
-            setattr(extraction, key, value)
-        session.add(extraction)
-        session.commit()
 
 
 @app.get("/documents/{document_id}/extractions", dependencies=[Access])
@@ -747,3 +699,7 @@ def list_evals() -> list[dict]:
             meta = {"id": path.stem, "prompt_version": run.get("prompt_version", 1)}
             runs.append(meta | {k: run.get(k) for k in keep})
     return runs
+
+
+app.include_router(trial.router)
+app.mount("/v1", api_v1.app)  # own OpenAPI at /v1/docs, only the integrator endpoints

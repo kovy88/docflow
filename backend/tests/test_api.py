@@ -52,7 +52,7 @@ def upload(client, path):
 
 def test_templates(client):
     ids = [t["id"] for t in client.get("/templates").json()]
-    assert ids == ["contract", "insurance_policy", "invoice", "lease"]
+    assert ids == ["contract", "insurance_policy", "invoice", "lease", "transport_order"]
 
 
 def test_upload_rejects_non_pdf(client):

@@ -17,5 +17,5 @@ async function DocumentWorkspace({
 }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
-  return <Workspace documentId={id} />;
+  return <Workspace key={id} documentId={id} />;
 }

@@ -16,7 +16,7 @@ PDF ─► text per page (text layer, or Tesseract OCR for scans) ─► LLM (JS
 ```bash
 uv sync
 cp .env.example .env
-ollama pull qwen3.8:27b   # default: local model via Ollama, no API key
+ollama pull qwen3.6:35b-a3b   # default: local model via Ollama, no API key
 brew install tesseract tesseract-lang   # OCR of scanned PDFs (Czech model `ces`)
 uv run uvicorn app.main:app --reload
 ```
@@ -33,6 +33,15 @@ on OCR pages are matched against the best quote-sized window with a 0.85 similar
 threshold (`OCR_QUOTE_THRESHOLD`) instead of 0.9 longest-substring, because one misread
 character in the middle of a number would otherwise fail the check. Without Tesseract,
 scans still upload but extraction reports `no_text`.
+
+### Extraction progress
+
+Queued work keeps the existing `running` status. Poll `GET /extractions/{id}` for
+`usage.phase`: `queued` while waiting, `processing` during the model call, and
+`completed` or `failed` when finished. `usage.started_at` is the UTC processing start;
+`usage.queue_wait_s` measures waiting separately from `usage.latency_s` (processing).
+The frontend updates these phases even before the final status changes. Old results
+without progress metadata remain readable.
 
 API docs at http://localhost:8000/docs. Sample PDFs (fictional) are in `samples/`;
 regenerate with `uv run python scripts/make_samples.py`.
@@ -59,6 +68,20 @@ and skips the already computed examples on rerun.
 
 See [pilot operations](../docs/pilot/operations.md) for separate deployment, SQLite backup and
 an isolated PostgreSQL restore drill. No client instance is provisioned by checking out this code.
+
+## Public trial and integrator API
+
+- `POST /trial` (page `/vyzkouset`): no access code; `invoice`, `lease` or `transport_order`,
+  max `TRIAL_MAX_MB` MB / `TRIAL_MAX_PAGES` pages, `TRIAL_PER_IP` uploads per IP and
+  `TRIAL_DAILY_LIMIT` in total per rolling 24 h, plus the global `DAILY_LLM_LIMIT`. Stored in
+  `externaldocument`/`externalextraction` (never in the workspace, measurements or evals),
+  deleted with file, text and results after `TRIAL_RETENTION_H` (purge at startup and every
+  10 min). IP only as a salted hash; `?ref=` goes to `trialvisit` (no content).
+  Behind a proxy set `CLIENT_IP_HEADER`, otherwise all visitors share one limit.
+- `/v1` (own OpenAPI at `/v1/docs`): `Authorization: Bearer dfk_…`, keys stored as SHA-256 with
+  a per-client daily quota; errors as `{"error": {"code", "message"}}`; `Idempotency-Key` on
+  upload. Keys: `uv run python scripts/api_keys.py create "Klient" --quota 200` (also `list`,
+  `revoke <id>`, `trials`).
 
 ## Evaluation dataset
 
@@ -89,3 +112,5 @@ Tests use a fake extractor, so they need no API key.
 - `app/checks.py` – grounding, normalisation, rules (no LLM, fully unit-tested)
 - `app/pipeline.py` – glues extraction and checks into a reviewable result
 - `app/main.py` – FastAPI endpoints; SQLite locally, Postgres/Supabase via `DATABASE_URL`
+- `app/runtime.py` – model client, daily quota, PDF intake and background extraction shared by all APIs
+- `app/trial.py`, `app/api_v1.py`, `app/external.py` – public trial, integrator API and their shared results/exports

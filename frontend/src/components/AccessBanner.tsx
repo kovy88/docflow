@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PUBLIC_DEPLOYMENT, setAccessCode, useLive } from "@/lib/access";
 import { api, checkAccess, REPO_URL } from "@/lib/api";
@@ -7,6 +8,7 @@ import { api, checkAccess, REPO_URL } from "@/lib/api";
 /** On the public deployment: demo by default, live API after entering the access code. */
 export function AccessBanner() {
   const live = useLive();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -24,7 +26,8 @@ export function AccessBanner() {
         .catch(() => setBackend(null));
   }, [live]);
 
-  if (!PUBLIC_DEPLOYMENT) return null;
+  // The trial page and API docs work without the code; the demo/live switch would confuse.
+  if (!PUBLIC_DEPLOYMENT || pathname === "/vyzkouset" || pathname === "/api") return null;
 
   async function unlock(e: React.FormEvent) {
     e.preventDefault();
@@ -76,7 +79,7 @@ export function AccessBanner() {
     <div className={`${bar} bg-accent-soft text-accent`}>
       <span>Veřejné demo s předpočítanými výsledky, jen pro čtení.</span>
       {open ? (
-        <form onSubmit={unlock} className="flex items-center gap-2">
+        <form onSubmit={unlock} className="flex flex-wrap items-center justify-center gap-2">
           <input
             type="password"
             autoFocus
@@ -93,7 +96,8 @@ export function AccessBanner() {
           >
             {busy ? "Ověřuji…" : "Odemknout"}
           </button>
-          {error && <span className="text-err">{error}</span>}
+          <button type="button" disabled={busy} className="underline" onClick={() => { setOpen(false); setCode(""); setError(null); }}>Zavřít</button>
+          {error && <span role="alert" className="text-err">{error}</span>}
         </form>
       ) : (
         <>

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     db_schema: str | None = None  # Postgres only, e.g. "docflow"
     llm_provider: Literal["ollama", "openai", "openrouter"] = "ollama"
     ollama_base_url: str = "http://localhost:11434/v1"
-    ollama_model: str = "qwen3.8:27b"
+    ollama_model: str = "qwen3.6:35b-a3b"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.4-mini"
     openrouter_api_key: str | None = None
@@ -23,6 +23,20 @@ class Settings(BaseSettings):
     daily_llm_limit: int = 100
     cors_origins: str = "http://localhost:3000"  # comma-separated
     max_upload_mb: int = 20
+    # Public trial page (/trial): own PDFs without an access code, deleted after 24 h.
+    trial_enabled: bool = True
+    trial_max_mb: int = 10
+    trial_max_pages: int = 10
+    trial_per_ip: int = 3  # uploads per IP address in a rolling 24 h
+    trial_daily_limit: int = 30  # all trial uploads in a rolling 24 h, below DAILY_LLM_LIMIT
+    trial_retention_h: int = 24
+    # Header with the visitor's IP set by the hosting proxy (e.g. true-client-ip); without
+    # it the socket address is used, which behind a proxy is the proxy itself.
+    client_ip_header: str | None = None
+    ip_hash_salt: str = ""  # IP addresses are stored only as a salted hash
+    # Integrator API (/v1, Authorization: Bearer <key>)
+    api_max_mb: int = 20
+    api_max_pages: int = 50
     low_confidence: float = 0.6
     # Fuzzy match needed for a quote to count as found; OCR text has misread characters,
     # so its pages get a looser threshold (measured on the scan set, see README).

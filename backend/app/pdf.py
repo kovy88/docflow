@@ -77,6 +77,13 @@ def read_pdf(data: bytes, ocr: bool = True) -> PdfText:
     return PdfText(pages, ocr_pages)
 
 
+def count_pages(data: bytes) -> int:
+    try:
+        return len(PdfReader(BytesIO(data)).pages)
+    except (PdfReadError, ValueError) as exc:
+        raise InvalidPdf(str(exc)) from exc
+
+
 def extract_pages(data: bytes) -> list[str]:
     """Text layer of each page, without OCR (scanned pages yield empty strings)."""
     return read_pdf(data, ocr=False).pages

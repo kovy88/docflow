@@ -119,7 +119,33 @@ def main() -> None:
             "Roční pojistné: 48 600 Kč",
         ],
     )
+    transport_order()
     print(f"Samples written to {OUT}")
+
+
+def transport_order() -> None:
+    write_pdf(
+        "objednavka_prepravy.pdf",
+        "Objednávka přepravy č. OP-2026-0815",
+        [
+            f"Objednatel: Ilustrační Spedice s.r.o., Průmyslová 8, 530 02 Pardubice, IČO: {ico('0812345')}",
+            f"Dopravce: Fiktivní Doprava Novák s.r.o., Polní 14, 586 01 Jihlava, IČO: {ico('0923456')}",
+            "",
+            "Nakládka: Skladový areál Ostrava-Hrabová, Na Rovince 3, 720 00 Ostrava",
+            "Datum nakládky: 4. 11. 2026, 8:00",
+            "Vykládka: Logistikpark Linz, Industriezeile 20, 4020 Linz, Rakousko",
+            "Datum vykládky: 5. 11. 2026",
+            "",
+            "Zboží: kartony s keramickými obklady, 22 palet EUR",
+            "Hrubá hmotnost: 18 400 kg",
+            "Vozidlo: SPZ 4J7 2815, návěs 4J2 9930",
+            "",
+            "Sjednaná cena přepravy: 1 150,00 EUR bez DPH",
+            "Splatnost faktury 30 dní od doručení dokladů (CMR s potvrzením převzetí).",
+            "",
+            "V Pardubicích dne 28. 10. 2026",
+        ],
+    )
 
 
 if __name__ == "__main__":

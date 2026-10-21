@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { TemplateEditor } from "@/components/TemplateEditor";
 import { api, type Template } from "@/lib/api";
+import { useLive } from "@/lib/access";
 
 export function TemplateDetail({ id }: { id: string }) {
+  const live = useLive();
   const [template, setTemplate] = useState<Template | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export function TemplateDetail({ id }: { id: string }) {
           <TemplateEditor
             key={template.id}
             initial={template}
-            mode={template.builtin ? "view" : "edit"}
+            mode={!live || template.builtin ? "view" : "edit"}
           />
         </div>
       )}

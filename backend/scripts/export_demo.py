@@ -22,11 +22,16 @@ from app.demo import demo_path, load_demo_labels  # noqa: E402
 from app.extractor import ExtractionOutput, FieldAnswer, ToolCallExtractor  # noqa: E402
 from app.pdf import read_pdf  # noqa: E402
 from app.pipeline import run_extraction  # noqa: E402
-from app.templates import load_templates  # noqa: E402
+from app.templates import Template, load_templates  # noqa: E402
 
 DATASET = ROOT / "dataset"
 EVALS = ROOT / "evals"
 OUT = ROOT.parent / "frontend" / "public" / "demo"
+
+
+def cached_result_matches_template(stored: dict, template: Template) -> bool:
+    """A finished result is reusable only for the exact template it was extracted with."""
+    return stored.get("template") == template.model_dump()
 
 
 class Replay:
@@ -74,6 +79,7 @@ def main() -> None:
     data = json.loads(path.read_text()) if path.exists() and not args.fresh else {}
     done = {e["document_id"] for es in data.get("extractions", {}).values() for e in es}
     labels = load_demo_labels()
+    templates = load_templates()
     extractor = ToolCallExtractor(settings.ollama_base_url, args.model, settings.llm_timeout_s)
 
     documents, extractions = [], data.get("extractions", {})
@@ -81,6 +87,7 @@ def main() -> None:
         pdf_bytes = demo_path(label["file"]).read_bytes()
         shutil.copyfile(demo_path(label["file"]), OUT / "pdfs" / f"{doc_id}.pdf")
         pdf = read_pdf(pdf_bytes)
+        template = templates[label["template_id"]]
         documents.append(
             {
                 "id": doc_id,
@@ -90,16 +97,26 @@ def main() -> None:
                 "ocr_pages": pdf.ocr_pages,
             }
         )
+        if doc_id in done and not cached_result_matches_template(
+            extractions[str(doc_id)][0], template
+        ):
+            if args.regrade:
+                stored_template = extractions[str(doc_id)][0].get("template", {})
+                if stored_template | {"rules": []} != template.model_dump() | {"rules": []}:
+                    parser.error(
+                        f"Template for {label['file']} changed; run without --regrade to extract the new fields. --regrade never calls the model."
+                    )
+            else:
+                done.remove(doc_id)
         if doc_id in done and args.regrade:
             stored = extractions[str(doc_id)][0]
             replay = Replay(stored)
-            template = load_templates()[label["template_id"]]
             result = run_extraction(pdf.pages, template, replay, pdf.ocr_pages)
             stored |= {k: result[k] for k in ("status", "fields", "issues")}
+            stored["template"] = template.model_dump()
             continue
         if doc_id in done:
             continue
-        template = load_templates()[label["template_id"]]
         started = time.perf_counter()
         result = run_extraction(pdf.pages, template, extractor, pdf.ocr_pages)
         result["usage"] = result["usage"] | {"latency_s": round(time.perf_counter() - started, 1)}

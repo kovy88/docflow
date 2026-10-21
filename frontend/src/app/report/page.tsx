@@ -24,10 +24,12 @@ export default function ReportPage() {
 
   useEffect(() => {
     if (!live) return;
+    let active = true;
     api
       .reviewReport(templateId || undefined)
-      .then(setReport)
-      .catch((e: Error) => setError(e.message));
+      .then((next) => { if (active) { setReport(next); setError(null); } })
+      .catch((e: Error) => { if (active) setError(e.message); });
+    return () => { active = false; };
   }, [live, templateId]);
 
   const s = report?.summary;

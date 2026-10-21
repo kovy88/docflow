@@ -134,7 +134,8 @@ export function DemoPicker() {
         </div>
         <div
           role="tablist"
-          className="flex rounded-lg border border-line bg-surface p-0.5 text-sm"
+          aria-label="Typ ukázkového dokumentu"
+          className="flex max-w-full flex-wrap border-b border-line text-sm"
         >
           {GROUPS.map((g) => {
             const count = demo.filter((d) => d.template_id === g.id).length;
@@ -144,15 +145,27 @@ export function DemoPicker() {
                 key={g.id}
                 type="button"
                 role="tab"
+                id={`demo-tab-${g.id}`}
+                aria-controls="demo-documents"
+                tabIndex={active ? 0 : -1}
                 aria-selected={active}
+                onKeyDown={(e) => {
+                  const index = GROUPS.findIndex((item) => item.id === group);
+                  const next = e.key === "ArrowRight" ? (index + 1) % GROUPS.length : e.key === "ArrowLeft" ? (index + GROUPS.length - 1) % GROUPS.length : e.key === "Home" ? 0 : e.key === "End" ? GROUPS.length - 1 : null;
+                  if (next === null) return;
+                  e.preventDefault();
+                  setGroup(GROUPS[next].id);
+                  setAll(false);
+                  e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=tab]")[next]?.focus();
+                }}
                 onClick={() => {
                   setGroup(g.id);
                   setAll(false);
                 }}
-                className={`rounded-md px-3 py-1 transition ${
+                className={`border-b-2 px-3 py-2 transition ${
                   active
-                    ? "bg-accent-soft font-medium text-accent"
-                    : "text-muted hover:text-foreground"
+                    ? "border-accent font-medium text-accent"
+                    : "border-transparent text-muted hover:text-foreground"
                 }`}
               >
                 {g.label} <span className="text-xs opacity-70">{count}</span>
@@ -168,7 +181,7 @@ export function DemoPicker() {
         </p>
       )}
 
-      <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <ul id="demo-documents" role="tabpanel" aria-labelledby={`demo-tab-${group}`} className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {shown
           .slice(0, all ? undefined : LIMIT)
           .map((d) => {

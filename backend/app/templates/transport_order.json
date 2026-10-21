@@ -1,0 +1,22 @@
+{
+  "id": "transport_order",
+  "name": "Objednávka přepravy / CMR",
+  "description": "Objednávka přepravy zboží nebo nákladní list CMR.",
+  "fields": [
+    {"key": "order_number", "label": "Číslo objednávky", "description": "Číslo objednávky přepravy nebo číslo nákladního listu CMR."},
+    {"key": "customer_name", "label": "Objednatel", "description": "Firma, která přepravu objednává (zasílatel / příkazce)."},
+    {"key": "carrier_name", "label": "Dopravce", "description": "Firma, která přepravu provádí."},
+    {"key": "loading_place", "label": "Místo nakládky", "description": "Adresa nebo město nakládky."},
+    {"key": "loading_date", "label": "Datum nakládky", "type": "date"},
+    {"key": "unloading_place", "label": "Místo vykládky", "description": "Adresa nebo město vykládky."},
+    {"key": "unloading_date", "label": "Datum vykládky", "type": "date", "required": false},
+    {"key": "goods", "label": "Zboží", "description": "Popis přepravovaného zboží, případně počet a druh balení."},
+    {"key": "weight_kg", "label": "Hmotnost (kg)", "type": "number", "description": "Celková hrubá hmotnost zásilky v kilogramech, jak ji uvádí dokument."},
+    {"key": "license_plate", "label": "SPZ", "required": false, "description": "Registrační značka vozidla (tahače), případně i návěsu."},
+    {"key": "price", "label": "Cena přepravy", "type": "number", "required": false, "description": "Sjednaná cena (přepravné) bez DPH."},
+    {"key": "currency", "label": "Měna", "required": false, "description": "Kód měny ceny, např. CZK nebo EUR."}
+  ],
+  "rules": [
+    {"type": "date_order", "earlier": "loading_date", "later": "unloading_date"}
+  ]
+}

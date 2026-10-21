@@ -21,6 +21,11 @@ services:
         value: "100"
       - key: CORS_ORIGINS
         value: https://docflow.logicflow.cz,https://docflow-inky-ten.vercel.app,http://localhost:3000
+      # Public trial page: visitor IP from Render's edge (verified after deploy), stored hashed
+      - key: CLIENT_IP_HEADER
+        value: true-client-ip
+      - key: IP_HASH_SALT
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: DATABASE_URL

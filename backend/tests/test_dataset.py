@@ -18,8 +18,8 @@ SCANS = [x for x in LABELS if x["difficulty"] == "scan"]
 
 
 def test_dataset_covers_evaluated_templates_and_planted_errors():
-    # Lease is a new pilot template; it has no measured model accuracy yet.
-    evaluated = set(load_templates()) - {"lease"}
+    # Lease and transport order are new templates; no measured model accuracy yet.
+    evaluated = set(load_templates()) - {"lease", "transport_order"}
     assert {x["template_id"] for x in LABELS} == evaluated
     assert {x["template_id"] for x in SCANS} == evaluated
     planted = {code for x in LABELS for code in x["expected_issues"]}

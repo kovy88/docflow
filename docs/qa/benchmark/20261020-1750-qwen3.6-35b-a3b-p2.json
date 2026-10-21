@@ -1,0 +1,441 @@
+{
+ "model": "qwen3.6:35b-a3b",
+ "provider": "ollama",
+ "prompt_version": 2,
+ "started": "2026-10-20T17:50:06.424254",
+ "documents": [
+  {
+   "file": "invoice_01.pdf",
+   "template_id": "invoice",
+   "difficulty": "standard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "supplier_name",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "quote": "Webové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "supplier_ico",
+     "expected": "88501892",
+     "predicted": "88501892",
+     "raw": "88501892",
+     "quote": "IČO: 88501892",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "customer_name",
+     "expected": "Strojírna Bystřice Demo a.s.",
+     "predicted": "Strojírna Bystřice Demo a.s.",
+     "raw": "Strojírna Bystřice Demo a.s.",
+     "quote": "Strojírna Bystřice Demo a.s.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "invoice_number",
+     "expected": "FV20260001",
+     "predicted": "FV20260001",
+     "raw": "FV20260001",
+     "quote": "číslo FV20260001",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "issue_date",
+     "expected": "2026-01-22",
+     "predicted": "2026-01-22",
+     "raw": "22.01.2026",
+     "quote": "Datum vystavení: 22.01.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "due_date",
+     "expected": "2026-02-21",
+     "predicted": "2026-02-21",
+     "raw": "21.02.2026",
+     "quote": "Datum splatnosti: 21.02.2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "net_amount",
+     "expected": 15914.1,
+     "predicted": 15914.1,
+     "raw": "15 914,10",
+     "quote": "Celkem 15 914,10",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "vat_amount",
+     "expected": 3126.21,
+     "predicted": 3126.21,
+     "raw": "3 126,21",
+     "quote": "3 126,21",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "total_amount",
+     "expected": 19040.0,
+     "predicted": 19040.0,
+     "raw": "19 040,00",
+     "quote": "Celkem k úhradě: 19 040,00 CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "currency",
+     "expected": "CZK",
+     "predicted": "CZK",
+     "raw": "CZK",
+     "quote": "19 040,00 CZK",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "bank_account",
+     "expected": "19-3596840071/0600",
+     "predicted": "19-3596840071/0600",
+     "raw": "19-3596840071/0600",
+     "quote": "Bankovní účet: 19-3596840071/0600",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2870,
+    "output_tokens": 669,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 54.9
+  },
+  {
+   "file": "contract_01.pdf",
+   "template_id": "contract",
+   "difficulty": "standard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "party_a_name",
+     "expected": "Vinařství Na Kopečku s.r.o.",
+     "predicted": "Vinařství Na Kopečku s.r.o.",
+     "raw": "Vinařství Na Kopečku s.r.o.",
+     "quote": "Vinařství Na Kopečku s.r.o.\nse sídlem: Lidická 54/39, 702 00 Ostrava",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "party_a_ico",
+     "expected": "14996341",
+     "predicted": "14996341",
+     "raw": "14996341",
+     "quote": "IČO: 14996341, DIČ: CZ14996341",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "party_b_name",
+     "expected": "Zelená Zahrada Bohemia s.r.o.",
+     "predicted": "Zelená Zahrada Bohemia s.r.o.",
+     "raw": "Zelená Zahrada Bohemia s.r.o.",
+     "quote": "Zelená Zahrada Bohemia s.r.o.\nse sídlem: Pražská 40/29, 301 00 Plzeň",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "party_b_ico",
+     "expected": "79701477",
+     "predicted": "79701477",
+     "raw": "79701477",
+     "quote": "IČO: 79701477, DIČ: CZ79701477",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "subject",
+     "expected": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "predicted": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "raw": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "quote": "rekonstrukce kancelářských prostor ve 2. nadzemním podlaží",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "price",
+     "expected": 369400.0,
+     "predicted": 369400.0,
+     "raw": "369 400,- Kč bez DPH",
+     "quote": "Cena díla činí 369 400,- Kč bez DPH.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-07-23",
+     "predicted": "2026-07-23",
+     "raw": "23. července 2026",
+     "quote": "Tato smlouva nabývá účinnosti dnem 23. července 2026.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "end_date",
+     "expected": "2026-10-21",
+     "predicted": "2026-10-21",
+     "raw": "21. října 2026",
+     "quote": "Smlouva se uzavírá na dobu určitou do 21. října 2026.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "notice_period",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "quote": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 1.0
+    },
+    {
+     "key": "signing_date",
+     "expected": "2026-07-16",
+     "predicted": "2026-07-16",
+     "raw": "16. července 2026",
+     "quote": "V Ostravě dne 16. července 2026",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 3262,
+    "output_tokens": 713,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 30.2
+  },
+  {
+   "file": "policy_01.pdf",
+   "template_id": "insurance_policy",
+   "difficulty": "standard",
+   "status": "ok",
+   "fields": [
+    {
+     "key": "insurer",
+     "expected": "Ilustrační pojišťovna a.s.",
+     "predicted": "Ilustrační pojišťovna a.s.",
+     "raw": "Ilustrační pojišťovna a.s.",
+     "quote": "ILUSTRAČNÍ POJIŠŤOVNA A.S.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder",
+     "expected": "Webové Studio Jih s.r.o.",
+     "predicted": "Webové Studio Jih s.r.o.",
+     "raw": "Webové Studio Jih s.r.o.",
+     "quote": "POJISTNÍK\nWebové Studio Jih s.r.o.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policyholder_ico",
+     "expected": "85272698",
+     "predicted": "85272698",
+     "raw": "85272698",
+     "quote": "IČO: 85272698",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "policy_number",
+     "expected": "4188663152",
+     "predicted": "4188663152",
+     "raw": "4188663152",
+     "quote": "POJISTNÁ SMLOUVA č. 4188663152",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "start_date",
+     "expected": "2026-01-01",
+     "predicted": "2026-01-01",
+     "raw": "1. 1. 2026",
+     "quote": "s počátkem pojištění dne 1. 1. 2026.",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "end_date",
+     "expected": null,
+     "predicted": null,
+     "raw": null,
+     "quote": null,
+     "correct": true,
+     "grounded": false,
+     "confidence": 1.0
+    },
+    {
+     "key": "sum_insured",
+     "expected": 25600000.0,
+     "predicted": 25600000.0,
+     "raw": "25 600 000 Kč",
+     "quote": "Celková pojistná částka: 25 600 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "deductible",
+     "expected": 1000.0,
+     "predicted": 1000.0,
+     "raw": "1 000 Kč",
+     "quote": "Spoluúčast: 1 000 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    },
+    {
+     "key": "annual_premium",
+     "expected": 28550.0,
+     "predicted": 28550.0,
+     "raw": "28 550 Kč",
+     "quote": "Roční pojistné celkem: 28 550 Kč",
+     "correct": true,
+     "grounded": true,
+     "confidence": 1.0
+    }
+   ],
+   "rules": {
+    "expected": [],
+    "predicted": [],
+    "tp": 0,
+    "fp": 0,
+    "fn": 0
+   },
+   "usage": {
+    "input_tokens": 2663,
+    "output_tokens": 542,
+    "attempts": 1,
+    "mode": "tool"
+   },
+   "latency_s": 26.9
+  }
+ ],
+ "summary": {
+  "documents": 3,
+  "failed_documents": 0,
+  "fields": 30,
+  "field_accuracy": 1.0,
+  "documents_fully_correct": 3,
+  "per_template": {
+   "contract": 1.0,
+   "insurance_policy": 1.0,
+   "invoice": 1.0
+  },
+  "per_field": {
+   "annual_premium": 1.0,
+   "bank_account": 1.0,
+   "currency": 1.0,
+   "customer_name": 1.0,
+   "deductible": 1.0,
+   "due_date": 1.0,
+   "end_date": 1.0,
+   "insurer": 1.0,
+   "invoice_number": 1.0,
+   "issue_date": 1.0,
+   "net_amount": 1.0,
+   "notice_period": 1.0,
+   "party_a_ico": 1.0,
+   "party_a_name": 1.0,
+   "party_b_ico": 1.0,
+   "party_b_name": 1.0,
+   "policy_number": 1.0,
+   "policyholder": 1.0,
+   "policyholder_ico": 1.0,
+   "price": 1.0,
+   "signing_date": 1.0,
+   "start_date": 1.0,
+   "subject": 1.0,
+   "sum_insured": 1.0,
+   "supplier_ico": 1.0,
+   "supplier_name": 1.0,
+   "total_amount": 1.0,
+   "vat_amount": 1.0
+  },
+  "per_difficulty": {
+   "standard": 1.0
+  },
+  "rule_detection": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 0,
+   "precision": null,
+   "recall": null
+  },
+  "signals": {
+   "grounded_share": 1.0,
+   "accuracy_grounded": 1.0,
+   "accuracy_ungrounded": null,
+   "accuracy_high_confidence": 1.0,
+   "accuracy_low_confidence": null
+  },
+  "latency_s": {
+   "mean": 37.3,
+   "median": 30.2,
+   "max": 54.9
+  },
+  "tokens_per_document": 3573,
+  "errors": []
+ },
+ "finished": "2026-10-20T17:51:58.431165"
+}

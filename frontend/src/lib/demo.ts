@@ -19,13 +19,16 @@ type DemoData = {
 };
 
 export const DEMO_MESSAGE =
-  "Veřejné demo je jen pro čtení. Nahrávání, extrakci a úpravy si vyzkoušíte po spuštění Docflow lokálně.";
+  "Veřejné demo je jen pro čtení. Nahrávání, extrakce a úpravy jsou dostupné po zadání přístupového kódu nebo při lokálním spuštění Docflow.";
 
 let cache: Promise<DemoData> | null = null;
 const data = () =>
   (cache ??= fetch("/demo/data.json").then((r) => {
     if (!r.ok) throw new Error("Demo data se nepodařilo načíst.");
     return r.json() as Promise<DemoData>;
+  }).catch((error: unknown) => {
+    cache = null;
+    throw error;
   }));
 
 const readOnly = async (): Promise<never> => {

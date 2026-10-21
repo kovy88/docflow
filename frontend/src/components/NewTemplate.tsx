@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { TemplateEditor } from "@/components/TemplateEditor";
 import type { Template } from "@/lib/api";
+import { useLive } from "@/lib/access";
 
 const EMPTY: Template = {
   id: "",
@@ -34,6 +35,7 @@ function takeDraft(): { template: Template; fromAi: boolean } {
 }
 
 export function NewTemplate() {
+  const live = useLive();
   const [{ template, fromAi }] = useState(takeDraft);
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
@@ -53,7 +55,7 @@ export function NewTemplate() {
         </p>
       )}
       <div className="mt-6">
-        <TemplateEditor initial={template} mode="new" />
+        {live ? <TemplateEditor initial={template} mode="new" /> : <p className="text-muted">Vytváření šablon je dostupné po zadání přístupového kódu. V demu si můžeš prohlédnout hotové šablony.</p>}
       </div>
     </div>
   );

@@ -16,6 +16,16 @@ výsledky na fiktivních dokumentech (rychle, bez nákladů). S kódem se přepn
 provoz: nahrání vlastního PDF, OCR, extrakce, ruční kontrola a šablony nad skutečným
 backendem.
 
+**Vyzkoušet bez kódu:** [/vyzkouset](https://docflow.logicflow.cz/vyzkouset) – vlastní
+anonymizovaná faktura, nájemní smlouva nebo objednávka přepravy / CMR (do 10 stran, 3 dokumenty
+za 24 h z jedné IP), výsledek s citacemi a pravidly, stažení XLSX a JSON. Data se ukládají
+odděleně a mažou do 24 hodin; nepoužívají se k evaluaci. Odkaz s `?ref=<kód>` ukáže v
+`scripts/api_keys.py trials`, který oslovený to zkusil.
+
+**API pro integrátory:** `/v1` s klíčem pro každého klienta (`Authorization: Bearer`), denní
+kvótou a exportem do XLSX, JSON, POHODY a Money S3. Dokumentace česky na
+[/api](https://docflow.logicflow.cz/api), OpenAPI na `<backend>/v1/docs`.
+
 ![Detail dokumentu: PDF se zvýrazněnou citací vlevo, vytěžená pole a nálezy vpravo](docs/workspace.png)
 
 ## Proč to není „chat s PDF“
@@ -120,7 +130,7 @@ stránce **Evaluace** v aplikaci.
 ```
 PDF ─► text po stranách (pypdf; skeny lokální OCR Tesseract)
     ─► LLM: pro každé pole šablony {hodnota, strana, citace, jistota}
-         Ollama (qwen3.8:27b, lokálně) nebo OpenAI (strukturovaný výstup)
+         Ollama (qwen3.6:35b-a3b, lokálně) nebo OpenAI (strukturovaný výstup)
     ─► ověření citací v PDF ─► normalizace CZ čísel a dat ─► pravidla šablony
     ─► výsledek ke kontrole (needs_review / ok) ─► ruční oprava a schválení
 ```
@@ -151,7 +161,7 @@ Vercel (Next.js) ──► Render (FastAPI v Dockeru, Tesseract) ──► OpenR
 ## Spuštění
 
 ```bash
-ollama pull qwen3.8:27b
+ollama pull qwen3.6:35b-a3b
 cd backend && uv sync && cp .env.example .env && uv run uvicorn app.main:app --reload
 cd frontend && npm install && npm run dev      # http://localhost:3000
 ```

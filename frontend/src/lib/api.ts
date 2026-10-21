@@ -70,6 +70,9 @@ export type Extraction = {
   fields: ExtractedField[];
   issues: Issue[];
   usage: {
+    phase?: "queued" | "processing" | "completed" | "failed";
+    started_at?: string;
+    queue_wait_s?: number;
     input_tokens?: number;
     output_tokens?: number;
     attempts?: number;
@@ -183,7 +186,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       : typeof body?.detail === "string"
         ? body.detail
         : JSON.stringify(body?.detail);
-    throw new Error(detail || `${res.status} ${res.statusText}`);
+    const translations: Record<string, string> = {
+      "Document not found": "Dokument nebyl nalezen. Možná byl smazán.",
+      "Template not found": "Šablona nebyla nalezena. Možná byla smazána.",
+      "Extraction not found": "Výsledek extrakce nebyl nalezen.",
+    };
+    // Upload errors (size, not a PDF, unreadable) already come in Czech from the backend.
+    const friendly = translations[detail ?? ""] ?? detail;
+    throw new Error(friendly || `${res.status} ${res.statusText}`);
   }
   return res.json();
 }

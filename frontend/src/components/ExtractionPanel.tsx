@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { guessTemplate } from "@/lib/templates";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useLive } from "@/lib/access";
 import {
@@ -25,7 +26,7 @@ type Props = {
   templates: Template[];
   extractions: Extraction[];
   onExtractionsChange: Dispatch<SetStateAction<Extraction[]>>;
-  onFocusField: (field: ExtractedField | null) => void;
+  onFocusField: (field: ExtractedField | null, revealSource?: boolean) => void;
 };
 
 /** Time since the extraction was queued (survives page reloads). */
@@ -48,20 +49,6 @@ function Elapsed({ since }: { since: string }) {
   );
 }
 
-/** Preselect a template from the file name ("faktura_…", "contract_03.pdf"). */
-function guessTemplate(filename: string, templates: Template[]): string {
-  const name = filename.toLowerCase();
-  const hints: Record<string, string[]> = {
-    invoice: ["invoice", "faktur"],
-    lease: ["lease", "nájem", "najem"],
-    contract: ["contract", "smlouv"],
-    insurance_policy: ["policy", "pojist"],
-  };
-  const hit = Object.entries(hints).find(([, words]) =>
-    words.some((w) => name.includes(w)),
-  );
-  return hit && templates.some((t) => t.id === hit[0]) ? hit[0] : templates[0]?.id ?? "invoice";
-}
 
 export function ExtractionPanel({
   document,
@@ -79,6 +66,11 @@ export function ExtractionPanel({
   const [starting, setStarting] = useState(false);
   const [suggestingSince, setSuggestingSince] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const live = useLive();
+
+  // Cached routes keep their state; a finished suggestion must not leave the restored
+  // document locked in its loading state when the user returns from the editor.
+  useEffect(() => () => setSuggestingSince(null), []);
 
   const extraction = extractions.find((e) => e.id === selectedId) ?? null;
   const runningIds = extractions
@@ -94,7 +86,7 @@ export function ExtractionPanel({
     const timer = setInterval(async () => {
       for (const id of runningIds.split(",").map(Number)) {
         const fresh = await api.extraction(id).catch(() => null);
-        if (fresh && fresh.status !== "running") {
+        if (fresh) {
           onExtractionsChange((prev) =>
             prev.map((e) => (e.id === fresh.id ? fresh : e)),
           );
@@ -127,9 +119,10 @@ export function ExtractionPanel({
         "docflow:template-draft",
         JSON.stringify({ ...draft, fromAi: true }),
       );
-      router.push("/templates/new");
+      router.push(`/templates/new?draft=${crypto.randomUUID()}`);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
       setSuggestingSince(null);
     }
   }
@@ -149,6 +142,7 @@ export function ExtractionPanel({
   return (
     <div className="flex flex-col">
       <div className="sticky top-0 z-10 space-y-3 border-b border-line bg-surface p-4">
+        {live ? <>
         <div className="flex gap-2">
           <select
             value={templateId}
@@ -166,10 +160,10 @@ export function ExtractionPanel({
           <button
             type="button"
             onClick={run}
-            disabled={busy || !document.has_text}
-            className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            disabled={busy || !document.has_text || !templateId}
+            className={`rounded-md px-3 py-1.5 font-medium disabled:opacity-50 ${extraction ? "border border-line-strong bg-surface hover:bg-subtle" : "bg-accent text-white hover:bg-accent-hover"}`}
           >
-            {busy ? "Extrahuji…" : "Extrahovat"}
+            {busy ? "Zpracovává se…" : "Extrahovat"}
           </button>
         </div>
         <p className="text-xs text-muted">
@@ -191,6 +185,9 @@ export function ExtractionPanel({
             </>
           )}
         </p>
+        </> : (
+          <p className="text-sm text-muted">Ukázkový výsledek je jen pro čtení. Vyber údaj nebo jeho zdroj a ověř ho v PDF. Úpravy a schválení jsou dostupné po zadání přístupového kódu.</p>
+        )}
         {!document.has_text && (
           <p className="text-sm text-err">
             PDF nemá textovou vrstvu a OCR v něm nenašlo text (chybí
@@ -236,12 +233,17 @@ export function ExtractionPanel({
         <div className="space-y-2 p-4">
           <p className="flex items-center gap-2 font-medium">
             <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-            Extrahuji… <Elapsed since={extraction.created_at} />
+            {extraction.usage.phase === "queued" ? "Čeká ve frontě…" : extraction.usage.phase === "processing" ? "Extrahuji…" : "Zpracovává se…"}{" "}
+            <Elapsed since={extraction.usage.started_at ?? extraction.created_at} />
           </p>
           <p className="text-sm text-muted">
-            Dokument zpracovává model {extraction.model}. Doba závisí na délce
-            dokumentu a poskytovateli modelu. Extrakce běží na serveru, stránku můžeš zavřít
-            a vrátit se později.
+            {extraction.usage.phase === "queued"
+              ? "Dokument čeká na zahájení zpracování. Čas ukazuje dobu čekání."
+              : extraction.usage.phase === "processing"
+                ? `Dokument zpracovává model ${extraction.model}. Čas ukazuje dobu samotné extrakce.`
+                : `Dokument čeká ve frontě nebo ho zpracovává model ${extraction.model}. Čas se měří od zařazení do fronty.`}
+            {extraction.usage.phase === "processing" && extraction.usage.queue_wait_s != null && ` Ve frontě čekal ${Math.round(extraction.usage.queue_wait_s)} s.`}
+            {" "}Extrakce běží na serveru, stránku můžeš zavřít a vrátit se později.
           </p>
         </div>
       ) : extraction ? (
@@ -305,7 +307,7 @@ function ReviewForm({
 }: {
   extraction: Extraction;
   onSaved: (extraction: Extraction) => void;
-  onFocusField: (field: ExtractedField | null) => void;
+  onFocusField: (field: ExtractedField | null, revealSource?: boolean) => void;
   ocrPages: number[];
 }) {
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
@@ -359,12 +361,16 @@ function ReviewForm({
             : errors >= 2 && errors <= 4
               ? "chyby"
               : "chyb"}{" "}
-          · {warnings} upozornění · {extraction.model}
-          {tokens > 0 && ` · ${tokens.toLocaleString("cs-CZ")} tokenů`}
-          {live &&
-            extraction.usage.latency_s != null &&
-            ` · ${Math.round(extraction.usage.latency_s)} s`}
+          · {warnings} upozornění
         </p>
+        <details className="text-xs text-muted">
+          <summary className="cursor-pointer">Podrobnosti zpracování</summary>
+          <p className="mt-1 break-words">{extraction.model}
+            {tokens > 0 && ` · ${tokens.toLocaleString("cs-CZ")} tokenů`}
+            {live && extraction.usage.latency_s != null && ` · extrakce ${Math.round(extraction.usage.latency_s)} s`}
+            {live && extraction.usage.queue_wait_s != null && ` · čekání ${Math.round(extraction.usage.queue_wait_s)} s`}
+          </p>
+        </details>
         {docIssues.map((issue, i) => (
           <IssueLine key={i} issue={issue} />
         ))}
@@ -383,8 +389,8 @@ function ReviewForm({
               onClick={() => focus(field)}
               className={`cursor-pointer px-4 py-3 ${active ? "bg-accent-soft" : "hover:bg-background"}`}
             >
-              <div className="flex items-center gap-2 text-sm">
-                <label htmlFor={`f-${field.key}`} className="font-medium">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <label htmlFor={`f-${extraction.id}-${field.key}`} className="font-medium">
                   {field.label}
                 </label>
                 <span className="ml-auto flex items-center gap-2 text-xs text-muted">
@@ -409,16 +415,19 @@ function ReviewForm({
                     </span>
                   )}
                   {field.page && (
-                    <span>
-                      str. {field.page}
+                    <button type="button" onClick={() => { focus(field); onFocusField(field, true); }} className="text-accent hover:underline"
+                      aria-label={`Zobrazit zdroj: ${field.label}, strana ${field.page}`}>
+                      Zdroj · str. {field.page} ↗
                       {ocrPages.includes(field.page) && " (OCR)"}
-                    </span>
+                    </button>
                   )}
                 </span>
               </div>
               <input
-                id={`f-${field.key}`}
+                id={`f-${extraction.id}-${field.key}`}
+                data-field-key={field.key}
                 value={drafts[field.key]}
+                readOnly={!live}
                 onChange={(e) =>
                   setDrafts({ ...drafts, [field.key]: e.target.value })
                 }
@@ -430,8 +439,8 @@ function ReviewForm({
                 <p className="mt-1 text-xs text-muted">→ {normalized}</p>
               )}
               {active && field.quote && (
-                <p className="mt-1 text-xs text-muted">
-                  Citace: <q className="italic">{field.quote}</q>
+                <p className="mt-2 border-l-2 border-line-strong pl-3 text-sm text-muted">
+                  <q>{field.quote}</q>
                 </p>
               )}
               {fieldIssues.map((issue, i) => (
@@ -443,20 +452,8 @@ function ReviewForm({
       </ul>
 
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-surface p-4">
-        <button
-          type="button"
-          onClick={approve}
-          disabled={saving || extraction.status === "failed"}
-          className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-        >
-          {saving
-            ? "Ukládám…"
-            : changed.length
-              ? `Uložit opravy (${changed.length}) a schválit`
-              : "Schválit"}
-        </button>
         {live && (
-          <span className="ml-auto flex gap-2 text-sm">
+          <span className="flex gap-2 text-sm">
             {(["csv", "json"] as const).map((format) => (
               <button
                 key={format}
@@ -479,6 +476,15 @@ function ReviewForm({
             {parseTimestamp(extraction.reviewed_at).toLocaleString("cs-CZ")}
           </span>
         )}
+        {live && <button
+          type="button"
+          onClick={approve}
+          disabled={saving || extraction.status === "failed" || (extraction.status === "approved" && changed.length === 0)}
+          className="ml-auto rounded-md bg-accent px-3 py-2 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+        >
+          {saving ? "Ukládám…" : changed.length ? `Uložit opravy (${changed.length}) a schválit` : extraction.status === "approved" ? "Schváleno" : "Schválit"}
+        </button>}
+        {!live && <span className="text-sm text-muted">Veřejné demo · výsledek nelze měnit ani schválit.</span>}
         {error && <span className="text-sm text-err">{error}</span>}
       </div>
     </>
