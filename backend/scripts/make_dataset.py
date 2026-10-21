@@ -392,6 +392,7 @@ def invoice(rng: random.Random, n: int, layout: str, errors: set[str], items_cou
         "customer_name": customer.name,
         "invoice_number": number,
         "issue_date": d(issue),
+        "tax_date": None if layout == "C" else d(taxable),
         "due_date": None if "no_due" in errors else d(due),
         "net_amount": m(net),
         "vat_amount": m(vat),

@@ -8,6 +8,7 @@
     {"key": "customer_name", "label": "Odběratel", "description": "Obchodní název odběratele."},
     {"key": "invoice_number", "label": "Číslo faktury"},
     {"key": "issue_date", "label": "Datum vystavení", "type": "date"},
+    {"key": "tax_date", "label": "Datum zdanitelného plnění", "type": "date", "required": false, "description": "Datum uskutečnění zdanitelného plnění, na dokladu často jen zkratka DUZP nebo „Datum uskut. zdan. plnění“. Pokud doklad žádné takové datum neuvádí, nech prázdné."},
     {"key": "due_date", "label": "Datum splatnosti", "type": "date"},
     {"key": "net_amount", "label": "Základ daně", "type": "number", "description": "Celková částka bez DPH."},
     {"key": "vat_amount", "label": "DPH", "type": "number", "description": "Celková částka DPH."},
