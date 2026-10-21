@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { api, type DocumentInfo } from "@/lib/api";
+import { api, type DocumentInfo, type ExportFormat } from "@/lib/api";
 
 export function DocumentList({ documents, onDelete }: {
   documents: DocumentInfo[];
@@ -11,6 +11,7 @@ export function DocumentList({ documents, onDelete }: {
 }) {
   const [selected, setSelected] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
+  const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [error, setError] = useState<string | null>(null);
 
   async function exportSelected() {
@@ -23,7 +24,7 @@ export function DocumentList({ documents, onDelete }: {
       if (latest.some((e) => !e || e.status !== "approved" || !e.reviewed_at || e.issues.some((i) => i.severity === "error"))) {
         throw new Error("Nejnovější extrakce každého vybraného dokumentu musí být schválená a bez chyb. Otevři dokumenty a dokonči kontrolu.");
       }
-      await api.exportBatch(latest.map((e) => e.id));
+      await api.exportBatch(latest.map((e) => e.id), format);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -56,12 +57,21 @@ export function DocumentList({ documents, onDelete }: {
     <section className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Moje dokumenty</h2>
-        <button type="button" disabled={busy || selected.length === 0 || selected.length > 100}
-          onClick={exportSelected} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-white disabled:opacity-50">
-          {busy ? "Pracuji…" : `Export do Excelu (${selected.length})`}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <select aria-label="Formát exportu" value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)}
+            className="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm">
+            <option value="xlsx">Excel</option>
+            <option value="pohoda">POHODA (XML, přijaté faktury)</option>
+            <option value="money">Money S3 (XML, přijaté faktury)</option>
+          </select>
+          <button type="button" disabled={busy || selected.length === 0 || selected.length > 100}
+            onClick={exportSelected} className="h-9 rounded-md bg-accent px-3 text-sm font-medium text-white disabled:opacity-50">
+            {busy ? "Pracuji…" : `Exportovat (${selected.length})`}
+          </button>
+        </div>
       </div>
-      <p className="mt-2 text-sm text-muted">Vyber nejvýše 100 dokumentů se stejnou šablonou. Export zahrne jejich nejnovější, lidsky schválené výsledky bez chybových nálezů.</p>
+      <p className="mt-2 text-sm text-muted">Vyber nejvýše 100 dokumentů se stejnou šablonou. Export zahrne jejich nejnovější, lidsky schválené výsledky bez chybových nálezů.
+        {format !== "xlsx" && " Účetní export: jen faktury v CZK s jednou sazbou DPH; bez DUZP na dokladu se použije datum vystavení."}</p>
       {(exportable.length > 0 || toReview.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
           {exportable.length > 0 && (

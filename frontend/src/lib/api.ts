@@ -188,6 +188,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// Excel works for any template; POHODA and Money S3 import received invoices only.
+export type ExportFormat = "xlsx" | "pohoda" | "money";
+
 const json = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { "content-type": "application/json" },
@@ -202,9 +205,11 @@ const liveApi = {
       throw new Error(body?.detail || "Dokument se nepodařilo smazat.");
     }
   },
-  exportBatch: async (extractionIds: number[]) => {
-    const res = await fetch(`${API_URL}/exports/xlsx`, {
-      ...json("POST", { extraction_ids: extractionIds }),
+  exportBatch: async (extractionIds: number[], format: ExportFormat = "xlsx") => {
+    const path = format === "xlsx" ? "/exports/xlsx" : "/exports/accounting";
+    const body = format === "xlsx" ? { extraction_ids: extractionIds } : { extraction_ids: extractionIds, format };
+    const res = await fetch(`${API_URL}${path}`, {
+      ...json("POST", body),
       headers: { ...authHeaders(), "content-type": "application/json" },
     });
     if (!res.ok) {
@@ -214,7 +219,7 @@ const liveApi = {
     const url = URL.createObjectURL(await res.blob());
     const link = document.createElement("a");
     link.href = url;
-    link.download = "docflow-evidence.xlsx";
+    link.download = format === "xlsx" ? "docflow-evidence.xlsx" : `docflow-${format}.xml`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   },

@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 from statistics import median
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete
 from sqlmodel import Session, func, select
 
+from app import accounting
+from app.accounting import AccountingError
 from app.checks import issue
 from app.config import settings
 from app.db import (
@@ -539,11 +541,11 @@ class BatchExportRequest(BaseModel):
     columns: list[str] | None = Field(default=None, min_length=1)
 
 
-@app.post("/exports/xlsx", dependencies=[Access])
-def export_batch(body: BatchExportRequest, session: SessionDep):
-    if len(set(body.extraction_ids)) != len(body.extraction_ids):
+def approved_extractions(session: Session, ids: list[int]) -> list[Extraction]:
+    """Load an export batch; refuse it whole unless every result is human-approved."""
+    if len(set(ids)) != len(ids):
         raise HTTPException(422, "Vyber každou extrakci pouze jednou.")
-    extractions = [get_extraction_or_404(session, id) for id in body.extraction_ids]
+    extractions = [get_extraction_or_404(session, id) for id in ids]
     if len({e.document_id for e in extractions}) != len(extractions):
         raise HTTPException(422, "Pro každý dokument vyber pouze jednu extrakci.")
     for extraction in extractions:
@@ -555,6 +557,12 @@ def export_batch(body: BatchExportRequest, session: SessionDep):
             raise HTTPException(
                 409, f"Extrakce #{extraction.id} musí být lidsky schválená a bez chybových nálezů."
             )
+    return extractions
+
+
+@app.post("/exports/xlsx", dependencies=[Access])
+def export_batch(body: BatchExportRequest, session: SessionDep):
+    extractions = approved_extractions(session, body.extraction_ids)
     template = Template.model_validate(extractions[0].template)
     signature = [(f.key, f.label, f.type) for f in template.fields]
     if any(
@@ -584,6 +592,35 @@ def export_batch(body: BatchExportRequest, session: SessionDep):
         workbook(headers, rows),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="docflow-evidence.xlsx"'},
+    )
+
+
+class AccountingExportRequest(BaseModel):
+    extraction_ids: list[int] = Field(min_length=1, max_length=100)
+    format: Literal["pohoda", "money"]
+
+
+@app.post("/exports/accounting", dependencies=[Access])
+def export_accounting(body: AccountingExportRequest, session: SessionDep):
+    """Received invoices as an XML import file for POHODA or Money S3."""
+    extractions = approved_extractions(session, body.extraction_ids)
+    invoices = []
+    for extraction in extractions:
+        if extraction.template_id != "invoice":
+            raise HTTPException(409, "Do účetnictví lze exportovat jen šablonu Faktura.")
+        try:
+            invoices.append(accounting.invoice({f["key"]: f["value"] for f in extraction.fields}))
+        except (AccountingError, ValueError) as e:
+            doc = get_document(session, extraction.document_id)
+            raise HTTPException(409, f"{doc.filename}: {e}. Zaúčtujte ručně.") from e
+    if body.format == "pohoda":
+        content = accounting.pohoda(invoices, f"docflow-{utcnow():%Y%m%d%H%M%S}")
+    else:
+        content = accounting.money_s3(invoices)
+    return Response(
+        content,
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="docflow-{body.format}.xml"'},
     )
 
 

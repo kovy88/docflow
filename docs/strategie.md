@@ -26,7 +26,7 @@ Bonus pro opatrné firmy: model u poskytovatelů bez ukládání dat, nebo loká
 2. **Realitní a facility firmy** – předávací protokoly, dodatky, revize.
 3. **Pojišťovací makléři** – pojistky a obnovy (sdílí trh s BrokerScribe).
 4. **Logistika** – CMR, dodací listy, objednávky.
-5. **Účetní kanceláře** – až s exportem do Pohody/Money; u faktur je největší konkurence.
+5. **Účetní kanceláře** – export přijatých faktur do POHODY a Money S3 (XML) je hotový; oslovovat až po ověřeném importu v reálné Pohodě/Money. U faktur je největší konkurence.
 
 Další obor až po zaplaceném pilotu v předchozím. Šablona a ukázkový dokument pro nový obor = zhruba den práce.
 
@@ -55,7 +55,7 @@ Náklad modelu je kolem 0,03 Kč za dokument; cena stojí na ušetřeném čase,
 | Brána | Produkt |
 |---|---|
 | Teď, před první platbou | Dávkové nahrání a extrakce, „Další ke kontrole“, automatické měření času kontroly a oprav (hotovo) |
-| Po 1. zaplaceném pilotu | Evaluace na reálných anonymizovaných dokumentech, export do Pohody/Money (XML), příjem dokumentů e-mailem |
+| Po 1. zaplaceném pilotu | Evaluace na reálných anonymizovaných dokumentech, příjem dokumentů e-mailem (export do Pohody/Money hotový 20. 10. 2026) |
 | Po 3 platících zákaznících | Organizace a účty, fakturace, limity podle tarifu, API a webhooky pro integrátory |
 
 ## Co sledovat každý týden
