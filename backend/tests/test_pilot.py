@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.config import settings
-from app.db import Document, DocumentFile, Extraction, engine, utcnow
+from app.db import Document, DocumentFile, Extraction, default_workspace, engine, utcnow
 from app.main import app
 from app.templates import load_templates
 from app.xlsx import workbook
@@ -27,7 +27,12 @@ def client():
 def seed(status="approved", issues=None, reviewed=True, filename="nájem.pdf"):
     template = load_templates()["lease"]
     with Session(engine) as session:
-        doc = Document(filename=filename, page_count=1, pages=["Test"])
+        doc = Document(
+            workspace_id=default_workspace(session).id,
+            filename=filename,
+            page_count=1,
+            pages=["Test"],
+        )
         session.add(doc)
         session.flush()
         session.add(DocumentFile(document_id=doc.id, data=b"%PDF-test"))

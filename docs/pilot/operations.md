@@ -1,8 +1,12 @@
 # Oddělený pilot a obnova
 
+## Klient ve sdíleném nasazení
+
+Výchozí cesta pro pilot: `scripts/workspaces.py create "Firma s.r.o." --quota 50` na produkčním backendu. Klient dostane vlastní kód a vidí jen svoje dokumenty, šablony a měření. Kód předat samostatným kanálem; vypsán je jen jednou. Ukončení: `revoke <id>` (data zůstávají, smazat je lze v aplikaci před ukončením). Před předáním ověřit, že kód jiného prostoru dokument nevidí (404).
+
 ## Nasazení jednoho klienta
 
-Připravený `render.pilot.yaml` vytváří nový backend, nikoli změnu veřejného dema. Zatím nebyl aplikován. Pro prvního klienta založit samostatnou databázi/projekt s novými přihlašovacími údaji a samostatný frontend projekt z `frontend/`. Nepoužívat pouze jiné schéma ve stávající sdílené databázi. Umístění, skutečné tarify a poskytovatele potvrdit podle dohody s klientem; bezplatný backend může mít studený start.
+Pro klienta, který požaduje oddělenou databázi nebo vlastní region. Připravený `render.pilot.yaml` vytváří nový backend, nikoli změnu veřejného dema. Zatím nebyl aplikován. Pro prvního klienta založit samostatnou databázi/projekt s novými přihlašovacími údaji a samostatný frontend projekt z `frontend/`. Nepoužívat pouze jiné schéma ve stávající sdílené databázi. Umístění, skutečné tarify a poskytovatele potvrdit podle dohody s klientem; bezplatný backend může mít studený start.
 
 Backend: `PILOT_MODE=true`, nový náhodný `ACCESS_CODE`, klientské `DATABASE_URL`, `DB_SCHEMA=docflow`, `CORS_ORIGINS` pouze s adresou nového frontendu. Poskytovatele nastavit přes `LLM_PROVIDER`; pro OpenRouter vyplnit klíč a před předáním dat ověřit konkrétní dostupný endpoint, podmínky a region. Kód už požaduje `data_collection: deny`, ale to samo nedokládá region ani smluvní záruky. `PILOT_MODE` bez neprázdného kódu odmítne start.
 

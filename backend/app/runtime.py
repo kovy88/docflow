@@ -10,7 +10,15 @@ from sqlmodel import Session, func, select
 
 from app.checks import issue
 from app.config import settings
-from app.db import ExternalExtraction, Extraction, UsageEvent, engine, get_session, utcnow
+from app.db import (
+    ExternalExtraction,
+    Extraction,
+    UsageEvent,
+    Workspace,
+    engine,
+    get_session,
+    utcnow,
+)
 from app.extractor import Extractor, OpenAIExtractor, OpenRouterExtractor, ToolCallExtractor
 from app.pdf import InvalidPdf, PdfText, count_pages, read_pdf
 from app.pipeline import run_extraction
@@ -36,17 +44,27 @@ def get_extractor() -> Extractor:
     return OpenAIExtractor(settings.openai_api_key, settings.openai_model, settings.llm_timeout_s)
 
 
-def llm_calls_today(session: Session) -> int:
+def llm_calls_today(session: Session, workspace_id: int | None = None) -> int:
     midnight = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     query = select(func.count()).select_from(UsageEvent).where(UsageEvent.created_at >= midnight)
+    if workspace_id is not None:
+        query = query.where(UsageEvent.workspace_id == workspace_id)
     return session.exec(query).one()
 
 
-def consume_llm_quota(session: Session, kind: str) -> None:
+def llm_calls_left(session: Session, workspace: Workspace | None = None) -> int:
+    """Model calls left today: the global cap, and a workspace's own quota if it has one."""
+    left = settings.daily_llm_limit - llm_calls_today(session)
+    if workspace is not None and workspace.daily_quota is not None:
+        left = min(left, workspace.daily_quota - llm_calls_today(session, workspace.id))
+    return max(left, 0)
+
+
+def consume_llm_quota(session: Session, kind: str, workspace: Workspace | None = None) -> None:
     """Global daily cap on paid model calls, so a public URL cannot drain the API budget."""
-    if llm_calls_today(session) >= settings.daily_llm_limit:
+    if llm_calls_left(session, workspace) <= 0:
         raise HTTPException(429, "Denní limit volání modelu je vyčerpaný, zkus to zítra.")
-    session.add(UsageEvent(kind=kind))
+    session.add(UsageEvent(kind=kind, workspace_id=workspace and workspace.id))
     session.commit()
 
 

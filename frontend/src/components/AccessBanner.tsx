@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PUBLIC_DEPLOYMENT, setAccessCode, useLive } from "@/lib/access";
+import { getAccessCode, PUBLIC_DEPLOYMENT, setAccessCode, useLive } from "@/lib/access";
 import { api, checkAccess, REPO_URL } from "@/lib/api";
 
 /** On the public deployment: demo by default, live API after entering the access code. */
@@ -17,13 +17,19 @@ export function AccessBanner() {
     provider: string;
     model: string;
   } | null>(null);
+  const [workspace, setWorkspace] = useState<string | null>(null);
 
   useEffect(() => {
-    if (live && PUBLIC_DEPLOYMENT)
-      api
-        .health()
-        .then(setBackend)
-        .catch(() => setBackend(null));
+    if (!live || !PUBLIC_DEPLOYMENT) return;
+    api
+      .health()
+      .then(setBackend)
+      .catch(() => setBackend(null));
+    const stored = getAccessCode();
+    if (stored)
+      checkAccess(stored)
+        .then((access) => setWorkspace(access.workspace))
+        .catch(() => setWorkspace(null));
   }, [live]);
 
   // The trial page and API docs work without the code; the demo/live switch would confuse.
@@ -57,9 +63,10 @@ export function AccessBanner() {
     return (
       <div className={`${bar} bg-ok-soft text-ok`}>
         <span>
-          Živá verze: dokumenty zpracovává
+          {workspace ? <strong className="font-medium">{workspace}: </strong> : "Živá verze: "}
+          dokumenty zpracovává
           {backend ? ` ${backend.model} (${backend.provider})` : " model"} a
-          data se ukládají.
+          data se ukládají jen v tomto pracovním prostoru.
         </span>
         <button
           type="button"
@@ -70,7 +77,7 @@ export function AccessBanner() {
             window.location.assign("/");
           }}
         >
-          Zpět na demo
+          Odhlásit
         </button>
       </div>
     );

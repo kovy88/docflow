@@ -2,14 +2,13 @@ import asyncio
 import csv
 import io
 import json
-import secrets
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 from statistics import median
 from typing import Annotated, Literal
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -22,12 +21,13 @@ from app.accounting import AccountingError
 from app.checks import issue
 from app.config import settings
 from app.db import (
-    CustomTemplate,
     Document,
     DocumentFile,
     ExternalExtraction,
     Extraction,
     UsageEvent,
+    Workspace,
+    WorkspaceTemplate,
     engine,
     init_db,
     utcnow,
@@ -43,12 +43,13 @@ from app.runtime import (
     SessionDep,
     consume_llm_quota,
     get_extractor,
-    llm_calls_today,
+    llm_calls_left,
     logger,
     parse_pdf,
     process_extraction,
 )
 from app.templates import Template, load_templates
+from app.workspaces import WorkspaceDep
 from app.xlsx import workbook
 
 PURGE_INTERVAL_S = 600
@@ -140,35 +141,33 @@ def to_out(doc: Document, latest: Extraction | None = None) -> DocumentOut:
     )
 
 
-def latest_extractions(session: Session) -> dict[int, Extraction]:
-    """Newest extraction of every document, in one query."""
-    newest = select(func.max(Extraction.id)).group_by(Extraction.document_id)
+def latest_extractions(session: Session, workspace: Workspace) -> dict[int, Extraction]:
+    """Newest extraction of every document in the workspace, in one query."""
+    newest = (
+        select(func.max(Extraction.id))
+        .join(Document, Document.id == Extraction.document_id)
+        .where(Document.workspace_id == workspace.id)
+        .group_by(Extraction.document_id)
+    )
     rows = session.exec(select(Extraction).where(Extraction.id.in_(newest)))
     return {e.document_id: e for e in rows}
 
 
-def get_document(session: Session, document_id: int) -> Document:
+def get_document(session: Session, workspace: Workspace, document_id: int) -> Document:
+    """Documents of other workspaces are reported as missing, not forbidden."""
     doc = session.get(Document, document_id)
-    if doc is None:
+    if doc is None or doc.workspace_id != workspace.id:
         raise HTTPException(404, "Document not found")
     return doc
 
 
-def require_access(x_access_code: Annotated[str | None, Header()] = None) -> None:
-    """Production guard: everything that touches documents or calls the model needs the
-    access code (header X-Access-Code). Without ACCESS_CODE configured the API is open."""
-    if settings.access_code and not secrets.compare_digest(
-        (x_access_code or "").encode(), settings.access_code.encode()
-    ):
-        raise HTTPException(401, "Neplatný přístupový kód")
-
-
-Access = Depends(require_access)
-
-
-@app.get("/access", dependencies=[Access])
-def check_access(session: SessionDep) -> dict:
-    return {"ok": True, "llm_calls_left_today": settings.daily_llm_limit - llm_calls_today(session)}
+@app.get("/access")
+def check_access(session: SessionDep, workspace: WorkspaceDep) -> dict:
+    return {
+        "ok": True,
+        "workspace": workspace.name,
+        "llm_calls_left_today": llm_calls_left(session, workspace),
+    }
 
 
 @app.get("/health")
@@ -188,53 +187,72 @@ class TemplateOut(Template):
     builtin: bool
 
 
-def all_templates(session: Session) -> dict[str, TemplateOut]:
+def all_templates(session: Session, workspace: Workspace) -> dict[str, TemplateOut]:
     builtin = {k: TemplateOut(**t.model_dump(), builtin=True) for k, t in load_templates().items()}
+    query = (
+        select(WorkspaceTemplate)
+        .where(WorkspaceTemplate.workspace_id == workspace.id)
+        .order_by(WorkspaceTemplate.template_id)
+    )
     custom = {
-        row.id: TemplateOut(**row.data, builtin=False)
-        for row in session.exec(select(CustomTemplate).order_by(CustomTemplate.id))
+        row.template_id: TemplateOut(**row.data, builtin=False) for row in session.exec(query)
     }
     return builtin | custom
 
 
-def get_template_or_404(session: Session, template_id: str) -> TemplateOut:
-    template = all_templates(session).get(template_id)
+def get_template_or_404(session: Session, workspace: Workspace, template_id: str) -> TemplateOut:
+    template = all_templates(session, workspace).get(template_id)
     if template is None:
         raise HTTPException(404, "Template not found")
     return template
 
 
-def get_custom_or_409(session: Session, template_id: str) -> CustomTemplate:
+def get_custom_or_409(
+    session: Session, workspace: Workspace, template_id: str
+) -> WorkspaceTemplate:
     if template_id in load_templates():
         raise HTTPException(409, "Built-in templates are read-only")
-    row = session.get(CustomTemplate, template_id)
+    row = session.exec(
+        select(WorkspaceTemplate).where(
+            WorkspaceTemplate.workspace_id == workspace.id,
+            WorkspaceTemplate.template_id == template_id,
+        )
+    ).first()
     if row is None:
         raise HTTPException(404, "Template not found")
     return row
 
 
-@app.get("/templates", dependencies=[Access])
-def list_templates(session: SessionDep) -> list[TemplateOut]:
-    return list(all_templates(session).values())
+@app.get("/templates")
+def list_templates(session: SessionDep, workspace: WorkspaceDep) -> list[TemplateOut]:
+    return list(all_templates(session, workspace).values())
 
 
-@app.get("/templates/{template_id}", dependencies=[Access])
-def get_template(template_id: str, session: SessionDep) -> TemplateOut:
-    return get_template_or_404(session, template_id)
+@app.get("/templates/{template_id}")
+def get_template(template_id: str, session: SessionDep, workspace: WorkspaceDep) -> TemplateOut:
+    return get_template_or_404(session, workspace, template_id)
 
 
-@app.post("/templates", status_code=201, dependencies=[Access])
-def create_template(template: Template, session: SessionDep) -> TemplateOut:
-    if template.id in all_templates(session):
+@app.post("/templates", status_code=201)
+def create_template(
+    template: Template, session: SessionDep, workspace: WorkspaceDep
+) -> TemplateOut:
+    if template.id in all_templates(session, workspace):
         raise HTTPException(409, f"Template {template.id!r} already exists")
-    session.add(CustomTemplate(id=template.id, data=template.model_dump()))
+    session.add(
+        WorkspaceTemplate(
+            workspace_id=workspace.id, template_id=template.id, data=template.model_dump()
+        )
+    )
     session.commit()
     return TemplateOut(**template.model_dump(), builtin=False)
 
 
-@app.put("/templates/{template_id}", dependencies=[Access])
-def update_template(template_id: str, template: Template, session: SessionDep) -> TemplateOut:
-    row = get_custom_or_409(session, template_id)
+@app.put("/templates/{template_id}")
+def update_template(
+    template_id: str, template: Template, session: SessionDep, workspace: WorkspaceDep
+) -> TemplateOut:
+    row = get_custom_or_409(session, workspace, template_id)
     if template.id != template_id:
         raise HTTPException(422, "Template id cannot be changed")
     row.data, row.updated_at = template.model_dump(), utcnow()
@@ -243,35 +261,39 @@ def update_template(template_id: str, template: Template, session: SessionDep) -
     return TemplateOut(**template.model_dump(), builtin=False)
 
 
-@app.delete("/templates/{template_id}", status_code=204, dependencies=[Access])
-def delete_template(template_id: str, session: SessionDep) -> None:
-    session.delete(get_custom_or_409(session, template_id))
+@app.delete("/templates/{template_id}", status_code=204)
+def delete_template(template_id: str, session: SessionDep, workspace: WorkspaceDep) -> None:
+    session.delete(get_custom_or_409(session, workspace, template_id))
     session.commit()
 
 
-@app.post("/documents/{document_id}/template-suggestion", dependencies=[Access])
+@app.post("/documents/{document_id}/template-suggestion")
 def suggest_document_template(
-    document_id: int, session: SessionDep, llm: Annotated[Extractor, Depends(get_extractor)]
+    document_id: int,
+    session: SessionDep,
+    workspace: WorkspaceDep,
+    llm: Annotated[Extractor, Depends(get_extractor)],
 ) -> Template:
     """Let the model propose a template for an unknown document type (not saved)."""
-    doc = get_document(session, document_id)
+    doc = get_document(session, workspace, document_id)
     if not any(doc.pages):
         raise HTTPException(422, "PDF has no text layer")
-    consume_llm_quota(session, "template_suggestion")
+    consume_llm_quota(session, "template_suggestion", workspace)
     try:
         template, _ = suggest_template(llm, doc.pages)
     except Exception as exc:
         raise HTTPException(502, f"Template suggestion failed: {exc}") from exc
-    existing = all_templates(session)
+    existing = all_templates(session, workspace)
     base, n = template.id, 2
     while template.id in existing:
         template.id, n = f"{base}_{n}", n + 1
     return template
 
 
-def store_pdf(session: Session, data: bytes, filename: str) -> Document:
+def store_pdf(session: Session, workspace: Workspace, data: bytes, filename: str) -> Document:
     pdf = parse_pdf(data, settings.max_upload_mb)
     doc = Document(
+        workspace_id=workspace.id,
         filename=filename,
         page_count=len(pdf.pages),
         pages=pdf.pages,
@@ -286,11 +308,15 @@ def store_pdf(session: Session, data: bytes, filename: str) -> Document:
     return doc
 
 
-@app.post("/documents", status_code=201, dependencies=[Access])
-async def upload_document(file: UploadFile, session: SessionDep) -> DocumentOut:
+@app.post("/documents", status_code=201)
+async def upload_document(
+    file: UploadFile, session: SessionDep, workspace: WorkspaceDep
+) -> DocumentOut:
     data = await file.read()
     # OCR of a scan takes seconds per page; keep it off the event loop.
-    doc = await run_in_threadpool(store_pdf, session, data, file.filename or "document.pdf")
+    doc = await run_in_threadpool(
+        store_pdf, session, workspace, data, file.filename or "document.pdf"
+    )
     return to_out(doc)
 
 
@@ -303,34 +329,38 @@ def list_demo_documents() -> list[dict]:
     ]
 
 
-@app.post("/demo/{file}", status_code=201, dependencies=[Access])
-def create_demo_document(file: str, session: SessionDep) -> DocumentOut:
+@app.post("/demo/{file}", status_code=201)
+def create_demo_document(file: str, session: SessionDep, workspace: WorkspaceDep) -> DocumentOut:
     if file not in {x["file"] for x in load_demo_labels()}:  # also prevents path traversal
         raise HTTPException(404, "Demo document not found")
     data = demo_path(file).read_bytes()
     # Reopening a sample returns the same document with its extractions, not a fresh copy.
-    for doc in session.exec(select(Document).where(Document.filename == file)):
+    query = select(Document).where(Document.workspace_id == workspace.id, Document.filename == file)
+    for doc in session.exec(query):
         stored = session.get(DocumentFile, doc.id)
         if stored is not None and stored.data == data:
             return to_out(doc)
-    return to_out(store_pdf(session, data, file))
+    return to_out(store_pdf(session, workspace, data, file))
 
 
-@app.get("/documents", dependencies=[Access])
-def list_documents(session: SessionDep) -> list[DocumentOut]:
-    docs = session.exec(select(Document).order_by(Document.id.desc())).all()
-    latest = latest_extractions(session)
+@app.get("/documents")
+def list_documents(session: SessionDep, workspace: WorkspaceDep) -> list[DocumentOut]:
+    query = (
+        select(Document).where(Document.workspace_id == workspace.id).order_by(Document.id.desc())
+    )
+    docs = session.exec(query).all()
+    latest = latest_extractions(session, workspace)
     return [to_out(d, latest.get(d.id)) for d in docs]
 
 
-@app.get("/documents/{document_id}", dependencies=[Access])
-def read_document(document_id: int, session: SessionDep) -> DocumentOut:
-    return to_out(get_document(session, document_id))
+@app.get("/documents/{document_id}")
+def read_document(document_id: int, session: SessionDep, workspace: WorkspaceDep) -> DocumentOut:
+    return to_out(get_document(session, workspace, document_id))
 
 
-@app.delete("/documents/{document_id}", status_code=204, dependencies=[Access])
-def delete_document(document_id: int, session: SessionDep) -> None:
-    doc = get_document(session, document_id)
+@app.delete("/documents/{document_id}", status_code=204)
+def delete_document(document_id: int, session: SessionDep, workspace: WorkspaceDep) -> None:
+    doc = get_document(session, workspace, document_id)
     running = session.exec(
         select(Extraction).where(
             Extraction.document_id == document_id, Extraction.status == "running"
@@ -344,14 +374,14 @@ def delete_document(document_id: int, session: SessionDep) -> None:
     session.commit()
 
 
-@app.get("/documents/{document_id}/text", dependencies=[Access])
-def read_document_text(document_id: int, session: SessionDep) -> list[str]:
-    return get_document(session, document_id).pages
+@app.get("/documents/{document_id}/text")
+def read_document_text(document_id: int, session: SessionDep, workspace: WorkspaceDep) -> list[str]:
+    return get_document(session, workspace, document_id).pages
 
 
-@app.get("/documents/{document_id}/file", dependencies=[Access])
-def read_document_file(document_id: int, session: SessionDep):
-    doc = get_document(session, document_id)
+@app.get("/documents/{document_id}/file")
+def read_document_file(document_id: int, session: SessionDep, workspace: WorkspaceDep):
+    doc = get_document(session, workspace, document_id)
     file = session.get(DocumentFile, document_id)
     if file is None:
         raise HTTPException(404, "File not found")
@@ -362,26 +392,28 @@ def read_document_file(document_id: int, session: SessionDep):
     )
 
 
-@app.post("/documents/{document_id}/extractions", status_code=202, dependencies=[Access])
+@app.post("/documents/{document_id}/extractions", status_code=202)
 def create_extraction(
     document_id: int,
     body: ExtractionRequest,
     session: SessionDep,
+    workspace: WorkspaceDep,
     background: BackgroundTasks,
     extractor: Annotated[Extractor, Depends(get_extractor)],
 ) -> Extraction:
     """Queue an extraction. A local model needs minutes per document, so the work runs in
     the background and clients poll GET /extractions/{id} until status != "running"."""
-    doc = get_document(session, document_id)
-    template = body.template or stored_template(session, body.template_id)
-    consume_llm_quota(session, "extraction")
+    doc = get_document(session, workspace, document_id)
+    template = body.template or stored_template(session, workspace, body.template_id)
+    consume_llm_quota(session, "extraction", workspace)
     return queue_extraction(session, doc, template, extractor, background)
 
 
-@app.post("/extractions/batch", status_code=202, dependencies=[Access])
+@app.post("/extractions/batch", status_code=202)
 def create_batch_extraction(
     body: BatchExtractionRequest,
     session: SessionDep,
+    workspace: WorkspaceDep,
     background: BackgroundTasks,
     extractor: Annotated[Extractor, Depends(get_extractor)],
 ) -> list[Extraction]:
@@ -390,23 +422,23 @@ def create_batch_extraction(
     batch does not flood the model provider."""
     if len(set(body.document_ids)) != len(body.document_ids):
         raise HTTPException(422, "Každý dokument vyber pouze jednou.")
-    docs = [get_document(session, id) for id in body.document_ids]
-    template = stored_template(session, body.template_id)
-    left = settings.daily_llm_limit - llm_calls_today(session)
+    docs = [get_document(session, workspace, id) for id in body.document_ids]
+    template = stored_template(session, workspace, body.template_id)
+    left = llm_calls_left(session, workspace)
     if len(docs) > left:
         raise HTTPException(
-            429, f"Denní limit modelu stačí ještě na {max(left, 0)} dokumentů, ne na {len(docs)}."
+            429, f"Denní limit modelu stačí ještě na {left} dokumentů, ne na {len(docs)}."
         )
-    session.add_all(UsageEvent(kind="extraction") for _ in docs)
+    session.add_all(UsageEvent(kind="extraction", workspace_id=workspace.id) for _ in docs)
     queued = [queue_extraction(session, doc, template, extractor, background) for doc in docs]
     for extraction in queued:  # each commit expired the rows queued before it
         session.refresh(extraction)
     return queued
 
 
-def stored_template(session: Session, template_id: str) -> Template:
+def stored_template(session: Session, workspace: Workspace, template_id: str) -> Template:
     return Template.model_validate(
-        get_template_or_404(session, template_id).model_dump(exclude={"builtin"})
+        get_template_or_404(session, workspace, template_id).model_dump(exclude={"builtin"})
     )
 
 
@@ -436,9 +468,11 @@ def queue_extraction(
     return extraction
 
 
-@app.get("/documents/{document_id}/extractions", dependencies=[Access])
-def list_extractions(document_id: int, session: SessionDep) -> list[Extraction]:
-    get_document(session, document_id)
+@app.get("/documents/{document_id}/extractions")
+def list_extractions(
+    document_id: int, session: SessionDep, workspace: WorkspaceDep
+) -> list[Extraction]:
+    get_document(session, workspace, document_id)
     query = (
         select(Extraction)
         .where(Extraction.document_id == document_id)
@@ -447,22 +481,25 @@ def list_extractions(document_id: int, session: SessionDep) -> list[Extraction]:
     return list(session.exec(query).all())
 
 
-def get_extraction_or_404(session: Session, extraction_id: int) -> Extraction:
+def get_extraction_or_404(session: Session, workspace: Workspace, extraction_id: int) -> Extraction:
     extraction = session.get(Extraction, extraction_id)
-    if extraction is None:
+    doc = extraction and session.get(Document, extraction.document_id)
+    if doc is None or doc.workspace_id != workspace.id:
         raise HTTPException(404, "Extraction not found")
     return extraction
 
 
-@app.get("/extractions/{extraction_id}", dependencies=[Access])
-def read_extraction(extraction_id: int, session: SessionDep) -> Extraction:
-    return get_extraction_or_404(session, extraction_id)
+@app.get("/extractions/{extraction_id}")
+def read_extraction(extraction_id: int, session: SessionDep, workspace: WorkspaceDep) -> Extraction:
+    return get_extraction_or_404(session, workspace, extraction_id)
 
 
-@app.patch("/extractions/{extraction_id}", dependencies=[Access])
-def review_extraction(extraction_id: int, body: ReviewRequest, session: SessionDep) -> Extraction:
+@app.patch("/extractions/{extraction_id}")
+def review_extraction(
+    extraction_id: int, body: ReviewRequest, session: SessionDep, workspace: WorkspaceDep
+) -> Extraction:
     """Human review: save corrected values and mark the extraction approved."""
-    extraction = get_extraction_or_404(session, extraction_id)
+    extraction = get_extraction_or_404(session, workspace, extraction_id)
     if extraction.status in ("failed", "running"):
         raise HTTPException(409, f"Extraction is {extraction.status} and cannot be reviewed")
     template = Template.model_validate(extraction.template)
@@ -493,11 +530,13 @@ class BatchExportRequest(BaseModel):
     columns: list[str] | None = Field(default=None, min_length=1)
 
 
-def approved_extractions(session: Session, ids: list[int]) -> list[Extraction]:
+def approved_extractions(
+    session: Session, workspace: Workspace, ids: list[int]
+) -> list[Extraction]:
     """Load an export batch; refuse it whole unless every result is human-approved."""
     if len(set(ids)) != len(ids):
         raise HTTPException(422, "Vyber každou extrakci pouze jednou.")
-    extractions = [get_extraction_or_404(session, id) for id in ids]
+    extractions = [get_extraction_or_404(session, workspace, id) for id in ids]
     if len({e.document_id for e in extractions}) != len(extractions):
         raise HTTPException(422, "Pro každý dokument vyber pouze jednu extrakci.")
     for extraction in extractions:
@@ -512,9 +551,9 @@ def approved_extractions(session: Session, ids: list[int]) -> list[Extraction]:
     return extractions
 
 
-@app.post("/exports/xlsx", dependencies=[Access])
-def export_batch(body: BatchExportRequest, session: SessionDep):
-    extractions = approved_extractions(session, body.extraction_ids)
+@app.post("/exports/xlsx")
+def export_batch(body: BatchExportRequest, session: SessionDep, workspace: WorkspaceDep):
+    extractions = approved_extractions(session, workspace, body.extraction_ids)
     template = Template.model_validate(extractions[0].template)
     signature = [(f.key, f.label, f.type) for f in template.fields]
     if any(
@@ -531,7 +570,7 @@ def export_batch(body: BatchExportRequest, session: SessionDep):
     headers = ["Soubor", "Datum kontroly (UTC)", *[fields[key].label for key in keys]]
     rows = []
     for extraction in extractions:
-        doc = get_document(session, extraction.document_id)
+        doc = get_document(session, workspace, extraction.document_id)
         values = {f["key"]: f["value"] for f in extraction.fields}
         row = [doc.filename, extraction.reviewed_at.date()]
         for key in keys:
@@ -552,10 +591,10 @@ class AccountingExportRequest(BaseModel):
     format: Literal["pohoda", "money"]
 
 
-@app.post("/exports/accounting", dependencies=[Access])
-def export_accounting(body: AccountingExportRequest, session: SessionDep):
+@app.post("/exports/accounting")
+def export_accounting(body: AccountingExportRequest, session: SessionDep, workspace: WorkspaceDep):
     """Received invoices as an XML import file for POHODA or Money S3."""
-    extractions = approved_extractions(session, body.extraction_ids)
+    extractions = approved_extractions(session, workspace, body.extraction_ids)
     invoices = []
     for extraction in extractions:
         if extraction.template_id != "invoice":
@@ -563,7 +602,7 @@ def export_accounting(body: AccountingExportRequest, session: SessionDep):
         try:
             invoices.append(accounting.invoice({f["key"]: f["value"] for f in extraction.fields}))
         except (AccountingError, ValueError) as e:
-            doc = get_document(session, extraction.document_id)
+            doc = get_document(session, workspace, extraction.document_id)
             raise HTTPException(409, f"{doc.filename}: {e}. Zaúčtujte ručně.") from e
     if body.format == "pohoda":
         content = accounting.pohoda(invoices, f"docflow-{utcnow():%Y%m%d%H%M%S}")
@@ -576,9 +615,11 @@ def export_accounting(body: AccountingExportRequest, session: SessionDep):
     )
 
 
-@app.get("/extractions/{extraction_id}/export", dependencies=[Access])
-def export_extraction(extraction_id: int, session: SessionDep, format: str = "json"):
-    extraction = get_extraction_or_404(session, extraction_id)
+@app.get("/extractions/{extraction_id}/export")
+def export_extraction(
+    extraction_id: int, session: SessionDep, workspace: WorkspaceDep, format: str = "json"
+):
+    extraction = get_extraction_or_404(session, workspace, extraction_id)
     name = f"extraction-{extraction.id}-{extraction.template_id}"
     if format == "csv":
         buffer = io.StringIO()
@@ -621,13 +662,18 @@ MEASUREMENT_COLUMNS = [
 ]
 
 
-@app.get("/reports/review", dependencies=[Access])
-def review_report(session: SessionDep, template_id: str | None = None, format: str = "json"):
+@app.get("/reports/review")
+def review_report(
+    session: SessionDep,
+    workspace: WorkspaceDep,
+    template_id: str | None = None,
+    format: str = "json",
+):
     """Human review of real documents: how many fields the person had to correct and how
     long the review took. Uses the newest extraction of each document, if it is approved."""
     if format not in ("json", "csv"):
         raise HTTPException(422, "format must be json or csv")
-    latest = latest_extractions(session)
+    latest = latest_extractions(session, workspace)
     docs = {d.id: d for d in session.exec(select(Document).where(Document.id.in_(latest)))}
     rows = []
     for extraction in sorted(latest.values(), key=lambda e: e.reviewed_at or utcnow()):

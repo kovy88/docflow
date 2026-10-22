@@ -322,9 +322,10 @@ const liveApi = {
       method: "POST",
     }),
   evals: () => request<EvalRun[]>("/evals"),
-  /** Validates an access code; resolves with today's remaining model calls. */
+  /** Validates an access code; resolves with its workspace (firm) and today's remaining
+   *  model calls. */
   checkAccess: (code: string) =>
-    request<{ ok: boolean; llm_calls_left_today: number }>("/access", {
+    request<{ ok: boolean; workspace: string; llm_calls_left_today: number }>("/access", {
       headers: { "X-Access-Code": code },
     }),
 };

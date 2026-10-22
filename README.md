@@ -22,6 +22,12 @@ za 24 h z jedné IP), výsledek s citacemi a pravidly, stažení XLSX a JSON. Da
 odděleně a mažou do 24 hodin; nepoužívají se k evaluaci. Odkaz s `?ref=<kód>` ukáže v
 `scripts/api_keys.py trials`, který oslovený to zkusil.
 
+**Aplikace pro firmy:** každá firma má vlastní pracovní prostor s přístupovým kódem,
+vlastními dokumenty, šablonami, měřením a volitelnou denní kvótou; ostatní prostory nevidí.
+Správa: `uv run python scripts/workspaces.py create "Firma s.r.o." [--quota 50]`, `list`
+(dokumenty a volání modelu za měsíc, podklad k fakturaci), `revoke <id>`. `ACCESS_CODE`
+otevírá výchozí prostor s daty z doby před prostory.
+
 **API pro integrátory:** `/v1` s klíčem pro každého klienta (`Authorization: Bearer`), denní
 kvótou a exportem do XLSX, JSON, POHODY a Money S3. Dokumentace česky na
 [/api](https://docflow.logicflow.cz/api), OpenAPI na `<backend>/v1/docs`.
@@ -153,7 +159,8 @@ Vercel (Next.js) ──► Render (FastAPI v Dockeru, Tesseract) ──► OpenR
   (≈ 0,03 Kč za dokument). Jen poskytovatelé, kteří neukládají ani netrénují na datech
   (`data_collection: deny`), a jen ti se strukturovaným výstupem. Lokálně dál Ollama.
 - **Ochrana veřejné adresy:** dokumenty a volání modelu vyžadují přístupový kód
-  (`X-Access-Code`), globální denní limit volání modelu (`DAILY_LLM_LIMIT`).
+  pracovního prostoru (`X-Access-Code`), globální denní limit volání modelu
+  (`DAILY_LLM_LIMIT`) a volitelná kvóta prostoru.
 - **Úložiště:** PDF v Postgresu (disk na Renderu se při nasazení maže), extrakce běží na
   pozadí a přežije zavření stránky.
 - Konfigurace: [render.yaml](render.yaml), tajné hodnoty jen v dashboardu Renderu.

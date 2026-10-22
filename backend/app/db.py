@@ -1,10 +1,11 @@
+import json
 import secrets
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import LargeBinary, UniqueConstraint, inspect, text
-from sqlmodel import JSON, Column, Field, Session, SQLModel, create_engine
+from sqlalchemy import LargeBinary, UniqueConstraint, inspect, text, update
+from sqlmodel import JSON, Column, Field, Session, SQLModel, create_engine, select
 
 from app.config import settings
 
@@ -24,8 +25,23 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+class Workspace(SQLModel, table=True):
+    """One customer firm in the web app: its own access code, documents and templates.
+    The default workspace (code_hash None) is opened by ACCESS_CODE and holds all data
+    from before workspaces existed."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    code_hash: str | None = Field(default=None, unique=True, index=True)  # SHA-256 of the code
+    daily_quota: int | None = None  # model calls per UTC day; None: only DAILY_LLM_LIMIT
+    created_at: datetime = Field(default_factory=utcnow)
+    revoked_at: datetime | None = None
+
+
 class Document(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    # Nullable only so existing databases can add the column; init_db fills it.
+    workspace_id: int | None = Field(default=None, foreign_key="workspace.id", index=True)
     filename: str
     page_count: int
     pages: list[str] = Field(sa_column=Column(JSON))
@@ -57,11 +73,19 @@ class UsageEvent(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     kind: str
+    workspace_id: int | None = Field(default=None, index=True)  # None: trial page or /v1
     created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
-class CustomTemplate(SQLModel, table=True):
-    id: str = Field(primary_key=True)
+class WorkspaceTemplate(SQLModel, table=True):
+    """A firm's own template. Replaces the single-tenant customtemplate table, whose rows
+    init_db copies into the default workspace."""
+
+    __table_args__ = (UniqueConstraint("workspace_id", "template_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspace.id", index=True)
+    template_id: str
     data: dict[str, Any] = Field(sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -130,18 +154,92 @@ class TrialVisit(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+# create_all does not add columns to existing tables; databases created before a column
+# existed get it here (no migration tool for a few nullable columns).
+ADDED_COLUMNS = {
+    "document": {"ocr_pages": "JSON", "workspace_id": "INTEGER"},
+    "usageevent": {"workspace_id": "INTEGER"},
+}
+
+
 def init_db() -> None:
     schema = SQLModel.metadata.schema
+    prefix = f'"{schema}".' if schema else ""
     if schema:
         with engine.begin() as conn:
             conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
     SQLModel.metadata.create_all(engine)
-    # create_all does not add columns to existing tables; databases created before OCR
-    # support get the column here (no migration tool for a single nullable column).
-    columns = {c["name"] for c in inspect(engine).get_columns("document", schema=schema)}
-    if "ocr_pages" not in columns:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE document ADD COLUMN ocr_pages JSON"))
+    db = inspect(engine)
+    with engine.begin() as conn:
+        for table, added in ADDED_COLUMNS.items():
+            columns = {c["name"] for c in db.get_columns(table, schema=schema)}
+            for column, sql_type in added.items():
+                if column not in columns:
+                    conn.execute(
+                        text(f"ALTER TABLE {prefix}{table} ADD COLUMN {column} {sql_type}")
+                    )
+            if "workspace_id" in added:
+                conn.execute(
+                    text(
+                        f"CREATE INDEX IF NOT EXISTS ix_{table}_workspace_id "
+                        f"ON {prefix}{table} (workspace_id)"
+                    )
+                )
+    with Session(engine) as session:
+        default = default_workspace(session)
+        session.exec(
+            update(Document).where(Document.workspace_id.is_(None)).values(workspace_id=default.id)
+        )
+        if db.has_table("customtemplate", schema=schema):
+            copy_legacy_templates(session, default.id, prefix)
+        session.commit()
+
+
+def as_datetime(value: datetime | str) -> datetime:
+    """Stored datetimes are UTC; raw SQL returns them naive (or as text on SQLite)."""
+    value = datetime.fromisoformat(value) if isinstance(value, str) else value
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+def default_workspace(session: Session) -> Workspace:
+    """The workspace of ACCESS_CODE; created on first start."""
+    workspace = session.exec(
+        select(Workspace).where(Workspace.code_hash.is_(None)).order_by(Workspace.id)
+    ).first()
+    if workspace is None:
+        workspace = Workspace(name="Výchozí")
+        session.add(workspace)
+        session.commit()
+        session.refresh(workspace)
+    return workspace
+
+
+def copy_legacy_templates(session: Session, workspace_id: int, prefix: str) -> None:
+    """Templates saved before workspaces go to the default workspace, once. The old table
+    stays untouched as a backup."""
+    existing = set(
+        session.exec(
+            select(WorkspaceTemplate.template_id).where(
+                WorkspaceTemplate.workspace_id == workspace_id
+            )
+        )
+    )
+    rows = session.connection().execute(
+        text(f"SELECT id, data, created_at, updated_at FROM {prefix}customtemplate")
+    )
+    for template_id, data, created_at, updated_at in rows:
+        if template_id in existing:
+            continue
+        session.add(
+            WorkspaceTemplate(
+                workspace_id=workspace_id,
+                template_id=template_id,
+                # Raw SQL on SQLite returns JSON and datetimes as text.
+                data=json.loads(data) if isinstance(data, str) else data,
+                created_at=as_datetime(created_at),
+                updated_at=as_datetime(updated_at),
+            )
+        )
 
 
 def get_session() -> Iterator[Session]:

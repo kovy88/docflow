@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.accounting import POHODA
-from app.db import Document, Extraction, engine, utcnow
+from app.db import Document, Extraction, default_workspace, engine, utcnow
 from app.main import app
 from app.templates import load_templates
 
@@ -35,7 +35,12 @@ def seed(template_id="invoice", status="approved", **overrides):
     template = load_templates()[template_id]
     values = VALUES | overrides
     with Session(engine) as session:
-        doc = Document(filename="faktura.pdf", page_count=1, pages=["Test"])
+        doc = Document(
+            workspace_id=default_workspace(session).id,
+            filename="faktura.pdf",
+            page_count=1,
+            pages=["Test"],
+        )
         session.add(doc)
         session.flush()
         extraction = Extraction(

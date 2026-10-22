@@ -17,7 +17,8 @@ from app.db import *
 from app.templates import load_templates
 init_db()
 with Session(engine) as session:
-    doc = Document(filename="nájem-obnova.pdf", page_count=1, pages=["fiktivní smlouva"])
+    doc = Document(workspace_id=default_workspace(session).id, filename="nájem-obnova.pdf",
+        page_count=1, pages=["fiktivní smlouva"])
     session.add(doc)
     session.flush()
     session.add(DocumentFile(document_id=doc.id, data=b"%PDF-restore-test"))
@@ -36,7 +37,7 @@ from app.db import *
 from app.main import app
 with Session(engine) as session:
     rows = []
-    for model in (Document, DocumentFile, Extraction, CustomTemplate, UsageEvent):
+    for model in (Workspace, Document, DocumentFile, Extraction, WorkspaceTemplate, UsageEvent):
         rows.append([r.model_dump() for r in session.exec(select(model).order_by(model.__table__.primary_key.columns.values()[0]))])
     digest = hashlib.sha256(json.dumps(rows, sort_keys=True, default=str).encode()).hexdigest()
 with TestClient(app) as client:
