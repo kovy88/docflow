@@ -138,6 +138,8 @@ export function DocumentList({ documents, onDelete }: {
               checked={selected.includes(doc.id)}
               onChange={(e) => setSelected((prev) => e.target.checked ? [...prev, doc.id] : prev.filter((id) => id !== doc.id))} />
             <Link href={`/documents/${doc.id}`} title={doc.filename} className="min-w-0 flex-1 basis-32 truncate font-medium hover:text-accent">{doc.filename}</Link>
+            {doc.source === "email" && <span title={doc.sender ? `Od: ${doc.sender}` : undefined}
+              className="rounded bg-accent-soft px-1.5 py-0.5 text-xs text-accent">e-mail</span>}
             {doc.latest_extraction && <StatusBadge status={doc.latest_extraction.status} />}
             <span className="text-sm text-muted">{doc.page_count} str.{doc.ocr_pages.length > 0 && " · OCR"}</span>
             <button type="button" disabled={busy} aria-label={`Smazat ${doc.filename}`}

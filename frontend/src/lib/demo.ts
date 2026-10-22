@@ -83,6 +83,7 @@ export const demoApi: Api = {
   fileSource: (documentId) => `/demo/pdfs/${documentId}.pdf`,
   download: readOnly,
   checkAccess: readOnly,
+  access: readOnly,
   demo: async () => (await data()).demo,
   createDemo: async (file) => {
     const doc = (await data()).documents.find((d) => d.filename === file);

@@ -11,6 +11,8 @@ from sqlmodel import Session, func, select
 from app.checks import issue
 from app.config import settings
 from app.db import (
+    Document,
+    DocumentFile,
     ExternalExtraction,
     Extraction,
     UsageEvent,
@@ -83,6 +85,48 @@ def parse_pdf(data: bytes, max_mb: int, max_pages: int | None = None) -> PdfText
         raise HTTPException(
             422, "PDF se nepodařilo přečíst. Zkontrolujte, zda není poškozené nebo zaheslované."
         ) from exc
+
+
+def store_pdf(
+    session: Session, workspace_id: int, data: bytes, filename: str, **origin
+) -> Document:
+    """Store an uploaded or e-mailed PDF with its text in a workspace."""
+    pdf = parse_pdf(data, settings.max_upload_mb)
+    doc = Document(
+        workspace_id=workspace_id,
+        filename=filename[:200],
+        page_count=len(pdf.pages),
+        pages=pdf.pages,
+        ocr_pages=pdf.ocr_pages,
+        **origin,
+    )
+    session.add(doc)
+    session.flush()
+    # The PDF lives in the database: hosting disks (Render) are wiped on every deploy.
+    session.add(DocumentFile(document_id=doc.id, data=data))
+    session.commit()
+    session.refresh(doc)
+    return doc
+
+
+def new_extraction(
+    session: Session, doc: Document, template: Template, extractor: Extractor
+) -> Extraction:
+    """A running extraction row; the caller runs process_extraction for it."""
+    extraction = Extraction(
+        document_id=doc.id,
+        template_id=template.id,
+        template=template.model_dump(),
+        model=extractor.model,
+        status="running",
+        fields=[],
+        issues=[],
+        usage={"phase": "queued"},
+    )
+    session.add(extraction)
+    session.commit()
+    session.refresh(extraction)
+    return extraction
 
 
 def process_extraction(

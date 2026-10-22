@@ -37,11 +37,31 @@ class Settings(BaseSettings):
     # Integrator API (/v1, Authorization: Bearer <key>)
     api_max_mb: int = 20
     api_max_pages: int = 50
+    # E-mail intake (app/intake.py): an IMAP mailbox read every INTAKE_POLL_S seconds; a
+    # firm sends PDFs to <local>+<its token>@<domain> of INTAKE_ADDRESS. Off when unset.
+    intake_address: str | None = None  # e.g. dokumenty@logicflow.cz
+    intake_imap_host: str | None = None
+    intake_imap_port: int = 993
+    intake_imap_user: str | None = None
+    intake_imap_password: str | None = None
+    intake_imap_folder: str = "INBOX"
+    intake_poll_s: int = 120
     low_confidence: float = 0.6
     # Fuzzy match needed for a quote to count as found; OCR text has misread characters,
     # so its pages get a looser threshold (measured on the scan set, see README).
     quote_threshold: float = 0.9
     ocr_quote_threshold: float = 0.85
+
+    @property
+    def intake_enabled(self) -> bool:
+        return all(
+            (
+                self.intake_address,
+                self.intake_imap_host,
+                self.intake_imap_user,
+                self.intake_imap_password,
+            )
+        )
 
     @model_validator(mode="after")
     def pilot_requires_access(self):

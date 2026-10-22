@@ -4,6 +4,8 @@ uv run python scripts/workspaces.py create "Správa nemovitostí s.r.o." --quota
 uv run python scripts/workspaces.py list                 # documents and model calls per month
 uv run python scripts/workspaces.py list --month 2026-10
 uv run python scripts/workspaces.py revoke 3
+uv run python scripts/workspaces.py intake 3 --template invoice --senders @firma.cz   # or --off
+uv run python scripts/workspaces.py inbox 3              # last e-mails of the intake
 """
 
 import argparse
@@ -15,8 +17,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlmodel import Session, func, select  # noqa: E402
 
-from app.db import Document, UsageEvent, Workspace, engine, init_db, utcnow  # noqa: E402
-from app.workspaces import create_workspace  # noqa: E402
+from app.config import settings  # noqa: E402
+from app.db import (  # noqa: E402
+    Document,
+    IntakeMessage,
+    UsageEvent,
+    Workspace,
+    engine,
+    init_db,
+    utcnow,
+)
+from app.intake import new_token  # noqa: E402
+from app.templates import load_templates  # noqa: E402
+from app.workspaces import create_workspace, custom_templates  # noqa: E402
 
 
 def month_range(month: str) -> tuple[datetime, datetime]:
@@ -47,6 +60,13 @@ def main() -> None:
     listing.add_argument("--month", default=f"{utcnow():%Y-%m}", help="YYYY-MM, default: now")
     revoke = commands.add_parser("revoke", help="end access; the data stays")
     revoke.add_argument("workspace_id", type=int)
+    intake = commands.add_parser("intake", help="e-mail address for PDFs (new on each call)")
+    intake.add_argument("workspace_id", type=int)
+    intake.add_argument("--template", help="extract right away with this template")
+    intake.add_argument("--senders", help="allowed senders: addresses or @domains, comma-separated")
+    intake.add_argument("--off", action="store_true")
+    inbox = commands.add_parser("inbox", help="last e-mails read for the workspace")
+    inbox.add_argument("workspace_id", type=int)
     args = parser.parse_args()
 
     init_db()
@@ -69,9 +89,50 @@ def main() -> None:
                 else:
                     state = "aktivní"
                 quota = f"kvóta {workspace.daily_quota}/den" if workspace.daily_quota else "-"
+                mail = f"  e-mail {workspace.intake_token}" if workspace.intake_token else ""
                 print(
                     f"{workspace.id:>3}  {workspace.name}  {documents} / {calls}  {quota}  {state}"
+                    f"{mail}"
                 )
+        elif args.command in ("intake", "inbox"):
+            workspace = session.get(Workspace, args.workspace_id)
+            if workspace is None:
+                sys.exit(f"Pracovní prostor {args.workspace_id} neexistuje.")
+            if args.command == "inbox":
+                query = (
+                    select(IntakeMessage)
+                    .where(IntakeMessage.workspace_id == workspace.id)
+                    .order_by(IntakeMessage.id.desc())
+                    .limit(20)
+                )
+                for m in session.exec(query):
+                    print(
+                        f"{m.created_at:%Y-%m-%d %H:%M} UTC  {m.sender or '-'}  {m.status}  "
+                        f"PDF {m.documents}  {m.subject or ''}  {m.detail or ''}"
+                    )
+                return
+            if args.off:
+                workspace.intake_token = workspace.intake_template_id = None
+                workspace.intake_senders = None
+                session.add(workspace)
+                session.commit()
+                print(f"Příjem e-mailem pro {workspace.name} je vypnutý.")
+                return
+            templates = load_templates() | custom_templates(session, workspace.id)
+            if args.template and args.template not in templates:
+                sys.exit(f"Šablona {args.template!r} neexistuje: {', '.join(templates)}")
+            workspace.intake_token = new_token()
+            workspace.intake_template_id = args.template
+            workspace.intake_senders = args.senders
+            session.add(workspace)
+            session.commit()
+            if not settings.intake_enabled:
+                print("Pozor: INTAKE_* proměnné nejsou nastavené, schránka se nečte.")
+            local, _, domain = (settings.intake_address or "dokumenty@example.cz").partition("@")
+            print(f"Adresa pro {workspace.name}: {local}+{workspace.intake_token}@{domain}")
+            print(
+                f"Šablona: {args.template or 'žádná (jen uložit)'}; odesílatelé: {args.senders or 'kdokoli'}"
+            )
         else:
             workspace = session.get(Workspace, args.workspace_id)
             if workspace is None:

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete
 from sqlmodel import Session, func, select
 
-from app import accounting, api_v1, trial
+from app import accounting, api_v1, intake, trial
 from app.accounting import AccountingError
 from app.checks import issue
 from app.config import settings
@@ -45,8 +45,9 @@ from app.runtime import (
     get_extractor,
     llm_calls_left,
     logger,
-    parse_pdf,
+    new_extraction,
     process_extraction,
+    store_pdf,
 )
 from app.templates import Template, load_templates
 from app.workspaces import WorkspaceDep, custom_templates
@@ -65,6 +66,16 @@ async def purge_periodically() -> None:
             logger.exception("Purging expired trial documents failed")
 
 
+async def poll_intake_periodically() -> None:
+    """E-mail intake (app/intake.py); a mailbox outage must not stop the loop."""
+    while True:
+        try:
+            await run_in_threadpool(intake.poll_mailbox)
+        except Exception:
+            logger.exception("Reading the intake mailbox failed")
+        await asyncio.sleep(settings.intake_poll_s)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
@@ -76,9 +87,12 @@ async def lifespan(_: FastAPI):
                 session.add(stale)
         session.commit()
     purge_expired()
-    purger = asyncio.create_task(purge_periodically())
+    tasks = [asyncio.create_task(purge_periodically())]
+    if settings.intake_enabled:
+        tasks.append(asyncio.create_task(poll_intake_periodically()))
     yield
-    purger.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(title="Docflow", version="0.1.0", lifespan=lifespan)
@@ -105,6 +119,8 @@ class DocumentOut(BaseModel):
     page_count: int
     has_text: bool
     ocr_pages: list[int]
+    source: str | None  # "email" for e-mail intake
+    sender: str | None
     latest_extraction: LatestExtraction | None = None
 
 
@@ -137,6 +153,8 @@ def to_out(doc: Document, latest: Extraction | None = None) -> DocumentOut:
         page_count=doc.page_count,
         has_text=any(doc.pages),
         ocr_pages=doc.ocr_pages or [],
+        source=doc.source,
+        sender=doc.sender,
         latest_extraction=latest and LatestExtraction.model_validate(latest.model_dump()),
     )
 
@@ -167,6 +185,7 @@ def check_access(session: SessionDep, workspace: WorkspaceDep) -> dict:
         "ok": True,
         "workspace": workspace.name,
         "llm_calls_left_today": llm_calls_left(session, workspace),
+        "intake_address": intake.intake_address(workspace),
     }
 
 
@@ -286,24 +305,6 @@ def suggest_document_template(
     return template
 
 
-def store_pdf(session: Session, workspace: Workspace, data: bytes, filename: str) -> Document:
-    pdf = parse_pdf(data, settings.max_upload_mb)
-    doc = Document(
-        workspace_id=workspace.id,
-        filename=filename,
-        page_count=len(pdf.pages),
-        pages=pdf.pages,
-        ocr_pages=pdf.ocr_pages,
-    )
-    session.add(doc)
-    session.flush()
-    # The PDF lives in the database: hosting disks (Render) are wiped on every deploy.
-    session.add(DocumentFile(document_id=doc.id, data=data))
-    session.commit()
-    session.refresh(doc)
-    return doc
-
-
 @app.post("/documents", status_code=201)
 async def upload_document(
     file: UploadFile, session: SessionDep, workspace: WorkspaceDep
@@ -311,7 +312,7 @@ async def upload_document(
     data = await file.read()
     # OCR of a scan takes seconds per page; keep it off the event loop.
     doc = await run_in_threadpool(
-        store_pdf, session, workspace, data, file.filename or "document.pdf"
+        store_pdf, session, workspace.id, data, file.filename or "document.pdf"
     )
     return to_out(doc)
 
@@ -336,7 +337,7 @@ def create_demo_document(file: str, session: SessionDep, workspace: WorkspaceDep
         stored = session.get(DocumentFile, doc.id)
         if stored is not None and stored.data == data:
             return to_out(doc)
-    return to_out(store_pdf(session, workspace, data, file))
+    return to_out(store_pdf(session, workspace.id, data, file))
 
 
 @app.get("/documents")
@@ -445,19 +446,7 @@ def queue_extraction(
     extractor: Extractor,
     background: BackgroundTasks,
 ) -> Extraction:
-    extraction = Extraction(
-        document_id=doc.id,
-        template_id=template.id,
-        template=template.model_dump(),
-        model=extractor.model,
-        status="running",
-        fields=[],
-        issues=[],
-        usage={"phase": "queued"},
-    )
-    session.add(extraction)
-    session.commit()
-    session.refresh(extraction)
+    extraction = new_extraction(session, doc, template, extractor)
     background.add_task(
         process_extraction, extraction.id, doc.pages, doc.ocr_pages or [], template, extractor
     )

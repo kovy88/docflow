@@ -28,6 +28,12 @@ Správa: `uv run python scripts/workspaces.py create "Firma s.r.o." [--quota 50]
 (dokumenty a volání modelu za měsíc, podklad k fakturaci), `revoke <id>`. `ACCESS_CODE`
 otevírá výchozí prostor s daty z doby před prostory.
 
+**Příjem e-mailem:** firma posílá nebo přeposílá PDF na vlastní adresu
+`dokumenty+<kód>@…` (jedna IMAP schránka, proměnné `INTAKE_*`). Přílohy se uloží do jejího
+prostoru a s nastavenou šablonou se rovnou vytěží, takže čekají v aplikaci ke kontrole.
+Zapnutí: `scripts/workspaces.py intake <id> --template invoice [--senders @firma.cz]`,
+přijaté e-maily: `scripts/workspaces.py inbox <id>`.
+
 **API pro integrátory:** `/v1` s klíčem pro každého klienta (`Authorization: Bearer`), denní
 kvótou a exportem do XLSX, JSON, POHODY a Money S3. Klíč může patřit pracovnímu prostoru
 firmy (`api_keys.py create … --workspace <id>`): pak nabízí i její šablony a čerpá její kvótu.

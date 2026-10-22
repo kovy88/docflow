@@ -34,6 +34,10 @@ class Workspace(SQLModel, table=True):
     name: str
     code_hash: str | None = Field(default=None, unique=True, index=True)  # SHA-256 of the code
     daily_quota: int | None = None  # model calls per UTC day; None: only DAILY_LLM_LIMIT
+    # E-mail intake (app/intake.py): PDFs sent to <INTAKE_ADDRESS local>+<token>@<domain>.
+    intake_token: str | None = Field(default=None, unique=True, index=True)
+    intake_template_id: str | None = None  # extract right away with this template
+    intake_senders: str | None = None  # comma-separated addresses or @domains; None: anyone
     created_at: datetime = Field(default_factory=utcnow)
     revoked_at: datetime | None = None
 
@@ -46,6 +50,8 @@ class Document(SQLModel, table=True):
     page_count: int
     pages: list[str] = Field(sa_column=Column(JSON))
     ocr_pages: list[int] = Field(default_factory=list, sa_column=Column(JSON))  # 1-based
+    source: str | None = None  # "email" for e-mail intake; None: uploaded in the app
+    sender: str | None = None  # e-mail address of the sender
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -66,6 +72,21 @@ class Extraction(SQLModel, table=True):
     usage: dict[str, Any] = Field(sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utcnow)
     reviewed_at: datetime | None = None
+
+
+class IntakeMessage(SQLModel, table=True):
+    """One e-mail read from the intake mailbox: what happened to it, and a guard against
+    processing the same message twice. Message text is not kept."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: str = Field(unique=True, index=True)
+    workspace_id: int | None = Field(default=None, index=True)
+    sender: str | None = None
+    subject: str | None = None
+    status: str  # "stored", "ignored" or "failed"
+    detail: str | None = None
+    documents: int = 0
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 class UsageEvent(SQLModel, table=True):
@@ -176,10 +197,22 @@ class TrialVisit(SQLModel, table=True):
 # create_all does not add columns to existing tables; databases created before a column
 # existed get it here (no migration tool for a few nullable columns).
 ADDED_COLUMNS = {
-    "document": {"ocr_pages": "JSON", "workspace_id": "INTEGER"},
+    "document": {
+        "ocr_pages": "JSON",
+        "workspace_id": "INTEGER",
+        "source": "VARCHAR",
+        "sender": "VARCHAR",
+    },
+    "workspace": {
+        "intake_token": "VARCHAR",
+        "intake_template_id": "VARCHAR",
+        "intake_senders": "VARCHAR",
+    },
     "usageevent": {"workspace_id": "INTEGER"},
     "apikey": {"workspace_id": "INTEGER", "webhook_url": "VARCHAR", "webhook_secret": "VARCHAR"},
 }
+
+INDEXED_COLUMNS = {"workspace_id": False, "intake_token": True}  # column: unique
 
 
 def init_db() -> None:
@@ -194,17 +227,17 @@ def init_db() -> None:
         for table, added in ADDED_COLUMNS.items():
             columns = {c["name"] for c in db.get_columns(table, schema=schema)}
             for column, sql_type in added.items():
-                if column not in columns:
+                if column in columns:
+                    continue
+                conn.execute(text(f"ALTER TABLE {prefix}{table} ADD COLUMN {column} {sql_type}"))
+                if column in INDEXED_COLUMNS:  # create_all indexes it only in new tables
+                    unique = "UNIQUE " if INDEXED_COLUMNS[column] else ""
                     conn.execute(
-                        text(f"ALTER TABLE {prefix}{table} ADD COLUMN {column} {sql_type}")
+                        text(
+                            f"CREATE {unique}INDEX IF NOT EXISTS ix_{table}_{column} "
+                            f"ON {prefix}{table} ({column})"
+                        )
                     )
-            if "workspace_id" in added:
-                conn.execute(
-                    text(
-                        f"CREATE INDEX IF NOT EXISTS ix_{table}_workspace_id "
-                        f"ON {prefix}{table} (workspace_id)"
-                    )
-                )
     with Session(engine) as session:
         default = default_workspace(session)
         session.exec(

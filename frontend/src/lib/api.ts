@@ -11,6 +11,9 @@ export type DocumentInfo = {
   has_text: boolean;
   /** 1-based pages whose text was read by OCR (scans). */
   ocr_pages: number[];
+  /** "email" when the PDF came through e-mail intake. */
+  source?: "email" | null;
+  sender?: string | null;
   latest_extraction?: {
     id: number;
     status: Extraction["status"];
@@ -160,6 +163,14 @@ export type EvalRun = {
   started: string;
   finished: string;
   summary: EvalSummary;
+};
+
+export type AccessInfo = {
+  ok: boolean;
+  workspace: string;
+  llm_calls_left_today: number;
+  /** Where the firm can send PDFs by e-mail; null when intake is off. */
+  intake_address: string | null;
 };
 
 function authHeaders(): Record<string, string> {
@@ -325,9 +336,11 @@ const liveApi = {
   /** Validates an access code; resolves with its workspace (firm) and today's remaining
    *  model calls. */
   checkAccess: (code: string) =>
-    request<{ ok: boolean; workspace: string; llm_calls_left_today: number }>("/access", {
+    request<AccessInfo>("/access", {
       headers: { "X-Access-Code": code },
     }),
+  /** The current workspace, e.g. its e-mail address for sending PDFs. */
+  access: () => request<AccessInfo>("/access"),
 };
 
 export type Api = typeof liveApi;

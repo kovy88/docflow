@@ -21,6 +21,16 @@ export default function Home() {
   // Documents of the last multi-file upload, waiting for a template and a batch run.
   const [batch, setBatch] = useState<DocumentInfo[]>([]);
   const [failures, setFailures] = useState<string[]>([]);
+  const [intake, setIntake] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!live) return;
+    api
+      .access()
+      .then((access) => setIntake(access.intake_address))
+      .catch(() => setIntake(null));
+  }, [live]);
 
   useEffect(() => {
     api
@@ -29,16 +39,17 @@ export default function Home() {
       .catch((e: Error) => setError(`Backend není dostupný: ${e.message}`));
   }, []);
 
-  // While extractions run in the background, refresh the list so statuses update.
+  // While extractions run in the background, refresh the list so statuses update; with
+  // e-mail intake, also now and then for newly arrived documents.
   const running = documents?.some((d) => d.latest_extraction?.status === "running");
   useEffect(() => {
-    if (!running) return;
+    if (!running && !intake) return;
     const timer = setTimeout(
       () => api.documents().then(setDocuments).catch(() => {}),
-      5000,
+      running ? 5000 : 60000,
     );
     return () => clearTimeout(timer);
-  }, [documents, running]);
+  }, [documents, running, intake]);
 
   // The page stays alive (cacheComponents) while a document is open; reset on the way out.
   useEffect(() => () => setUploading(false), []);
@@ -128,6 +139,25 @@ export default function Home() {
           PDF s textem nebo sken, max. 20 MB. Víc souborů najednou zpracuješ dávkově.
         </span>
       </button>
+      {intake && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+          Nebo pošlete či přepošlete PDF e-mailem na
+          <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-foreground">{intake}</code>
+          <button
+            type="button"
+            className="text-accent hover:underline"
+            onClick={() =>
+              navigator.clipboard
+                .writeText(intake)
+                .then(() => setCopied(true))
+                .catch(() => setCopied(false))
+            }
+          >
+            {copied ? "Zkopírováno" : "Kopírovat"}
+          </button>
+          <span className="basis-full">Přílohy se objeví v seznamu níže do pár minut.</span>
+        </p>
+      )}
       <input
         ref={input}
         type="file"
