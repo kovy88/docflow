@@ -48,6 +48,21 @@ export default function PdfViewer({ file, page, onPageChange, quote }: Props) {
   const [pages, setPages] = useState(0);
   const [width, setWidth] = useState(600);
   const [zoom, setZoom] = useState(1);
+  // Whether the current quote was found in the rendered text layer (null: no quote yet).
+  const [marked, setMarked] = useState<boolean | null>(null);
+
+  // Bring the highlighted quote into view; a long page or zoom would hide it otherwise.
+  const revealMark = useCallback(() => {
+    if (!quote) return setMarked(null);
+    const mark = container.current?.querySelector(".textLayer mark");
+    setMarked(Boolean(mark));
+    mark?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+  }, [quote]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(revealMark);
+    return () => cancelAnimationFrame(frame);
+  }, [revealMark, page]);
 
   useEffect(() => {
     const el = container.current;
@@ -91,6 +106,11 @@ export default function PdfViewer({ file, page, onPageChange, quote }: Props) {
         >
           →
         </button>
+        {quote && marked === false && (
+          <span className="min-w-0 truncate text-xs text-warn" title={quote}>
+            Citaci se na této straně nepodařilo zvýraznit
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
@@ -127,6 +147,7 @@ export default function PdfViewer({ file, page, onPageChange, quote }: Props) {
             pageNumber={Math.min(page, pages || 1)}
             width={width * zoom}
             customTextRenderer={renderText}
+            onRenderTextLayerSuccess={revealMark}
             className="mx-auto w-fit shadow-md"
           />
         </Document>

@@ -14,6 +14,8 @@ export type DocumentInfo = {
   /** "email" when the PDF came through e-mail intake. */
   source?: "email" | null;
   sender?: string | null;
+  /** When the document was uploaded or received (UTC, see parseTimestamp). */
+  created_at?: string;
   latest_extraction?: {
     id: number;
     status: Extraction["status"];

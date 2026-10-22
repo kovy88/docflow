@@ -45,4 +45,9 @@
   color: transparent;
   border-radius: 2px;
   box-shadow: 0 0 0 2px var(--highlight);
+  animation: quote-in 0.9s ease-out;
+}
+
+@keyframes quote-in {
+  from { box-shadow: 0 0 0 8px var(--highlight); }
 }

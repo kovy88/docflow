@@ -121,6 +121,7 @@ class DocumentOut(BaseModel):
     ocr_pages: list[int]
     source: str | None  # "email" for e-mail intake
     sender: str | None
+    created_at: datetime
     latest_extraction: LatestExtraction | None = None
 
 
@@ -155,6 +156,7 @@ def to_out(doc: Document, latest: Extraction | None = None) -> DocumentOut:
         ocr_pages=doc.ocr_pages or [],
         source=doc.source,
         sender=doc.sender,
+        created_at=doc.created_at,
         latest_extraction=latest and LatestExtraction.model_validate(latest.model_dump()),
     )
 

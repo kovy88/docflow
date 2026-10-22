@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ExtractionPanel } from "@/components/ExtractionPanel";
 import {
   api,
+  parseTimestamp,
   type DocumentInfo,
   type Extraction,
   type Template,
@@ -81,6 +82,15 @@ export function Workspace({ documentId }: { documentId: number }) {
         </Link>
         <span className="text-muted">/</span>
         <span className="min-w-0 break-all font-medium">{doc.filename}</span>
+        <span
+          className={`rounded px-1.5 py-0.5 text-xs ${doc.source === "email" ? "bg-accent-soft text-accent" : "bg-background text-muted"}`}
+        >
+          {doc.source === "email"
+            ? `E-mailem${doc.sender ? ` od ${doc.sender}` : ""}`
+            : "Nahráno v aplikaci"}
+          {doc.created_at &&
+            ` · ${parseTimestamp(doc.created_at).toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" })}`}
+        </span>
         {doc.ocr_pages.length > 0 && (
           <span
             className="rounded bg-warn-soft px-1.5 py-0.5 text-xs text-warn"
@@ -126,6 +136,7 @@ export function Workspace({ documentId }: { documentId: number }) {
             templates={templates}
             extractions={extractions}
             onExtractionsChange={setExtractions}
+            nextId={nextId}
             onFocusField={(field, revealSource) => {
               setQuote(field?.quote ?? null);
               if (field?.page) setPage(field.page);

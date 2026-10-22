@@ -27,6 +27,8 @@ type Props = {
   extractions: Extraction[];
   onExtractionsChange: Dispatch<SetStateAction<Extraction[]>>;
   onFocusField: (field: ExtractedField | null, revealSource?: boolean) => void;
+  /** Next document waiting for review; approving moves there. */
+  nextId?: number | null;
 };
 
 /** Time since the extraction was queued (survives page reloads). */
@@ -56,6 +58,7 @@ export function ExtractionPanel({
   extractions,
   onExtractionsChange,
   onFocusField,
+  nextId = null,
 }: Props) {
   const [templateId, setTemplateId] = useState(
     extractions[0]?.template_id ?? guessTemplate(document.filename, templates),
@@ -250,9 +253,13 @@ export function ExtractionPanel({
         <ReviewForm
           key={`${extraction.id}-${extraction.reviewed_at}`}
           extraction={extraction}
-          onSaved={replace}
+          onSaved={(saved) => {
+            replace(saved);
+            if (nextId !== null) router.push(`/documents/${nextId}`);
+          }}
           onFocusField={onFocusField}
           ocrPages={document.ocr_pages}
+          hasNext={nextId !== null}
         />
       ) : (
         !busy && (
@@ -298,17 +305,33 @@ function formatValue(field: ExtractedField) {
   return null; // strings are shown in the input as-is
 }
 
+/** Below this model confidence a value is listed among the ones to check first. */
+const LOW_CONFIDENCE = 0.8;
+
+/** Why a field needs a closer look; empty when it has a verified source and no findings. */
+function attentionReasons(field: ExtractedField, issues: Issue[]): string[] {
+  const reasons: string[] = [];
+  if (issues.some((i) => i.severity === "error")) reasons.push("chyba kontroly");
+  else if (issues.length) reasons.push("upozornění");
+  if (field.corrected) return reasons;
+  if (field.raw !== null && !field.grounded) reasons.push("citace nenalezena v PDF");
+  if (field.raw !== null && field.confidence < LOW_CONFIDENCE) reasons.push("nízká jistota");
+  return reasons;
+}
+
 /** Editable field list. Keyed by extraction + review time, so drafts reset on change. */
 function ReviewForm({
   extraction,
   onSaved,
   onFocusField,
   ocrPages,
+  hasNext,
 }: {
   extraction: Extraction;
   onSaved: (extraction: Extraction) => void;
   onFocusField: (field: ExtractedField | null, revealSource?: boolean) => void;
   ocrPages: number[];
+  hasNext: boolean;
 }) {
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(extraction.fields.map((f) => [f.key, f.raw ?? ""])),
@@ -318,6 +341,8 @@ function ReviewForm({
   const [error, setError] = useState<string | null>(null);
   const live = useLive();
   const reviewMs = useVisibleTime();
+  const list = useRef<HTMLDivElement>(null);
+  const approveButton = useRef<HTMLButtonElement>(null);
 
   const changed = extraction.fields.filter(
     (f) => drafts[f.key] !== (f.raw ?? ""),
@@ -328,6 +353,39 @@ function ReviewForm({
   const tokens =
     (extraction.usage.input_tokens ?? 0) +
     (extraction.usage.output_tokens ?? 0);
+
+  const fieldIssues = (key: string) =>
+    extraction.issues.filter((i) => i.fields.length === 1 && i.fields[0] === key);
+  const rows = extraction.fields.map((field) => ({
+    field,
+    issues: fieldIssues(field.key),
+    reasons: attentionReasons(field, fieldIssues(field.key)),
+  }));
+  const toCheck = rows.filter((r) => r.reasons.length > 0);
+  const verified = rows.filter((r) => r.reasons.length === 0);
+  const canApprove =
+    live && !saving && extraction.status !== "failed" &&
+    !(extraction.status === "approved" && changed.length === 0);
+
+  /** Enter moves to the next value (to-check first), past the last one to the approve
+   *  button; Ctrl/⌘ + Enter approves from anywhere in the list. */
+  function onFieldKey(e: React.KeyboardEvent<HTMLInputElement>, key: string) {
+    if (e.key !== "Enter" || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      if (canApprove) approve();
+      return;
+    }
+    const order = [...toCheck, ...verified].map((r) => r.field.key);
+    const next = order[order.indexOf(key) + 1];
+    const input = next
+      ? list.current?.querySelector<HTMLInputElement>(`[data-field-key="${CSS.escape(next)}"]`)
+      : null;
+    if (input) {
+      input.focus();
+      input.scrollIntoView({ block: "nearest" });
+    } else approveButton.current?.focus();
+  }
 
   function focus(field: ExtractedField) {
     setFocused(field.key);
@@ -349,6 +407,83 @@ function ReviewForm({
       setError((e as Error).message);
       setSaving(false);
     }
+  }
+
+  function renderRow({ field, issues, reasons }: (typeof rows)[number]) {
+    const normalized = formatValue(field);
+    const active = focused === field.key;
+    return (
+      <li
+        key={field.key}
+        onClick={() => focus(field)}
+        className={`cursor-pointer px-4 py-3 ${active ? "bg-accent-soft" : "hover:bg-background"}`}
+      >
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label htmlFor={`f-${extraction.id}-${field.key}`} className="font-medium">
+            {field.label}
+          </label>
+          {reasons.map((reason) => (
+            <span key={reason} className="rounded bg-warn-soft px-1.5 py-0.5 text-xs text-warn">
+              {reason}
+            </span>
+          ))}
+          <span className="ml-auto flex items-center gap-2 text-xs text-muted">
+            {field.corrected && (
+              <span className="text-accent">opraveno</span>
+            )}
+            {field.raw !== null && !field.corrected && (
+              <span
+                title={
+                  field.grounded
+                    ? "Citace nalezena v PDF"
+                    : "Citace v PDF nenalezena"
+                }
+                className={field.grounded ? "text-ok" : "text-warn"}
+              >
+                {field.grounded ? "✓ ověřeno" : "⚠ neověřeno"}
+              </span>
+            )}
+            {field.raw !== null && !field.corrected && (
+              <span title="Jistota modelu">
+                {Math.round(field.confidence * 100)} %
+              </span>
+            )}
+            {field.page && (
+              <button type="button" onClick={() => { focus(field); onFocusField(field, true); }} className="text-accent hover:underline"
+                aria-label={`Zobrazit zdroj: ${field.label}, strana ${field.page}`}>
+                Zdroj · str. {field.page} ↗
+                {ocrPages.includes(field.page) && " (OCR)"}
+              </button>
+            )}
+          </span>
+        </div>
+        <input
+          id={`f-${extraction.id}-${field.key}`}
+          data-field-key={field.key}
+          value={drafts[field.key]}
+          readOnly={!live}
+          onChange={(e) =>
+            setDrafts({ ...drafts, [field.key]: e.target.value })
+          }
+          onFocus={() => focus(field)}
+          onKeyDown={(e) => onFieldKey(e, field.key)}
+          enterKeyHint="next"
+          placeholder="nenalezeno"
+          className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 font-mono text-sm focus:border-accent focus:outline-none"
+        />
+        {normalized && (
+          <p className="mt-1 text-xs text-muted">→ {normalized}</p>
+        )}
+        {active && field.quote && (
+          <p className="mt-2 border-l-2 border-line-strong pl-3 text-sm text-muted">
+            <q>{field.quote}</q>
+          </p>
+        )}
+        {issues.map((issue, i) => (
+          <IssueLine key={i} issue={issue} compact />
+        ))}
+      </li>
+    );
   }
 
   return (
@@ -376,80 +511,28 @@ function ReviewForm({
         ))}
       </div>
 
-      <ul className="divide-y divide-line">
-        {extraction.fields.map((field) => {
-          const fieldIssues = extraction.issues.filter(
-            (i) => i.fields.length === 1 && i.fields[0] === field.key,
-          );
-          const normalized = formatValue(field);
-          const active = focused === field.key;
-          return (
-            <li
-              key={field.key}
-              onClick={() => focus(field)}
-              className={`cursor-pointer px-4 py-3 ${active ? "bg-accent-soft" : "hover:bg-background"}`}
-            >
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <label htmlFor={`f-${extraction.id}-${field.key}`} className="font-medium">
-                  {field.label}
-                </label>
-                <span className="ml-auto flex items-center gap-2 text-xs text-muted">
-                  {field.corrected && (
-                    <span className="text-accent">opraveno</span>
-                  )}
-                  {field.raw !== null && !field.corrected && (
-                    <span
-                      title={
-                        field.grounded
-                          ? "Citace nalezena v PDF"
-                          : "Citace v PDF nenalezena"
-                      }
-                      className={field.grounded ? "text-ok" : "text-warn"}
-                    >
-                      {field.grounded ? "✓ ověřeno" : "⚠ neověřeno"}
-                    </span>
-                  )}
-                  {field.raw !== null && !field.corrected && (
-                    <span title="Jistota modelu">
-                      {Math.round(field.confidence * 100)} %
-                    </span>
-                  )}
-                  {field.page && (
-                    <button type="button" onClick={() => { focus(field); onFocusField(field, true); }} className="text-accent hover:underline"
-                      aria-label={`Zobrazit zdroj: ${field.label}, strana ${field.page}`}>
-                      Zdroj · str. {field.page} ↗
-                      {ocrPages.includes(field.page) && " (OCR)"}
-                    </button>
-                  )}
-                </span>
-              </div>
-              <input
-                id={`f-${extraction.id}-${field.key}`}
-                data-field-key={field.key}
-                value={drafts[field.key]}
-                readOnly={!live}
-                onChange={(e) =>
-                  setDrafts({ ...drafts, [field.key]: e.target.value })
-                }
-                onFocus={() => focus(field)}
-                placeholder="nenalezeno"
-                className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 font-mono text-sm focus:border-accent focus:outline-none"
-              />
-              {normalized && (
-                <p className="mt-1 text-xs text-muted">→ {normalized}</p>
-              )}
-              {active && field.quote && (
-                <p className="mt-2 border-l-2 border-line-strong pl-3 text-sm text-muted">
-                  <q>{field.quote}</q>
-                </p>
-              )}
-              {fieldIssues.map((issue, i) => (
-                <IssueLine key={i} issue={issue} compact />
-              ))}
-            </li>
-          );
-        })}
-      </ul>
+      <div ref={list}>
+        {toCheck.length > 0 ? (
+          <h3 className="border-b border-line bg-warn-soft px-4 py-2 text-sm font-medium text-warn">
+            Zkontrolovat ({toCheck.length})
+          </h3>
+        ) : (
+          <p className="border-b border-line bg-ok-soft px-4 py-2 text-sm text-ok">
+            Všechny údaje mají citaci v PDF a prošly kontrolami.
+          </p>
+        )}
+        <ul className="divide-y divide-line">
+          {toCheck.map(renderRow)}
+        </ul>
+        {toCheck.length > 0 && verified.length > 0 && (
+          <h3 className="border-y border-line bg-background px-4 py-2 text-sm font-medium text-muted">
+            Ověřené údaje ({verified.length})
+          </h3>
+        )}
+        <ul className="divide-y divide-line">
+          {verified.map(renderRow)}
+        </ul>
+      </div>
 
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-surface p-4">
         {live && (
@@ -476,14 +559,27 @@ function ReviewForm({
             {parseTimestamp(extraction.reviewed_at).toLocaleString("cs-CZ")}
           </span>
         )}
-        {live && <button
-          type="button"
-          onClick={approve}
-          disabled={saving || extraction.status === "failed" || (extraction.status === "approved" && changed.length === 0)}
-          className="ml-auto rounded-md bg-accent px-3 py-2 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-        >
-          {saving ? "Ukládám…" : changed.length ? `Uložit opravy (${changed.length}) a schválit` : extraction.status === "approved" ? "Schváleno" : "Schválit"}
-        </button>}
+        {live && (
+          <span className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            <span className="hidden text-xs text-muted sm:inline">
+              <kbd className="rounded border border-line px-1">Enter</kbd> další údaj ·{" "}
+              <kbd className="rounded border border-line px-1">Ctrl/⌘ + Enter</kbd> schválit
+            </span>
+            <button
+              ref={approveButton}
+              type="button"
+              onClick={approve}
+              disabled={!canApprove}
+              className="rounded-md bg-accent px-3 py-2 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            >
+              {saving
+                ? "Ukládám…"
+                : extraction.status === "approved" && changed.length === 0
+                  ? "Schváleno"
+                  : `${changed.length ? `Uložit opravy (${changed.length}) a schválit` : "Schválit"}${hasNext ? " a další →" : ""}`}
+            </button>
+          </span>
+        )}
         {!live && <span className="text-sm text-muted">Veřejné demo · výsledek nelze měnit ani schválit.</span>}
         {error && <span className="text-sm text-err">{error}</span>}
       </div>
