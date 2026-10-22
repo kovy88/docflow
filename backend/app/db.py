@@ -103,8 +103,27 @@ class ApiKey(SQLModel, table=True):
     prefix: str  # first characters of the key, to recognise it in listings
     key_hash: str = Field(unique=True, index=True)
     daily_quota: int
+    # Key of a firm's integration: its templates, quota and usage count (see workspaces).
+    workspace_id: int | None = Field(default=None, index=True)
+    webhook_url: str | None = None  # set by the operator (scripts/api_keys.py), https only
+    webhook_secret: str | None = None  # HMAC key for the Docflow-Signature header
     created_at: datetime = Field(default_factory=utcnow)
     revoked_at: datetime | None = None
+
+
+class WebhookDelivery(SQLModel, table=True):
+    """Outcome of one webhook event, for support ("did you send it?")."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    api_key_id: int = Field(index=True)
+    extraction_id: str
+    event: str
+    url: str
+    attempts: int = 0
+    status_code: int | None = None  # of the last attempt
+    error: str | None = None
+    delivered_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 class ExternalDocument(SQLModel, table=True):
@@ -159,6 +178,7 @@ class TrialVisit(SQLModel, table=True):
 ADDED_COLUMNS = {
     "document": {"ocr_pages": "JSON", "workspace_id": "INTEGER"},
     "usageevent": {"workspace_id": "INTEGER"},
+    "apikey": {"workspace_id": "INTEGER", "webhook_url": "VARCHAR", "webhook_secret": "VARCHAR"},
 }
 
 

@@ -1,6 +1,8 @@
 """Integrator API, mounted at /v1 as its own app: its OpenAPI (/v1/docs) lists only these
 endpoints. Every client has its own key (Authorization: Bearer), daily quota and
-documents; one client never sees another's documents, nor the workspace."""
+documents; one client never sees another's documents, nor the web app. A key that belongs
+to a firm's workspace also offers the firm's own templates and counts towards its quota;
+with a webhook URL, finished extractions are pushed to the client (app/webhooks.py)."""
 
 import hashlib
 import secrets
@@ -17,14 +19,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, select
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app import external
+from app import external, webhooks
 from app.config import settings
-from app.db import ApiKey, ExternalDocument, ExternalExtraction, utcnow
+from app.db import ApiKey, ExternalDocument, ExternalExtraction, Workspace, utcnow
 from app.external import ExtractionOut, aware
 from app.extractor import Extractor
 from app.pipeline import apply_review
 from app.runtime import SessionDep, consume_llm_quota, get_extractor, parse_pdf
 from app.templates import Template, load_templates
+from app.workspaces import custom_templates
 
 app = FastAPI(
     title="Docflow API",
@@ -108,6 +111,9 @@ def api_client(
         raise ApiError(401, "invalid_key", "Neplatný API klíč.")
     if key.revoked_at is not None:
         raise ApiError(401, "revoked_key", "API klíč byl odvolán.")
+    workspace = key.workspace_id and session.get(Workspace, key.workspace_id)
+    if workspace and workspace.revoked_at is not None:
+        raise ApiError(401, "revoked_key", "Přístup firmy k Docflow byl ukončen.")
     return key
 
 
@@ -163,10 +169,16 @@ def by_idempotency_key(session: Session, client: ApiKey, key: str) -> ExternalDo
     return session.exec(query).first()
 
 
+def client_templates(session: Session, client: ApiKey) -> dict[str, Template]:
+    custom = custom_templates(session, client.workspace_id) if client.workspace_id else {}
+    return load_templates() | custom
+
+
 @app.get("/templates", summary="Seznam šablon")
-def list_templates(_: Client) -> list[Template]:
-    """Typy dokumentů, které lze vytěžit (`template_id`), s poli a pravidly."""
-    return list(load_templates().values())
+def list_templates(session: SessionDep, client: Client) -> list[Template]:
+    """Typy dokumentů, které lze vytěžit (`template_id`), s poli a pravidly. U klíče firmy
+    i šablony, které si firma vytvořila v aplikaci Docflow."""
+    return list(client_templates(session, client).values())
 
 
 @app.post(
@@ -237,9 +249,10 @@ def extract_document(
     llm: Annotated[Extractor, Depends(get_extractor)],
 ) -> ExtractionOut:
     """Zařadí vytěžení podle šablony. Běží na pozadí: dotazujte
-    `GET /v1/extractions/{id}`, dokud `status` není jiný než `running`."""
+    `GET /v1/extractions/{id}`, dokud `status` není jiný než `running`, nebo si nechte
+    výsledek poslat webhookem."""
     doc = owned_document(session, client, document_id)
-    template = load_templates().get(body.template_id)
+    template = client_templates(session, client).get(body.template_id)
     if template is None:
         raise ApiError(422, "unknown_template", f"Neznámá šablona {body.template_id!r}.")
     if not any(doc.pages):
@@ -256,10 +269,12 @@ def extract_document(
         raise ApiError(
             429, "quota_exceeded", f"Denní kvóta {client.daily_quota} extrakcí je vyčerpaná (UTC)."
         )
-    consume_llm_quota(session, "api_extraction")
-    return external.extraction_out(
-        external.queue_extraction(session, doc, template, llm, background)
-    )
+    workspace = client.workspace_id and session.get(Workspace, client.workspace_id)
+    consume_llm_quota(session, "api_extraction", workspace or None)
+    extraction = external.queue_extraction(session, doc, template, llm, background)
+    if client.webhook_url:  # background tasks run in order: after the extraction
+        background.add_task(webhooks.deliver, extraction.id)
+    return external.extraction_out(extraction)
 
 
 @app.get("/extractions/{extraction_id}", summary="Stav a výsledek extrakce")

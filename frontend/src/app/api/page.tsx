@@ -115,7 +115,9 @@ export default function ApiDocsPage() {
       <p className="mt-2 text-muted">
         Každý klient dostane vlastní API klíč (<C>dfk_…</C>) s denní kvótou extrakcí. Klíč se
         posílá v hlavičce <C>{"Authorization: Bearer <klíč>"}</C>. Klient vidí jen své dokumenty.
-        Klíč lze kdykoli odvolat a vydat nový.{" "}
+        Klíč lze kdykoli odvolat a vydat nový. Pokud firma používá i aplikaci Docflow, klíč patří
+        k jejímu pracovnímu prostoru: v API jsou dostupné i šablony, které si firma vytvořila
+        v aplikaci, a extrakce se počítají do její kvóty.{" "}
         <a href={KEY_REQUEST} className="text-accent hover:underline">Požádat o klíč</a>
       </p>
 
@@ -139,7 +141,8 @@ export default function ApiDocsPage() {
 
       <p className="mt-5 text-muted">
         3. Dotazování na výsledek, dokud <C>status</C> není <C>running</C> (stačí každé 2–3 s;
-        jednostránkový dokument trvá obvykle 10–60 s).
+        jednostránkový dokument trvá obvykle 10–60 s). S webhookem se dotazovat nemusíte, viz{" "}
+        <a href="#webhooky" className="text-accent hover:underline">Webhooky</a>.
       </p>
       <Code>{`curl ${BASE}/extractions/3GRKSx9XRhKxqpiu_XjtDQ \\
   -H "Authorization: Bearer $DOCFLOW_KEY"`}</Code>
@@ -162,6 +165,24 @@ export default function ApiDocsPage() {
 curl -o faktura-pohoda.xml \\
   "${BASE}/extractions/<id>/export?format=pohoda" \\
   -H "Authorization: Bearer $DOCFLOW_KEY"`}</Code>
+
+      <H2 id="webhooky">Webhooky</H2>
+      <p className="mt-2 text-muted">
+        Po domluvě nastavím ke klíči adresu (<C>https://</C>) a předám podpisový klíč{" "}
+        <C>whsec_…</C>. Po dokončení každé extrakce pošle Docflow na adresu <C>POST</C> s JSON{" "}
+        <C>{'{"id", "event", "created_at", "data"}'}</C>, kde <C>data</C> je stejný objekt jako
+        z <C>{"GET /extractions/{id}"}</C>. Událost <C>extraction.completed</C> nebo{" "}
+        <C>extraction.failed</C> je i v hlavičce <C>Docflow-Event</C>. Odpovězte kódem 2xx do
+        10 s; jinak se doručení zopakuje po 5 a 30 s. Podpis v hlavičce{" "}
+        <C>Docflow-Signature: t=…,v1=…</C> je HMAC-SHA256 řetězce <C>{"<t>.<tělo požadavku>"}</C>:
+      </p>
+      <Code>{`import hashlib, hmac, time
+
+def verify(body: bytes, header: str, secret: str) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(","))
+    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + body, hashlib.sha256)
+    fresh = abs(time.time() - int(parts["t"])) < 300  # ochrana proti přehrání
+    return fresh and hmac.compare_digest(parts["v1"], expected.hexdigest())`}</Code>
 
       <H2 id="odpoved">Ukázka odpovědi</H2>
       <p className="mt-2 text-muted">
@@ -193,7 +214,8 @@ curl -o faktura-pohoda.xml \\
       <p className="mt-3 text-sm text-muted">
         Šablony: <C>invoice</C> (faktura), <C>transport_order</C> (objednávka přepravy / CMR),{" "}
         <C>lease</C> (nájemní smlouva), <C>contract</C> (smlouva), <C>insurance_policy</C>{" "}
-        (pojistka). Šablonu na míru doplním po domluvě.
+        (pojistka). Klíč firmy vidí navíc její vlastní šablony z aplikace (<C>GET /templates</C>).
+        Šablonu na míru doplním po domluvě.
       </p>
 
       <H2 id="chyby">Chyby a limity</H2>

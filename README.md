@@ -29,7 +29,10 @@ Správa: `uv run python scripts/workspaces.py create "Firma s.r.o." [--quota 50]
 otevírá výchozí prostor s daty z doby před prostory.
 
 **API pro integrátory:** `/v1` s klíčem pro každého klienta (`Authorization: Bearer`), denní
-kvótou a exportem do XLSX, JSON, POHODY a Money S3. Dokumentace česky na
+kvótou a exportem do XLSX, JSON, POHODY a Money S3. Klíč může patřit pracovnímu prostoru
+firmy (`api_keys.py create … --workspace <id>`): pak nabízí i její šablony a čerpá její kvótu.
+Podepsané webhooky po dokončení extrakce: `api_keys.py webhook <id> <https-url>`, doručení
+`api_keys.py deliveries <id>`. Dokumentace česky na
 [/api](https://docflow.logicflow.cz/api), OpenAPI na `<backend>/v1/docs`.
 
 ![Detail dokumentu: PDF se zvýrazněnou citací vlevo, vytěžená pole a nálezy vpravo](docs/workspace.png)

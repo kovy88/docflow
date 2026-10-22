@@ -9,8 +9,9 @@ from fastapi import Depends, Header, HTTPException
 from sqlmodel import Session, select
 
 from app.config import settings
-from app.db import Workspace, default_workspace
+from app.db import Workspace, WorkspaceTemplate, default_workspace
 from app.runtime import SessionDep
+from app.templates import Template
 
 
 def hash_code(code: str) -> str:
@@ -53,3 +54,13 @@ def current_workspace(
 
 
 WorkspaceDep = Annotated[Workspace, Depends(current_workspace)]
+
+
+def custom_templates(session: Session, workspace_id: int) -> dict[str, Template]:
+    """Templates the firm built in the editor, for the web app and its API keys."""
+    query = (
+        select(WorkspaceTemplate)
+        .where(WorkspaceTemplate.workspace_id == workspace_id)
+        .order_by(WorkspaceTemplate.template_id)
+    )
+    return {row.template_id: Template.model_validate(row.data) for row in session.exec(query)}

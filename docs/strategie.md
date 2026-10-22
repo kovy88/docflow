@@ -58,7 +58,7 @@ Náklad modelu je kolem 0,03 Kč za dokument; cena stojí na ušetřeném čase,
 | Po 1. zaplaceném pilotu | Evaluace na reálných anonymizovaných dokumentech, příjem dokumentů e-mailem (export do Pohody/Money hotový 20. 10. 2026) |
 | Po 3 platících zákaznících | Organizace a účty, fakturace, limity podle tarifu, API a webhooky pro integrátory |
 
-Pracovní prostory pro firmy (vlastní kód, data, šablony, kvóta, měsíční přehled využití) vznikly 22. 10. 2026, aby jedna instance unesla víc pilotů najednou; registrace, uživatelské účty a fakturace dál čekají. API pro integrátory (klíče, kvóty, exporty) a veřejná zkušební stránka vznikly 21. 10. 2026 vědomě dřív než po 3 platících zákaznících, protože se na API ptá potenciální zákazník (spedice); webhooky, účty a fakturace dál čekají na tuto bránu.
+Pracovní prostory pro firmy (vlastní kód, data, šablony, kvóta, měsíční přehled využití) vznikly 22. 10. 2026, aby jedna instance unesla víc pilotů najednou; registrace, uživatelské účty a fakturace dál čekají. API pro integrátory (klíče, kvóty, exporty) a veřejná zkušební stránka vznikly 21. 10. 2026 vědomě dřív než po 3 platících zákaznících, protože se na API ptá potenciální zákazník (spedice); webhooky a API klíče firem (jejich šablony a kvóta) přibyly 22. 10. 2026; registrace, uživatelské účty a fakturace dál čekají na tuto bránu.
 
 ## Co sledovat každý týden
 

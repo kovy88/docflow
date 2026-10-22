@@ -49,7 +49,7 @@ from app.runtime import (
     process_extraction,
 )
 from app.templates import Template, load_templates
-from app.workspaces import WorkspaceDep
+from app.workspaces import WorkspaceDep, custom_templates
 from app.xlsx import workbook
 
 PURGE_INTERVAL_S = 600
@@ -189,13 +189,9 @@ class TemplateOut(Template):
 
 def all_templates(session: Session, workspace: Workspace) -> dict[str, TemplateOut]:
     builtin = {k: TemplateOut(**t.model_dump(), builtin=True) for k, t in load_templates().items()}
-    query = (
-        select(WorkspaceTemplate)
-        .where(WorkspaceTemplate.workspace_id == workspace.id)
-        .order_by(WorkspaceTemplate.template_id)
-    )
     custom = {
-        row.template_id: TemplateOut(**row.data, builtin=False) for row in session.exec(query)
+        key: TemplateOut(**t.model_dump(), builtin=False)
+        for key, t in custom_templates(session, workspace.id).items()
     }
     return builtin | custom
 
