@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BatchPanel } from "@/components/BatchPanel";
 import { DocumentList } from "@/components/DocumentList";
-import { DataAndTech, Hero, PilotOffer, Steps } from "@/components/PilotOffer";
+import { DataAndTech, Hero, PilotOffer, Steps, VideoDemo } from "@/components/PilotOffer";
 import { DemoPicker } from "@/components/DemoPicker";
 import { useLive } from "@/lib/access";
 import { api, type DocumentInfo } from "@/lib/api";
@@ -93,6 +93,7 @@ export default function Home() {
     return (
       <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-8 md:py-12">
         <Hero />
+        <VideoDemo />
         <div id="demo" className="scroll-mt-6 rounded-lg border border-line bg-surface p-4 sm:p-6">
           <DemoPicker />
         </div>

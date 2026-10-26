@@ -92,9 +92,34 @@ export function Hero() {
             Domluvit ukázku
           </a>
         </div>
-        <p className="mt-3 text-sm text-muted">Demo bez registrace, na fiktivních dokumentech.</p>
+        <p className="mt-3 text-sm text-muted">
+          Demo bez registrace, na fiktivních dokumentech. ·{" "}
+          <a href="#video" className="text-accent hover:underline">Video za minutu</a>
+        </p>
       </div>
       <HeroPreview />
+    </section>
+  );
+}
+
+export function VideoDemo() {
+  return (
+    <section id="video" aria-labelledby="video-title" className="scroll-mt-6">
+      <h2 id="video-title" className="text-2xl font-bold tracking-[-0.01em]">Docflow za minutu</h2>
+      <p className="mt-1.5 max-w-2xl text-muted">
+        Ruční přepis nájemní smlouvy vedle záznamu skutečné aplikace: citace v PDF, kontrola
+        pravidly a export do Excelu. Video je bez zvuku, na fiktivních dokumentech.
+      </p>
+      <video
+        className="mt-6 aspect-video w-full rounded-lg border border-line bg-subtle"
+        src="/video/docflow-video.mp4"
+        poster="/video/docflow-video-poster.jpg"
+        controls
+        playsInline
+        muted
+        preload="none"
+        aria-label="Ukázkové video Docflow, 56 sekund, bez zvuku"
+      />
     </section>
   );
 }
