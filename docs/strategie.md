@@ -60,6 +60,21 @@ Náklad modelu je kolem 0,03 Kč za dokument; cena stojí na ušetřeném čase,
 
 Pracovní prostory pro firmy (vlastní kód, data, šablony, kvóta, měsíční přehled využití) vznikly 22. 10. 2026, aby jedna instance unesla víc pilotů najednou; registrace, uživatelské účty a fakturace dál čekají. API pro integrátory (klíče, kvóty, exporty) a veřejná zkušební stránka vznikly 21. 10. 2026 vědomě dřív než po 3 platících zákaznících, protože se na API ptá potenciální zákazník (spedice); webhooky a API klíče firem (jejich šablony a kvóta) přibyly 22. 10. 2026; registrace, uživatelské účty a fakturace dál čekají na tuto bránu.
 
+## Plán 28. 10.–6. 12. 2026
+
+Stav k 28. 10.: 20 oslovení (5 makléřů 17. 10., 15 správců nájmů 19. 10.), žádná odpověď, follow-upy po termínu. Jediný konkrétní signál: makléř (INSIA) – nejvíc ruční práce je u pojištění přerušení provozu s hlavní účetní knihou v PDF, ze které se určují fixní náklady; čas „podle velikosti firmy“.
+
+Pořadí: **obchod → pilot na dokumentech zákazníka → fakturace**. Fakturace je nejlevnější část: první platby ručně fakturou (pilot 4 900 Kč), Stripe a tarify až po 3 platících. Bez dokumentů zákazníka nemá smysl měřit ani účtovat.
+
+| Týden | Obchod | Produkt |
+|---|---|---|
+| 28. 10.–1. 11. | Odpověď makléři odeslána 28. 10.: zpracuji jednu anonymizovanou hlavní knihu zdarma. Jeden follow-up 20 osloveným. | Prototyp hlavní kniha PDF → nákladové účty se zdrojem (strana, řádek) a návrh fixní/variabilní; Render na placený plán před ukázkami (bez uspávání). |
+| 2.–8. 11. | Druhá vlna 15 správců + 15 makléřů s tématem přerušení provozu. | Zpracování vzorku, měření času proti ručnímu postupu. |
+| 9.–22. 11. | Nabídka placeného pilotu (4 900 Kč), ruční faktura. | Pracovní prostor + příjem e-mailem pro pilotní firmu, měření. |
+| 23. 11.–6. 12. | Case study z pilotu; rozhodnutí obor (makléři vs. nájmy). | Fakturace v aplikaci až při 3 platících. |
+
+Stopka: když do 8. 11. nepřijde žádný vzorek dokumentu, nepřidávat funkce a přepsat nabídku.
+
 ## Co sledovat každý týden
 
 Obchod: oslovení → odpovědi → rozhovory → vzorky → nabídky → zaplacené piloty.
